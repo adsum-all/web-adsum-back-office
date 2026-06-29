@@ -165,6 +165,17 @@ export interface DoublonGroupe {
   membres: MembreProfile[];
 }
 
+export interface Utilisateur {
+  id: string;
+  email: string;
+  role: string;
+  actif: boolean;
+  double_facteur: boolean;
+  membre_id: string | null;
+  membre_nom: string | null;
+  dernier_login: string | null;
+}
+
 export interface Commission {
   id: string;
   nom: string;
@@ -382,6 +393,25 @@ export function createSousCommission(
   input: { nom: string; commission_id?: string },
 ): Promise<SousCommission> {
   return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Creation impossible");
+}
+
+export function getUtilisateurs(token: string): Promise<Utilisateur[]> {
+  return authedGet<Utilisateur[]>("/api/v1/admin/utilisateurs", token, "Comptes indisponibles");
+}
+
+export function createUtilisateur(
+  token: string,
+  input: { email: string; role: string; password: string; membre_id?: string },
+): Promise<Utilisateur> {
+  return authedSend<Utilisateur>("/api/v1/admin/utilisateurs", token, "POST", input, "Creation impossible");
+}
+
+export function updateUtilisateur(
+  token: string,
+  id: string,
+  input: { role?: string; actif?: boolean },
+): Promise<Utilisateur> {
+  return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise a jour impossible");
 }
 
 export function getTribus(token: string): Promise<Tribu[]> {
