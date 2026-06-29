@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { ApiError, type MembreUpdateInput, getCommissions, getMembre, updateMembre } from "../api.js";
-import { fullName, initials } from "../format.js";
+import { formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 
 interface MembreDetailProps {
@@ -57,19 +57,43 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       {error && <p className="banner banner-error">{error}</p>}
 
       <section className="card">
-        <h2 className="card-title">Identite</h2>
+        <h2 className="card-title">Informations generales</h2>
         <dl className="detail-grid">
-          <div>
-            <dt>Courriel</dt>
-            <dd>{m.email}</dd>
-          </div>
           <div>
             <dt>Telephone</dt>
             <dd>{m.telephone ?? "-"}</dd>
           </div>
           <div>
+            <dt>Email</dt>
+            <dd>{m.email}</dd>
+          </div>
+          <div>
+            <dt>Genre & Age</dt>
+            <dd>{genreAge(m.genre, m.date_naissance)}</dd>
+          </div>
+          <div>
+            <dt>Localisation</dt>
+            <dd>{[m.ville, m.pays].filter(Boolean).join(", ") || "-"}</dd>
+          </div>
+          <div>
+            <dt>Structure</dt>
+            <dd>{m.intendance ?? "-"}</dd>
+          </div>
+          <div>
             <dt>Commission</dt>
             <dd>{m.commission ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Berger Referent</dt>
+            <dd>{m.berger ?? "Aucun"}</dd>
+          </div>
+          <div>
+            <dt>Membre depuis</dt>
+            <dd>{m.date_entree ? formatDate(m.date_entree) : "-"}</dd>
+          </div>
+          <div>
+            <dt>Cheminement pastoral</dt>
+            <dd>{cheminementLabel(m.cheminement_pastoral)}</dd>
           </div>
           <div>
             <dt>Groupe</dt>
@@ -132,4 +156,34 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       </div>
     </div>
   );
+}
+
+const CHEMINEMENT_LABELS: Record<string, string> = {
+  nouveau: "Nouveau",
+  en_accompagnement: "En accompagnement",
+  membre_actif: "Membre actif",
+  responsable: "Responsable",
+  a_relancer: "A relancer",
+  en_pause: "En pause",
+  ancien_membre: "Ancien membre",
+};
+
+function cheminementLabel(value: string | null): string {
+  if (!value) return "-";
+  return CHEMINEMENT_LABELS[value] ?? value;
+}
+
+function genreAge(genre: string | null, naissance: string | null): string {
+  const g = genre ? genre.charAt(0).toUpperCase() + genre.slice(1) : null;
+  let age: number | null = null;
+  if (naissance) {
+    const d = new Date(naissance);
+    if (!Number.isNaN(d.getTime())) {
+      age = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+    }
+  }
+  if (g && age !== null) return `${g} (${age} ans)`;
+  if (g) return g;
+  if (age !== null) return `${age} ans`;
+  return "-";
 }
