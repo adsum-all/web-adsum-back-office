@@ -9,6 +9,7 @@ import { Login } from "./components/Login.js";
 import { Membres } from "./components/Membres.js";
 import { Organisation } from "./components/Organisation.js";
 import { Statistiques } from "./components/Statistiques.js";
+import { Terminaux } from "./components/Terminaux.js";
 import { Utilisateurs } from "./components/Utilisateurs.js";
 
 type Section =
@@ -19,7 +20,8 @@ type Section =
   | "commissions"
   | "organisation"
   | "evenements"
-  | "utilisateurs";
+  | "utilisateurs"
+  | "terminaux";
 
 const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
@@ -30,6 +32,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
   { id: "utilisateurs", label: "Utilisateurs & roles", group: "SYSTEME" },
+  { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
 ];
 
 export function App(): JSX.Element {
@@ -84,6 +87,7 @@ export function App(): JSX.Element {
         {section === "organisation" && <Organisation token={session.token} />}
         {section === "evenements" && <Evenements token={session.token} />}
         {section === "utilisateurs" && <Utilisateurs token={session.token} />}
+        {section === "terminaux" && <Terminaux token={session.token} />}
       </main>
     </div>
   );
