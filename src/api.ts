@@ -176,6 +176,15 @@ export interface Utilisateur {
   dernier_login: string | null;
 }
 
+export interface Terminal {
+  id: string;
+  nom: string | null;
+  appareil_id: string | null;
+  autorise: boolean;
+  appaire_le: string | null;
+  dernier_sync: string | null;
+}
+
 export interface Commission {
   id: string;
   nom: string;
@@ -412,6 +421,25 @@ export function updateUtilisateur(
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise a jour impossible");
+}
+
+export function getTerminaux(token: string): Promise<Terminal[]> {
+  return authedGet<Terminal[]>("/api/v1/admin/terminaux", token, "Terminaux indisponibles");
+}
+
+export function createTerminal(
+  token: string,
+  input: { nom: string; appareil_id: string },
+): Promise<Terminal> {
+  return authedSend<Terminal>("/api/v1/admin/terminaux", token, "POST", input, "Enregistrement impossible");
+}
+
+export function updateTerminal(
+  token: string,
+  id: string,
+  input: { autorise?: boolean; nom?: string },
+): Promise<Terminal> {
+  return authedSend<Terminal>(`/api/v1/admin/terminaux/${id}`, token, "PATCH", input, "Mise a jour impossible");
 }
 
 export function getTribus(token: string): Promise<Tribu[]> {
