@@ -5,6 +5,7 @@ import { Commissions } from "./components/Commissions.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { Doublons } from "./components/Doublons.js";
 import { Evenements } from "./components/Evenements.js";
+import { JournalAudit } from "./components/JournalAudit.js";
 import { Login } from "./components/Login.js";
 import { Membres } from "./components/Membres.js";
 import { Organisation } from "./components/Organisation.js";
@@ -21,7 +22,8 @@ type Section =
   | "organisation"
   | "evenements"
   | "utilisateurs"
-  | "terminaux";
+  | "terminaux"
+  | "audit";
 
 const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
@@ -33,6 +35,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
   { id: "utilisateurs", label: "Utilisateurs & roles", group: "SYSTEME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
+  { id: "audit", label: "Journal d'audit", group: "SYSTEME" },
 ];
 
 export function App(): JSX.Element {
@@ -88,6 +91,7 @@ export function App(): JSX.Element {
         {section === "evenements" && <Evenements token={session.token} />}
         {section === "utilisateurs" && <Utilisateurs token={session.token} />}
         {section === "terminaux" && <Terminaux token={session.token} />}
+        {section === "audit" && <JournalAudit token={session.token} />}
       </main>
     </div>
   );

@@ -185,6 +185,16 @@ export interface Terminal {
   dernier_sync: string | null;
 }
 
+export interface AuditEntry {
+  id: number;
+  acteur_role: string | null;
+  acteur_nom: string | null;
+  action: string;
+  objet_type: string | null;
+  objet_id: string | null;
+  horodatage: string | null;
+}
+
 export interface Commission {
   id: string;
   nom: string;
@@ -421,6 +431,10 @@ export function updateUtilisateur(
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise a jour impossible");
+}
+
+export function getAudit(token: string): Promise<AuditEntry[]> {
+  return authedGet<AuditEntry[]>("/api/v1/admin/audit", token, "Journal indisponible");
 }
 
 export function getTerminaux(token: string): Promise<Terminal[]> {
