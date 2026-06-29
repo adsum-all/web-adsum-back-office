@@ -29,7 +29,18 @@ export interface MembreProfile {
   groupe: string | null;
   statut: string;
   verifie: boolean;
+  genre: string | null;
+  date_naissance: string | null;
+  pays: string | null;
+  ville: string | null;
+  date_entree: string | null;
+  cheminement_pastoral: string | null;
+  statut_administratif: string | null;
   commission: string | null;
+  intendance: string | null;
+  intendance_id: string | null;
+  berger: string | null;
+  berger_referent_id: string | null;
 }
 
 export interface MembreCreateInput {
@@ -39,6 +50,14 @@ export interface MembreCreateInput {
   telephone?: string;
   commission_id?: string;
   groupe?: string;
+  genre?: string;
+  date_naissance?: string;
+  pays?: string;
+  ville?: string;
+  intendance_id?: string;
+  berger_referent_id?: string;
+  date_entree?: string;
+  cheminement_pastoral?: string;
 }
 
 export interface MembreUpdateInput {
@@ -49,6 +68,42 @@ export interface MembreUpdateInput {
   groupe?: string;
   statut?: string;
   verifie?: boolean;
+  genre?: string;
+  date_naissance?: string;
+  pays?: string;
+  ville?: string;
+  intendance_id?: string;
+  berger_referent_id?: string;
+  date_entree?: string;
+  cheminement_pastoral?: string;
+}
+
+export interface Intendance {
+  id: string;
+  nom: string;
+  pays: string | null;
+  ville: string | null;
+  coordination_id: string | null;
+  coordination: string | null;
+}
+
+export interface Berger {
+  id: string;
+  nom: string;
+  role: string;
+}
+
+export interface Coordination {
+  id: string;
+  nom: string;
+  description: string | null;
+}
+
+export interface SousCommission {
+  id: string;
+  nom: string;
+  commission_id: string | null;
+  commission: string | null;
 }
 
 export interface Commission {
@@ -231,6 +286,43 @@ export function createEvenement(
     input,
     "Creation impossible",
   );
+}
+
+export function getIntendances(token: string): Promise<Intendance[]> {
+  return authedGet<Intendance[]>("/api/v1/admin/intendances", token, "Intendances indisponibles");
+}
+
+export function createIntendance(
+  token: string,
+  input: { nom: string; pays?: string; ville?: string; coordination_id?: string },
+): Promise<Intendance> {
+  return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Creation impossible");
+}
+
+export function getBergers(token: string): Promise<Berger[]> {
+  return authedGet<Berger[]>("/api/v1/admin/bergers", token, "Bergers indisponibles");
+}
+
+export function getCoordinations(token: string): Promise<Coordination[]> {
+  return authedGet<Coordination[]>("/api/v1/admin/coordinations", token, "Coordinations indisponibles");
+}
+
+export function createCoordination(
+  token: string,
+  input: { nom: string; description?: string },
+): Promise<Coordination> {
+  return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Creation impossible");
+}
+
+export function getSousCommissions(token: string): Promise<SousCommission[]> {
+  return authedGet<SousCommission[]>("/api/v1/admin/sous-commissions", token, "Sous-commissions indisponibles");
+}
+
+export function createSousCommission(
+  token: string,
+  input: { nom: string; commission_id?: string },
+): Promise<SousCommission> {
+  return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Creation impossible");
 }
 
 export function apiBaseUrl(): string {
