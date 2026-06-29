@@ -458,3 +458,21 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Stat bars */
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 160px 1fr 40px; align-items: center; gap: 10px; }
+.bar-label { font-size: 13px; color: var(--mut); }
+.bar-track { height: 10px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--brand); border-radius: 6px; }
+.bar-value { text-align: right; font-size: 13px; }
+
+/* Sacraments fieldset + checkboxes */
+.sacrements { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-top: 14px; display: flex; gap: 18px; flex-wrap: wrap; }
+.sacrements legend { color: var(--mut); font-size: 12px; padding: 0 6px; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; }
+.check input { width: 16px; height: 16px; }
+
+@media (max-width: 720px) {
+  .bar-row { grid-template-columns: 110px 1fr 36px; }
+}

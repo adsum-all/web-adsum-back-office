@@ -3,16 +3,29 @@ import { useCallback, useState } from "react";
 import { type Session } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
 import { Dashboard } from "./components/Dashboard.js";
+import { Doublons } from "./components/Doublons.js";
 import { Evenements } from "./components/Evenements.js";
 import { Login } from "./components/Login.js";
 import { Membres } from "./components/Membres.js";
+import { Organisation } from "./components/Organisation.js";
+import { Statistiques } from "./components/Statistiques.js";
 
-type Section = "dashboard" | "membres" | "commissions" | "evenements";
+type Section =
+  | "dashboard"
+  | "statistiques"
+  | "membres"
+  | "doublons"
+  | "commissions"
+  | "organisation"
+  | "evenements";
 
 const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
+  { id: "statistiques", label: "Statistiques", group: "PILOTAGE" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
-  { id: "commissions", label: "Commissions & groupes", group: "MEMBRES" },
+  { id: "doublons", label: "Detection de doublons", group: "MEMBRES" },
+  { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
+  { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
 ];
 
@@ -61,8 +74,11 @@ export function App(): JSX.Element {
       </aside>
       <main className="main">
         {section === "dashboard" && <Dashboard token={session.token} />}
+        {section === "statistiques" && <Statistiques token={session.token} />}
         {section === "membres" && <Membres token={session.token} />}
+        {section === "doublons" && <Doublons token={session.token} />}
         {section === "commissions" && <Commissions token={session.token} />}
+        {section === "organisation" && <Organisation token={session.token} />}
         {section === "evenements" && <Evenements token={session.token} />}
       </main>
     </div>

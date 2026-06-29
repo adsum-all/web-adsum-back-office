@@ -36,11 +36,25 @@ export interface MembreProfile {
   date_entree: string | null;
   cheminement_pastoral: string | null;
   statut_administratif: string | null;
+  type_membre: string | null;
+  promotion: string | null;
+  situation_matrimoniale: string | null;
+  type_mariage: string | null;
+  profession: string | null;
+  niveau_etudes: string | null;
+  baptise: boolean | null;
+  confirme: boolean | null;
+  premiere_communion: boolean | null;
   commission: string | null;
   intendance: string | null;
   intendance_id: string | null;
   berger: string | null;
   berger_referent_id: string | null;
+  tribu: string | null;
+  tribu_id: string | null;
+  patriarche: string | null;
+  coordination: string | null;
+  coordinateur: string | null;
 }
 
 export interface MembreCreateInput {
@@ -58,6 +72,16 @@ export interface MembreCreateInput {
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
+  tribu_id?: string;
+  type_membre?: string;
+  promotion?: string;
+  situation_matrimoniale?: string;
+  type_mariage?: string;
+  profession?: string;
+  niveau_etudes?: string;
+  baptise?: boolean;
+  confirme?: boolean;
+  premiere_communion?: boolean;
 }
 
 export interface MembreUpdateInput {
@@ -76,6 +100,16 @@ export interface MembreUpdateInput {
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
+  tribu_id?: string;
+  type_membre?: string;
+  promotion?: string;
+  situation_matrimoniale?: string;
+  type_mariage?: string;
+  profession?: string;
+  niveau_etudes?: string;
+  baptise?: boolean;
+  confirme?: boolean;
+  premiere_communion?: boolean;
 }
 
 export interface Intendance {
@@ -104,6 +138,31 @@ export interface SousCommission {
   nom: string;
   commission_id: string | null;
   commission: string | null;
+}
+
+export interface Tribu {
+  id: string;
+  nom: string;
+  patriarche: string | null;
+}
+
+export interface Statistiques {
+  membres_total: number;
+  membres_actifs: number;
+  membres_verifies: number;
+  membres_en_attente: number;
+  evenements_total: number;
+  presences_total: number;
+  commissions_total: number;
+  intendances_total: number;
+  par_commission: { commission: string; total: number }[];
+  par_cheminement: { cheminement: string; total: number }[];
+}
+
+export interface DoublonGroupe {
+  critere: string;
+  valeur: string;
+  membres: MembreProfile[];
 }
 
 export interface Commission {
@@ -323,6 +382,18 @@ export function createSousCommission(
   input: { nom: string; commission_id?: string },
 ): Promise<SousCommission> {
   return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Creation impossible");
+}
+
+export function getTribus(token: string): Promise<Tribu[]> {
+  return authedGet<Tribu[]>("/api/v1/admin/tribus", token, "Tribus indisponibles");
+}
+
+export function getStatistiques(token: string): Promise<Statistiques> {
+  return authedGet<Statistiques>("/api/v1/admin/statistiques", token, "Statistiques indisponibles");
+}
+
+export function getDoublons(token: string): Promise<DoublonGroupe[]> {
+  return authedGet<DoublonGroupe[]>("/api/v1/admin/doublons", token, "Detection indisponible");
 }
 
 export function apiBaseUrl(): string {

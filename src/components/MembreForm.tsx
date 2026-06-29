@@ -7,8 +7,32 @@ import {
   getBergers,
   getCommissions,
   getIntendances,
+  getTribus,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+
+const TYPE_MEMBRE: [string, string][] = [
+  ["Membre simple", "membre_simple"],
+  ["Nouveau engage", "nouveau_engage"],
+  ["Aspirant", "aspirant"],
+  ["Engage", "engage"],
+  ["Berger", "berger"],
+  ["Responsable", "responsable"],
+];
+const SITUATIONS: [string, string][] = [
+  ["Celibataire", "celibataire"],
+  ["En couple (cheminement)", "en_couple"],
+  ["Fiance", "fiance"],
+  ["Marie", "marie"],
+  ["Veuf / Veuve", "veuf"],
+  ["Divorce", "divorce"],
+];
+const MARIAGES: [string, string][] = [
+  ["Dot", "dot"],
+  ["Religieux", "religieux"],
+  ["Dot et religieux", "dot_et_religieux"],
+  ["Civil", "civil"],
+];
 
 interface MembreFormProps {
   token: string;
@@ -38,6 +62,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const bergers = useResource(() => getBergers(token), [token]);
+  const tribus = useResource(() => getTribus(token), [token]);
   const [form, setForm] = useState<MembreCreateInput>({
     email: "",
     cheminement_pastoral: "nouveau",
@@ -65,10 +90,11 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
     setError(null);
     try {
       const payload: MembreCreateInput = { email: form.email.trim() };
-      for (const [k, v] of Object.entries(form) as [keyof MembreCreateInput, string | undefined][]) {
-        if (k !== "email" && typeof v === "string" && v.trim()) {
-          (payload[k] as string) = v.trim();
-        }
+      for (const [key, v] of Object.entries(form)) {
+        const k = key as keyof MembreCreateInput;
+        if (k === "email") continue;
+        if (typeof v === "string" && v.trim()) (payload[k] as string) = v.trim();
+        else if (typeof v === "boolean") (payload[k] as boolean) = v;
       }
       await createMembre(token, payload);
       onDone();
@@ -161,7 +187,64 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
               ))}
             </select>
           </Field>
+          <Field label="Tribu">
+            <select value={form.tribu_id ?? ""} onChange={(e) => set("tribu_id", e.target.value || undefined)}>
+              <option value="">Selectionner</option>
+              {(tribus.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.nom}{t.patriarche ? ` - ${t.patriarche}` : ""}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Niveau d'engagement">
+            <select value={form.type_membre ?? "membre_simple"} onChange={(e) => set("type_membre", e.target.value)}>
+              {TYPE_MEMBRE.map(([l, v]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Promotion">
+            <input value={form.promotion ?? ""} onChange={(e) => set("promotion", e.target.value)} placeholder="Pierre Saint-Paul 1" />
+          </Field>
+          <Field label="Situation matrimoniale">
+            <select value={form.situation_matrimoniale ?? ""} onChange={(e) => set("situation_matrimoniale", e.target.value || undefined)}>
+              <option value="">Selectionner</option>
+              {SITUATIONS.map(([l, v]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </Field>
+          {form.situation_matrimoniale === "marie" && (
+            <Field label="Type de mariage">
+              <select value={form.type_mariage ?? ""} onChange={(e) => set("type_mariage", e.target.value || undefined)}>
+                <option value="">Selectionner</option>
+                {MARIAGES.map(([l, v]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <Field label="Profession (optionnel)">
+            <input value={form.profession ?? ""} onChange={(e) => set("profession", e.target.value)} />
+          </Field>
+          <Field label="Niveau d'etudes (optionnel)">
+            <input value={form.niveau_etudes ?? ""} onChange={(e) => set("niveau_etudes", e.target.value)} />
+          </Field>
         </div>
+        <fieldset className="sacrements">
+          <legend>Sacrements (recommande, optionnel)</legend>
+          <label className="check">
+            <input type="checkbox" checked={form.baptise ?? false} onChange={(e) => set("baptise", e.target.checked)} />
+            Baptise
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={form.confirme ?? false} onChange={(e) => set("confirme", e.target.checked)} />
+            Confirme
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={form.premiere_communion ?? false} onChange={(e) => set("premiere_communion", e.target.checked)} />
+            Premiere communion
+          </label>
+        </fieldset>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="button" className="btn btn-ghost btn-inline" onClick={onCancel}>
