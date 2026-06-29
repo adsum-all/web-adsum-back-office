@@ -103,6 +103,58 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       </section>
 
       <section className="card">
+        <h2 className="card-title">Vie communautaire</h2>
+        <dl className="detail-grid">
+          <div>
+            <dt>Tribu</dt>
+            <dd>{m.tribu ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Patriarche de la tribu</dt>
+            <dd>{m.patriarche ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Niveau d'engagement</dt>
+            <dd>{typeMembreLabel(m.type_membre)}</dd>
+          </div>
+          <div>
+            <dt>Promotion</dt>
+            <dd>{m.promotion ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Coordination</dt>
+            <dd>{m.coordination ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Coordinateur general</dt>
+            <dd>{m.coordinateur ?? "-"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="card">
+        <h2 className="card-title">Situation personnelle</h2>
+        <dl className="detail-grid">
+          <div>
+            <dt>Situation matrimoniale</dt>
+            <dd>{situationLabel(m.situation_matrimoniale, m.type_mariage)}</dd>
+          </div>
+          <div>
+            <dt>Profession</dt>
+            <dd>{m.profession ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Niveau d'etudes</dt>
+            <dd>{m.niveau_etudes ?? "-"}</dd>
+          </div>
+          <div>
+            <dt>Sacrements</dt>
+            <dd>{sacrements(m.baptise, m.confirme, m.premiere_communion)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="card">
         <h2 className="card-title">Affectation</h2>
         <label className="full">
           <span>Commission</span>
@@ -186,4 +238,48 @@ function genreAge(genre: string | null, naissance: string | null): string {
   if (g) return g;
   if (age !== null) return `${age} ans`;
   return "-";
+}
+
+const TYPE_MEMBRE_LABELS: Record<string, string> = {
+  membre_simple: "Membre simple",
+  nouveau_engage: "Nouveau engage",
+  aspirant: "Aspirant",
+  engage: "Engage",
+  berger: "Berger",
+  responsable: "Responsable",
+};
+
+function typeMembreLabel(value: string | null): string {
+  if (!value) return "-";
+  return TYPE_MEMBRE_LABELS[value] ?? value;
+}
+
+const SITUATION_LABELS: Record<string, string> = {
+  celibataire: "Celibataire",
+  en_couple: "En couple (cheminement)",
+  fiance: "Fiance",
+  marie: "Marie",
+  veuf: "Veuf / Veuve",
+  divorce: "Divorce",
+};
+const MARIAGE_LABELS: Record<string, string> = {
+  dot: "dot",
+  religieux: "religieux",
+  dot_et_religieux: "dot et religieux",
+  civil: "civil",
+};
+
+function situationLabel(situation: string | null, mariage: string | null): string {
+  if (!situation) return "-";
+  const base = SITUATION_LABELS[situation] ?? situation;
+  if (situation === "marie" && mariage) return `${base} (${MARIAGE_LABELS[mariage] ?? mariage})`;
+  return base;
+}
+
+function sacrements(baptise: boolean | null, confirme: boolean | null, communion: boolean | null): string {
+  const list: string[] = [];
+  if (baptise) list.push("Baptise");
+  if (confirme) list.push("Confirme");
+  if (communion) list.push("Premiere communion");
+  return list.length > 0 ? list.join(", ") : "Non renseigne";
 }
