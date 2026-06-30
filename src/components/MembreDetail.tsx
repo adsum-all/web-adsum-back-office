@@ -1,6 +1,16 @@
 import { useState } from "react";
 
-import { ApiError, type MembreUpdateInput, getCommissions, getMembre, updateMembre } from "../api.js";
+import {
+  ApiError,
+  type MembreUpdateInput,
+  bloquerMembre,
+  debloquerMembre,
+  demanderDocumentMembre,
+  getCommissions,
+  getMembre,
+  supprimerMembre,
+  updateMembre,
+} from "../api.js";
 import { formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 
@@ -16,6 +26,27 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [docType, setDocType] = useState("piece_identite");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function manage(action: () => Promise<unknown>, message: string, back?: boolean): Promise<void> {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      await action();
+      if (back) {
+        onBack();
+        return;
+      }
+      membre.reload();
+      setNote(message);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function patch(input: MembreUpdateInput, message: string): Promise<void> {
     setBusy(true);
@@ -206,6 +237,68 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
         )}
       </div>
+
+      <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
+        <h2 className="card-title">Gestion avancee (administration)</h2>
+        <div className="toolbar">
+          <select className="search" value={docType} onChange={(e) => setDocType(e.target.value)}>
+            <option value="piece_identite">Piece d'identite</option>
+            <option value="passeport">Passeport</option>
+            <option value="permis">Permis de conduire</option>
+            <option value="carte_consulaire">Carte consulaire</option>
+            <option value="justificatif_domicile">Justificatif de domicile</option>
+            <option value="photo_identite">Photo d'identite</option>
+          </select>
+          <button
+            type="button"
+            className="btn btn-ghost btn-inline"
+            disabled={busy}
+            onClick={() => void manage(() => demanderDocumentMembre(token, id, docType), "Document demande au membre.")}
+          >
+            Demander ce document
+          </button>
+        </div>
+        <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-inline"
+            disabled={busy}
+            onClick={() => void manage(() => bloquerMembre(token, id), "Compte bloque.")}
+          >
+            Bloquer le compte
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-inline"
+            disabled={busy}
+            onClick={() => void manage(() => debloquerMembre(token, id), "Compte debloque.")}
+          >
+            Debloquer
+          </button>
+          {confirmDelete ? (
+            <>
+              <span className="muted small">Confirmer la suppression definitive (RGPD) ?</span>
+              <button
+                type="button"
+                className="btn btn-primary btn-inline"
+                style={{ background: "var(--adsum-danger)" }}
+                disabled={busy}
+                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprime.", true)}
+              >
+                Oui, supprimer et purger
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => setConfirmDelete(false)}>
+                Annuler
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirmDelete(true)}>
+              Supprimer (RGPD)
+            </button>
+          )}
+        </div>
+        <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
+      </section>
     </div>
   );
 }
