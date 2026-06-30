@@ -613,6 +613,18 @@ export function supprimerMembre(token: string, id: string): Promise<void> {
   return request<void>(`/api/v1/admin/membres/${id}`, token, { method: "DELETE" }, "Suppression impossible");
 }
 
+export interface ConnexionItem {
+  ip: string | null;
+  appareil: string | null;
+  geo: string | null;
+  cree_le: string | null;
+  revoque: boolean;
+}
+
+export function getConnexions(token: string, id: string): Promise<ConnexionItem[]> {
+  return authedGet<ConnexionItem[]>(`/api/v1/admin/membres/${id}/connexions`, token, "Connexions indisponibles");
+}
+
 export function apiBaseUrl(): string {
   return BASE;
 }
