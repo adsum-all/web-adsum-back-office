@@ -55,13 +55,20 @@ export function App(): JSX.Element {
   }
 
   const groups = Array.from(new Set(NAV.map((n) => n.group)));
+  const current = NAV.find((n) => n.id === section);
+  const initials = session.role.slice(0, 2).toUpperCase();
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          ADSUM
-          <span className="brand-sub">Back-office</span>
+          <span className="brand-logo" aria-hidden="true">
+            A
+          </span>
+          <span className="brand-text">
+            ADSUM
+            <span className="brand-sub">Back-office</span>
+          </span>
         </div>
         <nav>
           {groups.map((group) => (
@@ -88,18 +95,43 @@ export function App(): JSX.Element {
         </div>
       </aside>
       <main className="main">
-        {section === "dashboard" && <Dashboard token={session.token} />}
-        {section === "statistiques" && <Statistiques token={session.token} />}
-        {section === "membres" && <Membres token={session.token} />}
-        {section === "doublons" && <Doublons token={session.token} />}
-        {section === "commissions" && <Commissions token={session.token} />}
-        {section === "organisation" && <Organisation token={session.token} />}
-        {section === "evenements" && <Evenements token={session.token} />}
-        {section === "comptage" && <ComptageVoletB token={session.token} />}
-        {section === "utilisateurs" && <Utilisateurs token={session.token} />}
-        {section === "comptes-masse" && <ComptesMasse token={session.token} />}
-        {section === "terminaux" && <Terminaux token={session.token} />}
-        {section === "audit" && <JournalAudit token={session.token} />}
+        <header className="topbar-app">
+          <div className="topbar-title">
+            <p className="topbar-crumb">{current?.group}</p>
+            <h1 className="topbar-h1">{current?.label}</h1>
+          </div>
+          <label className="search-global">
+            <span className="search-ico" aria-hidden="true">
+              ⌕
+            </span>
+            <input
+              type="search"
+              placeholder="Rechercher un membre, un evenement..."
+              aria-label="Recherche globale"
+            />
+          </label>
+          <span className="event-chip" title="Evenement actif">
+            <span className="event-dot" aria-hidden="true" />
+            Aucun evenement actif
+          </span>
+          <span className="topbar-avatar" title={session.role}>
+            {initials}
+          </span>
+        </header>
+        <div className="main-scroll">
+          {section === "dashboard" && <Dashboard token={session.token} />}
+          {section === "statistiques" && <Statistiques token={session.token} />}
+          {section === "membres" && <Membres token={session.token} />}
+          {section === "doublons" && <Doublons token={session.token} />}
+          {section === "commissions" && <Commissions token={session.token} />}
+          {section === "organisation" && <Organisation token={session.token} />}
+          {section === "evenements" && <Evenements token={session.token} />}
+          {section === "comptage" && <ComptageVoletB token={session.token} />}
+          {section === "utilisateurs" && <Utilisateurs token={session.token} />}
+          {section === "comptes-masse" && <ComptesMasse token={session.token} />}
+          {section === "terminaux" && <Terminaux token={session.token} />}
+          {section === "audit" && <JournalAudit token={session.token} />}
+        </div>
       </main>
     </div>
   );
