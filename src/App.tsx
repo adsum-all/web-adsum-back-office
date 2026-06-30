@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { type Session } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
+import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { Doublons } from "./components/Doublons.js";
@@ -22,6 +23,7 @@ type Section =
   | "commissions"
   | "organisation"
   | "evenements"
+  | "comptage"
   | "utilisateurs"
   | "comptes-masse"
   | "terminaux"
@@ -35,6 +37,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
+  { id: "comptage", label: "Comptage volet B", group: "EVENEMENTS" },
   { id: "utilisateurs", label: "Utilisateurs & roles", group: "SYSTEME" },
   { id: "comptes-masse", label: "Creer comptes (masse)", group: "SYSTEME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
@@ -92,6 +95,7 @@ export function App(): JSX.Element {
         {section === "commissions" && <Commissions token={session.token} />}
         {section === "organisation" && <Organisation token={session.token} />}
         {section === "evenements" && <Evenements token={session.token} />}
+        {section === "comptage" && <ComptageVoletB token={session.token} />}
         {section === "utilisateurs" && <Utilisateurs token={session.token} />}
         {section === "comptes-masse" && <ComptesMasse token={session.token} />}
         {section === "terminaux" && <Terminaux token={session.token} />}

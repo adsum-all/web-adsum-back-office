@@ -185,6 +185,23 @@ export interface Terminal {
   dernier_sync: string | null;
 }
 
+export interface ComptageLigne {
+  id: string;
+  segment: string | null;
+  total_membres: number;
+  total_anonyme: number;
+  horodatage: string | null;
+}
+
+export interface ComptageResume {
+  evenement_id: string;
+  titre: string | null;
+  membres_scannes: number;
+  non_membres: number;
+  total_participants: number;
+  lignes: ComptageLigne[];
+}
+
 export interface AuditEntry {
   id: number;
   acteur_role: string | null;
@@ -444,6 +461,17 @@ export function updateUtilisateur(
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise a jour impossible");
+}
+
+export function getComptage(token: string, evenementId: string): Promise<ComptageResume> {
+  return authedGet<ComptageResume>(`/api/v1/admin/comptage/${evenementId}`, token, "Comptage indisponible");
+}
+
+export function addComptage(
+  token: string,
+  input: { evenement_id: string; segment?: string; total_membres?: number; total_anonyme?: number },
+): Promise<ComptageResume> {
+  return authedSend<ComptageResume>("/api/v1/admin/comptage", token, "POST", input, "Saisie impossible");
 }
 
 export function getAudit(token: string): Promise<AuditEntry[]> {
