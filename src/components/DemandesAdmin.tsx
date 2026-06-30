@@ -3,8 +3,11 @@ import { useEffect, useState } from "react";
 import {
   type DemandeDetailAdmin,
   type DemandeItem,
+  type ModificationItem,
+  decideDemandeModification,
   getAdminDemande,
   getAdminDemandes,
+  getDemandeModifications,
   replyAdminDemande,
   updateAdminDemande,
 } from "../api.js";
@@ -13,9 +16,16 @@ import { useResource } from "../useResource.js";
 const STATUT: Record<string, string> = {
   ouverte: "badge-warn",
   en_cours: "badge-mut",
+  en_validation: "badge-warn",
   resolue: "badge-ok",
   refusee: "badge-bad",
 };
+
+function formatVal(v: string | number | boolean | null): string {
+  if (v === null || v === undefined || v === "") return "(vide)";
+  if (typeof v === "boolean") return v ? "Oui" : "Non";
+  return String(v);
+}
 
 const UNLOCKABLE = [
   "nom",
@@ -76,11 +86,14 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
 
 function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
+  const [mods, setMods] = useState<ModificationItem[]>([]);
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
 
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
+    void getDemandeModifications(token, id).then(setMods).catch(() => setMods([]));
   };
   useEffect(load, [token, id]);
 
@@ -103,6 +116,19 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
     onChanged();
   }
 
+  async function decide(decision: "valider" | "rejeter"): Promise<void> {
+    setBusy(true);
+    try {
+      await decideDemandeModification(token, id, decision);
+      load();
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const pending = mods.find((m) => m.statut === "en_attente");
+
   if (!detail) return <div className="card"><p className="muted">Chargement...</p></div>;
 
   return (
@@ -124,6 +150,38 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
           Envoyer
         </button>
       </div>
+
+      {pending && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
+          <p className="card-title" style={{ marginBottom: 8 }}>Validation finale de la modification</p>
+          <table className="data-table" style={{ marginBottom: 10 }}>
+            <thead>
+              <tr>
+                <th>Champ</th>
+                <th>Valeur actuelle</th>
+                <th>Valeur proposée</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.diff.map((d) => (
+                <tr key={d.champ}>
+                  <td>{d.champ}</td>
+                  <td className="muted">{formatVal(d.avant)}</td>
+                  <td style={{ fontWeight: 600 }}>{formatVal(d.apres)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="form-actions" style={{ justifyContent: "flex-start" }}>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("valider")}>
+              Valider et enregistrer
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("rejeter")}>
+              Rejeter la modification
+            </button>
+          </div>
+        </div>
+      )}
 
       {detail.type === "modification_info" && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>

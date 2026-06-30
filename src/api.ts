@@ -620,6 +620,32 @@ export function updateAdminDemande(
   return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise a jour impossible");
 }
 
+export interface ModificationDiff {
+  champ: string;
+  avant: string | number | boolean | null;
+  apres: string | number | boolean | null;
+}
+
+export interface ModificationItem {
+  id: string;
+  statut: string;
+  propose_le: string | null;
+  decide_le: string | null;
+  diff: ModificationDiff[];
+}
+
+export function getDemandeModifications(token: string, id: string): Promise<ModificationItem[]> {
+  return authedGet<ModificationItem[]>(`/api/v1/admin/demandes/${id}/modifications`, token, "Modifications indisponibles");
+}
+
+export function decideDemandeModification(
+  token: string,
+  id: string,
+  decision: "valider" | "rejeter",
+): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(`/api/v1/admin/demandes/${id}/modifications/decision`, token, "POST", { decision }, "Decision impossible");
+}
+
 // --- Member management (RGPD, block) ---
 export function bloquerMembre(token: string, id: string): Promise<{ ok: boolean }> {
   return authedSend(`/api/v1/admin/membres/${id}/bloquer`, token, "POST", {}, "Blocage impossible");
