@@ -157,6 +157,8 @@ export interface Statistiques {
   intendances_total: number;
   par_commission: { commission: string; total: number }[];
   par_cheminement: { cheminement: string; total: number }[];
+  entrees_mensuelles: { mois: string; total: number }[];
+  membres_a_verifier: { id: string; matricule: string; prenoms: string | null; nom: string | null }[];
 }
 
 export interface DoublonGroupe {
