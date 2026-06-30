@@ -7,6 +7,7 @@ import {
   debloquerMembre,
   demanderDocumentMembre,
   getCommissions,
+  getConnexions,
   getMembre,
   supprimerMembre,
   updateMembre,
@@ -23,6 +24,7 @@ interface MembreDetailProps {
 export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
+  const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -238,6 +240,38 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         )}
       </div>
 
+      <section className="card">
+        <h2 className="card-title">Connexions recentes (securite)</h2>
+        {connexions.loading ? (
+          <p className="muted small">Chargement...</p>
+        ) : connexions.error ? (
+          <p className="muted small">{connexions.error}</p>
+        ) : (connexions.data ?? []).length === 0 ? (
+          <p className="muted small">Aucune connexion enregistree.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Adresse IP</th>
+                <th>Appareil</th>
+                <th>Etat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(connexions.data ?? []).map((c, i) => (
+                <tr key={i}>
+                  <td>{c.cree_le ? formatDateTime(c.cree_le) : "-"}</td>
+                  <td className="mono">{cleanIp(c.ip)}</td>
+                  <td className="muted">{deviceLabel(c.appareil)}</td>
+                  <td>{c.revoque ? "Revoquee" : "Active"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
         <div className="toolbar">
@@ -375,4 +409,32 @@ function sacrements(baptise: boolean | null, confirme: boolean | null, communion
   if (confirme) list.push("Confirme");
   if (communion) list.push("Premiere communion");
   return list.length > 0 ? list.join(", ") : "Non renseigne";
+}
+
+function formatDateTime(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function cleanIp(ip: string | null): string {
+  if (!ip) return "-";
+  // PostgreSQL inet renders host addresses with a /32 (IPv4) or /128 (IPv6) suffix.
+  return ip.replace(/\/(32|128)$/, "");
+}
+
+function deviceLabel(ua: string | null): string {
+  if (!ua) return "Inconnu";
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iOS/i.test(ua)) return "iOS";
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Macintosh|Mac OS/i.test(ua)) return "macOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return ua.length > 40 ? `${ua.slice(0, 40)}...` : ua;
 }
