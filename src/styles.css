@@ -699,6 +699,50 @@ h3 {
   gap: 10px;
 }
 
+/* Organization rows with inline management actions */
+.org-row {
+  flex-wrap: wrap;
+}
+.org-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.org-row-main .search {
+  margin: 0;
+  max-width: 260px;
+}
+.org-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.org-row-error {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+}
+.pill {
+  border: 1px solid var(--adsum-line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: var(--adsum-text-xs, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--adsum-panel);
+}
+.pill-on {
+  background: var(--adsum-ok-bg);
+  color: var(--adsum-ok);
+  border-color: transparent;
+}
+.pill-off {
+  background: var(--adsum-line);
+  color: var(--adsum-muted, #6b7280);
+}
+
 /* Banners */
 .banner {
   padding: 12px 14px;

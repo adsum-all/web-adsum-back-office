@@ -11,6 +11,7 @@ import {
   getSousCommissions,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { OrgItemRow } from "./OrgItemRow.js";
 
 export function Organisation({ token }: { token: string }): JSX.Element {
   const coordinations = useResource(() => getCoordinations(token), [token]);
@@ -41,10 +42,16 @@ export function Organisation({ token }: { token: string }): JSX.Element {
         />
         <ul className="list">
           {(coordinations.data ?? []).map((c) => (
-            <li key={c.id} className="list-row">
-              <strong>{c.nom}</strong>
-              <span className="muted">{c.description ?? ""}</span>
-            </li>
+            <OrgItemRow
+              key={c.id}
+              token={token}
+              entity="coordinations"
+              id={c.id}
+              nom={c.nom}
+              meta={c.description ?? undefined}
+              publie={c.publie}
+              onChanged={coordinations.reload}
+            />
           ))}
         </ul>
       </section>
@@ -76,12 +83,16 @@ export function Organisation({ token }: { token: string }): JSX.Element {
         />
         <ul className="list">
           {(intendances.data ?? []).map((i) => (
-            <li key={i.id} className="list-row">
-              <strong>{i.nom}</strong>
-              <span className="muted">
-                {[i.ville, i.pays].filter(Boolean).join(", ")} {i.coordination ? `. ${i.coordination}` : ""}
-              </span>
-            </li>
+            <OrgItemRow
+              key={i.id}
+              token={token}
+              entity="intendances"
+              id={i.id}
+              nom={i.nom}
+              meta={[[i.ville, i.pays].filter(Boolean).join(", "), i.coordination].filter(Boolean).join(" . ") || undefined}
+              publie={i.publie}
+              onChanged={intendances.reload}
+            />
           ))}
         </ul>
       </section>
@@ -104,10 +115,16 @@ export function Organisation({ token }: { token: string }): JSX.Element {
         />
         <ul className="list">
           {(sousCommissions.data ?? []).map((s) => (
-            <li key={s.id} className="list-row">
-              <strong>{s.nom}</strong>
-              <span className="muted">{s.commission ?? ""}</span>
-            </li>
+            <OrgItemRow
+              key={s.id}
+              token={token}
+              entity="groupes"
+              id={s.id}
+              nom={s.nom}
+              meta={s.commission ?? undefined}
+              publie={s.publie}
+              onChanged={sousCommissions.reload}
+            />
           ))}
         </ul>
       </section>

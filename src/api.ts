@@ -119,6 +119,7 @@ export interface Intendance {
   ville: string | null;
   coordination_id: string | null;
   coordination: string | null;
+  publie: boolean;
 }
 
 export interface Berger {
@@ -131,6 +132,7 @@ export interface Coordination {
   id: string;
   nom: string;
   description: string | null;
+  publie: boolean;
 }
 
 export interface SousCommission {
@@ -138,6 +140,7 @@ export interface SousCommission {
   nom: string;
   commission_id: string | null;
   commission: string | null;
+  publie: boolean;
 }
 
 export interface Tribu {
@@ -218,6 +221,27 @@ export interface Commission {
   id: string;
   nom: string;
   description: string | null;
+  publie: boolean;
+}
+
+/** URL segment for the organization management endpoints. */
+export type OrgEntity = "coordinations" | "intendances" | "commissions" | "groupes";
+
+export function renameOrganisation(token: string, entity: OrgEntity, id: string, nom: string): Promise<{ id: string; nom: string }> {
+  return authedSend(`/api/v1/admin/organisation/${entity}/${id}`, token, "PATCH", { nom }, "Renommage impossible");
+}
+
+export function publishOrganisation(
+  token: string,
+  entity: OrgEntity,
+  id: string,
+  publie: boolean,
+): Promise<{ id: string; publie: boolean }> {
+  return authedSend(`/api/v1/admin/organisation/${entity}/${id}/publication`, token, "PATCH", { publie }, "Publication impossible");
+}
+
+export function deleteOrganisation(token: string, entity: OrgEntity, id: string): Promise<void> {
+  return request<void>(`/api/v1/admin/organisation/${entity}/${id}`, token, { method: "DELETE" }, "Suppression impossible");
 }
 
 export interface CommissionCreateInput {
