@@ -856,3 +856,29 @@ h3 {
     grid-template-columns: 110px 1fr 40px;
   }
 }
+
+/* Admin conversation bubbles */
+.bubble-staff {
+  background: var(--adsum-acc);
+  color: #fff;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: var(--adsum-text-sm);
+  line-height: 1.45;
+}
+.bubble-membre {
+  background: var(--adsum-bg);
+  color: var(--adsum-ink);
+  border: 1px solid var(--adsum-line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: var(--adsum-text-sm);
+  line-height: 1.45;
+}
+.row-active {
+  border-color: var(--adsum-acc);
+  box-shadow: 0 0 0 2px rgba(42, 79, 173, 0.12);
+}
+.check.small {
+  font-size: var(--adsum-text-xs);
+}

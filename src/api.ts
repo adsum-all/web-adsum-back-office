@@ -511,6 +511,91 @@ export function getDoublons(token: string): Promise<DoublonGroupe[]> {
   return authedGet<DoublonGroupe[]>("/api/v1/admin/doublons", token, "Detection indisponible");
 }
 
+// --- Registrations (inscriptions) ---
+export interface InscriptionItem {
+  id: string;
+  matricule: string;
+  nom: string;
+  email: string;
+  statut: string;
+  soumis_le: string | null;
+  nb_documents: number;
+}
+
+export function getInscriptions(token: string): Promise<InscriptionItem[]> {
+  return authedGet<InscriptionItem[]>("/api/v1/admin/inscriptions", token, "Inscriptions indisponibles");
+}
+
+export function decisionInscription(
+  token: string,
+  membreId: string,
+  decision: string,
+  motif?: string,
+): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(
+    `/api/v1/admin/inscriptions/${membreId}/decision`,
+    token,
+    "POST",
+    { decision, motif },
+    "Decision impossible",
+  );
+}
+
+export function creerCompteMembre(
+  token: string,
+  input: { email: string; prenoms?: string; nom?: string },
+): Promise<{ membre_id: string; matricule: string }> {
+  return authedSend("/api/v1/admin/inscriptions/membre", token, "POST", input, "Creation impossible");
+}
+
+export function relancerMdpTemporaire(token: string, membreId: string): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/inscriptions/${membreId}/relancer-mdp`, token, "POST", {}, "Relance impossible");
+}
+
+// --- Member requests (demandes) ---
+export interface DemandeItem {
+  id: string;
+  type: string;
+  sujet: string;
+  champ_concerne: string | null;
+  statut: string;
+  cree_le: string | null;
+  membre_nom: string | null;
+  nb_messages: number;
+}
+
+export interface DemandeMessageItem {
+  id: string;
+  auteur_type: string;
+  auteur_nom: string | null;
+  corps: string;
+  cree_le: string | null;
+}
+
+export interface DemandeDetailAdmin extends DemandeItem {
+  messages: DemandeMessageItem[];
+}
+
+export function getAdminDemandes(token: string): Promise<DemandeItem[]> {
+  return authedGet<DemandeItem[]>("/api/v1/admin/demandes", token, "Demandes indisponibles");
+}
+
+export function getAdminDemande(token: string, id: string): Promise<DemandeDetailAdmin> {
+  return authedGet<DemandeDetailAdmin>(`/api/v1/admin/demandes/${id}`, token, "Demande indisponible");
+}
+
+export function replyAdminDemande(token: string, id: string, corps: string): Promise<DemandeMessageItem> {
+  return authedSend(`/api/v1/admin/demandes/${id}/messages`, token, "POST", { corps }, "Envoi impossible");
+}
+
+export function updateAdminDemande(
+  token: string,
+  id: string,
+  patch: { statut?: string; champs_deverrouilles?: string[] },
+): Promise<DemandeItem> {
+  return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise a jour impossible");
+}
+
 export function apiBaseUrl(): string {
   return BASE;
 }

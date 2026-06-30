@@ -5,7 +5,9 @@ import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
+import { DemandesAdmin } from "./components/DemandesAdmin.js";
 import { Doublons } from "./components/Doublons.js";
+import { Inscriptions } from "./components/Inscriptions.js";
 import { Evenements } from "./components/Evenements.js";
 import { JournalAudit } from "./components/JournalAudit.js";
 import { Login } from "./components/Login.js";
@@ -18,6 +20,8 @@ import { Utilisateurs } from "./components/Utilisateurs.js";
 type Section =
   | "dashboard"
   | "statistiques"
+  | "inscriptions"
+  | "demandes"
   | "membres"
   | "doublons"
   | "commissions"
@@ -32,6 +36,8 @@ type Section =
 const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
   { id: "statistiques", label: "Statistiques", group: "PILOTAGE" },
+  { id: "inscriptions", label: "Inscriptions a valider", group: "MEMBRES" },
+  { id: "demandes", label: "Demandes des membres", group: "MEMBRES" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
   { id: "doublons", label: "Detection de doublons", group: "MEMBRES" },
   { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
@@ -121,6 +127,8 @@ export function App(): JSX.Element {
         <div className="main-scroll">
           {section === "dashboard" && <Dashboard token={session.token} />}
           {section === "statistiques" && <Statistiques token={session.token} />}
+          {section === "inscriptions" && <Inscriptions token={session.token} />}
+          {section === "demandes" && <DemandesAdmin token={session.token} />}
           {section === "membres" && <Membres token={session.token} />}
           {section === "doublons" && <Doublons token={session.token} />}
           {section === "commissions" && <Commissions token={session.token} />}
