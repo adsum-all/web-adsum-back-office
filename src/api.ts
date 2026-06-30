@@ -596,6 +596,23 @@ export function updateAdminDemande(
   return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise a jour impossible");
 }
 
+// --- Member management (RGPD, block) ---
+export function bloquerMembre(token: string, id: string): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${id}/bloquer`, token, "POST", {}, "Blocage impossible");
+}
+
+export function debloquerMembre(token: string, id: string): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${id}/debloquer`, token, "POST", {}, "Deblocage impossible");
+}
+
+export function demanderDocumentMembre(token: string, id: string, type: string, message?: string): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${id}/demander-document`, token, "POST", { type, message }, "Demande impossible");
+}
+
+export function supprimerMembre(token: string, id: string): Promise<void> {
+  return request<void>(`/api/v1/admin/membres/${id}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+
 export function apiBaseUrl(): string {
   return BASE;
 }
