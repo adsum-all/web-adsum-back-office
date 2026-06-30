@@ -414,6 +414,19 @@ export function createSousCommission(
   return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Creation impossible");
 }
 
+export interface BulkResult {
+  crees: number;
+  doublons: string[];
+  erreurs: { email: string; raison: string }[];
+}
+
+export function bulkCreateUtilisateurs(
+  token: string,
+  comptes: { email: string; password: string; role: string }[],
+): Promise<BulkResult> {
+  return authedSend<BulkResult>("/api/v1/admin/utilisateurs/lot", token, "POST", { comptes }, "Creation impossible");
+}
+
 export function getUtilisateurs(token: string): Promise<Utilisateur[]> {
   return authedGet<Utilisateur[]>("/api/v1/admin/utilisateurs", token, "Comptes indisponibles");
 }
