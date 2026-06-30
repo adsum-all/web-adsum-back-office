@@ -476,3 +476,5 @@ body {
 @media (max-width: 720px) {
   .bar-row { grid-template-columns: 110px 1fr 36px; }
 }
+
+.textarea { width: 100%; padding: 12px 13px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 14px; font-family: inherit; resize: vertical; }

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { type Session } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
+import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { Doublons } from "./components/Doublons.js";
 import { Evenements } from "./components/Evenements.js";
@@ -22,6 +23,7 @@ type Section =
   | "organisation"
   | "evenements"
   | "utilisateurs"
+  | "comptes-masse"
   | "terminaux"
   | "audit";
 
@@ -34,6 +36,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
   { id: "utilisateurs", label: "Utilisateurs & roles", group: "SYSTEME" },
+  { id: "comptes-masse", label: "Creer comptes (masse)", group: "SYSTEME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
   { id: "audit", label: "Journal d'audit", group: "SYSTEME" },
 ];
@@ -90,6 +93,7 @@ export function App(): JSX.Element {
         {section === "organisation" && <Organisation token={session.token} />}
         {section === "evenements" && <Evenements token={session.token} />}
         {section === "utilisateurs" && <Utilisateurs token={session.token} />}
+        {section === "comptes-masse" && <ComptesMasse token={session.token} />}
         {section === "terminaux" && <Terminaux token={session.token} />}
         {section === "audit" && <JournalAudit token={session.token} />}
       </main>
