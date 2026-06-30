@@ -34,8 +34,13 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
     <div className="auth">
       <form onSubmit={submit} className="auth-card">
         <div className="brand brand-lg">
-          ADSUM
-          <span className="brand-sub">Back-office</span>
+          <span className="brand-logo" aria-hidden="true">
+            A
+          </span>
+          <span className="brand-text">
+            ADSUM
+            <span className="brand-sub">Back-office</span>
+          </span>
         </div>
         <label>
           <span>Courriel</span>
