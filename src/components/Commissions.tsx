@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { ApiError, createCommission, getCommissions } from "../api.js";
 import { useResource } from "../useResource.js";
+import { OrgItemRow } from "./OrgItemRow.js";
 
 export function Commissions({ token }: { token: string }): JSX.Element {
   const commissions = useResource(() => getCommissions(token), [token]);
@@ -58,10 +59,16 @@ export function Commissions({ token }: { token: string }): JSX.Element {
       {commissions.error && <p className="banner banner-error">{commissions.error}</p>}
       <ul className="list">
         {(commissions.data ?? []).map((c) => (
-          <li key={c.id} className="list-row">
-            <strong>{c.nom}</strong>
-            <span className="muted">{c.description ?? "-"}</span>
-          </li>
+          <OrgItemRow
+            key={c.id}
+            token={token}
+            entity="commissions"
+            id={c.id}
+            nom={c.nom}
+            meta={c.description ?? undefined}
+            publie={c.publie}
+            onChanged={commissions.reload}
+          />
         ))}
       </ul>
       {!commissions.loading && (commissions.data ?? []).length === 0 && (
