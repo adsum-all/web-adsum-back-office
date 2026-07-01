@@ -869,13 +869,29 @@ export function decisionInscription(
   membreId: string,
   decision: string,
   motif?: string,
+  champsCibles?: string[],
 ): Promise<{ ok: boolean; statut: string }> {
   return authedSend(
     `/api/v1/admin/inscriptions/${membreId}/decision`,
     token,
     "POST",
-    { decision, motif },
+    { decision, motif, champs_cibles: champsCibles },
     "Decision impossible",
+  );
+}
+
+export interface CorrectionItem {
+  champ: string;
+  ancienne_valeur: string | null;
+  nouvelle_valeur: string | null;
+  modifie_le: string | null;
+}
+
+export function getCorrections(token: string, membreId: string): Promise<CorrectionItem[]> {
+  return authedGet<CorrectionItem[]>(
+    `/api/v1/admin/inscriptions/${membreId}/corrections`,
+    token,
+    "Corrections indisponibles",
   );
 }
 
@@ -987,6 +1003,46 @@ export interface ConnexionItem {
 
 export function getConnexions(token: string, id: string): Promise<ConnexionItem[]> {
   return authedGet<ConnexionItem[]>(`/api/v1/admin/membres/${id}/connexions`, token, "Connexions indisponibles");
+}
+
+// --- Consent documents (RGPD, confidentialite, engagement, reglement) ---
+export interface ConsentDocAdmin {
+  cle: string;
+  version: number;
+  titre: string;
+  titre_en: string;
+  contenu: string;
+  contenu_en: string;
+  bloquant: boolean;
+  ordre: number;
+  actif: boolean;
+}
+
+export interface ConsentDocPayload {
+  titre: string;
+  titre_en: string;
+  contenu: string;
+  contenu_en: string;
+  bloquant: boolean;
+  ordre: number;
+}
+
+export function getConsentDocsAdmin(token: string): Promise<ConsentDocAdmin[]> {
+  return authedGet<ConsentDocAdmin[]>("/api/v1/admin/consentements", token, "Documents indisponibles");
+}
+
+export function publishConsentDoc(
+  token: string,
+  cle: string,
+  payload: ConsentDocPayload,
+): Promise<ConsentDocAdmin> {
+  return authedSend<ConsentDocAdmin>(
+    `/api/v1/admin/consentements/${cle}`,
+    token,
+    "POST",
+    payload,
+    "Publication impossible",
+  );
 }
 
 export function apiBaseUrl(): string {

@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { type Session } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
+import { Consentements } from "./components/Consentements.js";
 import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { DemandesAdmin } from "./components/DemandesAdmin.js";
@@ -39,6 +40,7 @@ type Section =
   | "comptes-masse"
   | "terminaux"
   | "integrations"
+  | "consentements"
   | "audit";
 
 const NAV: { id: Section; label: string; group: string }[] = [
@@ -59,6 +61,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "comptes-masse", label: "Creer comptes (masse)", group: "SYSTEME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
   { id: "integrations", label: "Integrations & aide", group: "SYSTEME" },
+  { id: "consentements", label: "Documents & consentements", group: "SYSTEME" },
   { id: "audit", label: "Journal d'audit", group: "SYSTEME" },
 ];
 
@@ -154,6 +157,7 @@ export function App(): JSX.Element {
           {section === "comptes-masse" && <ComptesMasse token={session.token} />}
           {section === "terminaux" && <Terminaux token={session.token} />}
           {section === "integrations" && <Integrations token={session.token} />}
+          {section === "consentements" && <Consentements token={session.token} />}
           {section === "audit" && <JournalAudit token={session.token} />}
         </div>
       </main>
