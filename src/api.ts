@@ -320,7 +320,7 @@ function authedGet<T>(path: string, token: string, onError: string): Promise<T> 
 function authedSend<T>(
   path: string,
   token: string,
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "PUT",
   body: unknown,
   onError: string,
 ): Promise<T> {
@@ -531,8 +531,60 @@ export function getStatistiques(token: string): Promise<Statistiques> {
   return authedGet<Statistiques>("/api/v1/admin/statistiques", token, "Statistiques indisponibles");
 }
 
-export function getDoublons(token: string): Promise<DoublonGroupe[]> {
-  return authedGet<DoublonGroupe[]>("/api/v1/admin/doublons", token, "Detection indisponible");
+export interface DetectionMembre {
+  id: string;
+  matricule: string;
+  prenoms: string | null;
+  nom: string | null;
+  verifie: boolean;
+}
+
+export interface DetectionDoublon {
+  id: string;
+  score: number;
+  signaux: Record<string, number | boolean>;
+  statut: string;
+  detecte_le: string | null;
+  membre_a: DetectionMembre;
+  membre_b: DetectionMembre;
+}
+
+export interface ComparaisonLigne {
+  champ: string;
+  a: string | null;
+  b: string | null;
+  identique: boolean;
+}
+
+export interface Comparaison {
+  a: { id: string; matricule: string; verifie: boolean; photo_url: string | null };
+  b: { id: string; matricule: string; verifie: boolean; photo_url: string | null };
+  lignes: ComparaisonLigne[];
+}
+
+export function getDoublons(token: string, statut?: string): Promise<DetectionDoublon[]> {
+  const q = statut ? `?statut=${encodeURIComponent(statut)}` : "";
+  return authedGet<DetectionDoublon[]>(`/api/v1/admin/doublons${q}`, token, "Detection indisponible");
+}
+
+export function scanDoublons(token: string): Promise<{ ok: boolean; seuil: number; pairs_scanned: number; flagged: number }> {
+  return authedSend("/api/v1/admin/doublons/scan", token, "POST", {}, "Analyse impossible");
+}
+
+export function getComparaisonDoublon(token: string, a: string, b: string): Promise<Comparaison> {
+  return authedGet<Comparaison>(`/api/v1/admin/doublons/comparaison?a=${a}&b=${b}`, token, "Comparaison indisponible");
+}
+
+export function deciderDoublon(token: string, id: string, statut: "confirme" | "ignore"): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(`/api/v1/admin/doublons/${id}/statut`, token, "POST", { statut }, "Decision impossible");
+}
+
+export function getSeuilDoublon(token: string): Promise<{ seuil: number }> {
+  return authedGet<{ seuil: number }>("/api/v1/admin/doublons/seuil", token, "Seuil indisponible");
+}
+
+export function setSeuilDoublon(token: string, seuil: number): Promise<{ seuil: number }> {
+  return authedSend("/api/v1/admin/doublons/seuil", token, "PUT", { seuil }, "Mise a jour impossible");
 }
 
 // --- Registrations (inscriptions) ---
