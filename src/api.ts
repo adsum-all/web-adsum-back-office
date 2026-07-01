@@ -902,6 +902,8 @@ export interface DossierDocument {
   mime: string | null;
   recu_le: string | null;
   url: string | null;
+  chiffre: boolean;
+  content_path: string | null;
 }
 
 export interface DossierEngagement {
@@ -945,6 +947,20 @@ export function getMembrePhotoUrl(token: string, membreId: string): Promise<{ ur
     token,
     "Photo indisponible",
   );
+}
+
+/**
+ * Fetch a document's decrypted bytes (an encrypted document is served by an
+ * authenticated content endpoint, not a public signed URL) and return a blob
+ * object URL the caller can open. The caller must revoke the URL when done.
+ */
+export async function fetchDocumentContentUrl(token: string, contentPath: string): Promise<string> {
+  const res = await fetch(`${BASE}${contentPath}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    throw new Error("Document indisponible");
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
 }
 
 export interface CorrectionItem {

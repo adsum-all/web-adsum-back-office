@@ -7,6 +7,7 @@ import {
   creerCompteMembre,
   decisionInscription,
   getCorrections,
+  fetchDocumentContentUrl,
   getDossierInscription,
   getInscriptions,
 } from "../api.js";
@@ -80,6 +81,18 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
       setDossierError("Dossier indisponible.");
     } finally {
       setDossierLoading(false);
+    }
+  }
+
+  async function openEncryptedDoc(contentPath: string): Promise<void> {
+    // Encrypted documents are decrypted server-side by an authenticated endpoint,
+    // then opened from a temporary blob URL (revoked shortly after).
+    try {
+      const objectUrl = await fetchDocumentContentUrl(token, contentPath);
+      window.open(objectUrl, "_blank", "noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch {
+      setDossierError("Document chiffré indisponible.");
     }
   }
 
@@ -386,12 +399,23 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
                       <td>
                         <span className="badge badge-mut">{doc.statut}</span>
                       </td>
-                      <td className="small">{doc.recu_le ? new Date(doc.recu_le).toLocaleString("fr-FR") : "-"}</td>
+                      <td className="small">
+                        {doc.recu_le ? new Date(doc.recu_le).toLocaleString("fr-FR") : "-"}
+                        {doc.chiffre ? <span className="badge badge-mut" style={{ marginLeft: 6 }}>chiffré</span> : null}
+                      </td>
                       <td>
                         {doc.url ? (
                           <a className="btn btn-ghost btn-inline" href={doc.url} target="_blank" rel="noreferrer">
                             Ouvrir
                           </a>
+                        ) : doc.content_path ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-inline"
+                            onClick={() => void openEncryptedDoc(doc.content_path as string)}
+                          >
+                            Ouvrir
+                          </button>
                         ) : (
                           <button type="button" className="btn btn-ghost btn-inline" disabled>
                             Ouvrir
