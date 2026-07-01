@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ApiError,
@@ -9,6 +9,7 @@ import {
   getCommissions,
   getConnexions,
   getMembre,
+  getMembrePhotoUrl,
   supprimerMembre,
   updateMembre,
 } from "../api.js";
@@ -31,6 +32,22 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [note, setNote] = useState<string | null>(null);
   const [docType, setDocType] = useState("piece_identite");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPhotoUrl(null);
+    getMembrePhotoUrl(token, id)
+      .then((r) => {
+        if (active) setPhotoUrl(r.url);
+      })
+      .catch(() => {
+        if (active) setPhotoUrl(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, id]);
 
   async function manage(action: () => Promise<unknown>, message: string, back?: boolean): Promise<void> {
     setBusy(true);
@@ -84,7 +101,16 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
         </div>
-        <div className="avatar">{initials(name)}</div>
+        {photoUrl ? (
+          <img
+            className="avatar"
+            src={photoUrl}
+            alt={`Photo de ${name}`}
+            style={{ objectFit: "cover" }}
+          />
+        ) : (
+          <div className="avatar">{initials(name)}</div>
+        )}
       </header>
 
       {note && <p className="banner banner-ok">{note}</p>}

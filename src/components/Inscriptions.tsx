@@ -2,13 +2,29 @@ import { useState } from "react";
 
 import {
   type CorrectionItem,
+  type DossierInscription,
   type InscriptionItem,
   creerCompteMembre,
   decisionInscription,
   getCorrections,
+  getDossierInscription,
   getInscriptions,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+
+// Human labels for the document types returned by the dossier endpoint.
+const DOC_TYPES: Record<string, string> = {
+  piece_identite: "Piece d'identite",
+  passeport: "Passeport",
+  permis: "Permis de conduire",
+  carte_consulaire: "Carte consulaire",
+  justificatif_domicile: "Justificatif de domicile",
+  photo_identite: "Photo d'identite",
+};
+
+function docTypeLabel(type: string): string {
+  return DOC_TYPES[type] ?? type;
+}
 
 const STATUT: Record<string, string> = {
   soumis: "badge-warn",
@@ -47,8 +63,25 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
   const [champs, setChamps] = useState<string[]>([]);
   const [corrections, setCorrections] = useState<{ id: string; items: CorrectionItem[] } | null>(null);
   const [corrError, setCorrError] = useState<string | null>(null);
+  const [dossier, setDossier] = useState<DossierInscription | null>(null);
+  const [dossierLoading, setDossierLoading] = useState(false);
+  const [dossierError, setDossierError] = useState<string | null>(null);
 
   const list: InscriptionItem[] = data ?? [];
+
+  async function voirDossier(id: string): Promise<void> {
+    setDossierError(null);
+    setDossier(null);
+    setDossierLoading(true);
+    try {
+      const d = await getDossierInscription(token, id);
+      setDossier(d);
+    } catch {
+      setDossierError("Dossier indisponible.");
+    } finally {
+      setDossierLoading(false);
+    }
+  }
 
   function toggleChamp(cle: string): void {
     setChamps((prev) => (prev.includes(cle) ? prev.filter((c) => c !== cle) : [...prev, cle]));
@@ -151,6 +184,9 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
                   <td className="small">{i.soumis_le ? new Date(i.soumis_le).toLocaleString("fr-FR") : "-"}</td>
                   <td>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button type="button" className="btn btn-ghost btn-inline" onClick={() => void voirDossier(i.id)}>
+                        Voir le dossier
+                      </button>
                       <button type="button" className="btn btn-primary btn-inline" onClick={() => void decide(i.id, "approuve")}>
                         Approuver
                       </button>
@@ -227,6 +263,147 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
               Confirmer
             </button>
           </div>
+        </div>
+      )}
+
+      {dossierError && <p className="banner banner-error">{dossierError}</p>}
+      {dossierLoading && <p className="muted">Chargement du dossier...</p>}
+
+      {dossier && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h2 className="card-title" style={{ margin: 0 }}>
+              Dossier de {dossier.membre.prenoms || ""} {dossier.membre.nom || dossier.membre.matricule}
+            </h2>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => setDossier(null)}>
+              Fermer
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ flex: "0 0 auto" }}>
+              <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)" }}>
+                Piece d'identite
+              </h3>
+              {dossier.photo_url ? (
+                <img
+                  src={dossier.photo_url}
+                  alt="Piece d'identite du membre"
+                  style={{
+                    width: 220,
+                    height: 280,
+                    objectFit: "cover",
+                    borderRadius: "var(--adsum-radius-lg)",
+                    border: "1px solid var(--adsum-line)",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 220,
+                    height: 280,
+                    borderRadius: "var(--adsum-radius-lg)",
+                    border: "1px dashed var(--adsum-line)",
+                    display: "grid",
+                    placeItems: "center",
+                    background: "var(--adsum-board)",
+                    color: "var(--adsum-mut)",
+                    textAlign: "center",
+                    padding: 12,
+                  }}
+                >
+                  Aucune photo fournie
+                </div>
+              )}
+            </div>
+
+            <div style={{ flex: "1 1 320px", minWidth: 280 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)", margin: 0 }}>
+                  Signature electronique
+                </h3>
+                <span className={`badge ${dossier.signature.signe ? "badge-ok" : "badge-bad"}`}>
+                  {dossier.signature.signe ? "Signature verifiee" : "Signature manquante"}
+                </span>
+              </div>
+
+              {dossier.signature.engagements.length === 0 ? (
+                <p className="muted small">Aucun engagement signe.</p>
+              ) : (
+                <ul style={{ margin: "0 0 12px", paddingLeft: 18 }}>
+                  {dossier.signature.engagements.map((e, idx) => (
+                    <li key={`${e.type}-${e.version}-${idx}`} className="small">
+                      <strong>{e.type}</strong> (v{e.version}){" "}
+                      {e.signe_le ? `signe le ${new Date(e.signe_le).toLocaleString("fr-FR")}` : "non date"}
+                      {e.canal ? ` par ${e.canal}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {dossier.signature.preuves.length > 0 && (
+                <>
+                  <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)" }}>
+                    Preuves
+                  </h3>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {dossier.signature.preuves.map((p) => (
+                      <li key={p.id} className="small">
+                        <span className="mono">{p.hash_preuve ? `${p.hash_preuve.slice(0, 12)}...` : "-"}</span>{" "}
+                        {p.signe_le ? new Date(p.signe_le).toLocaleString("fr-FR") : "-"}
+                        {p.canal ? ` (${p.canal})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+
+          <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)", marginTop: 20 }}>
+            Documents
+          </h3>
+          {dossier.documents.length === 0 ? (
+            <p className="muted small">Aucun document transmis.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Fichier</th>
+                    <th>Statut</th>
+                    <th>Recu le</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dossier.documents.map((doc) => (
+                    <tr key={doc.id}>
+                      <td>{docTypeLabel(doc.type)}</td>
+                      <td className="muted small">{doc.nom_fichier ?? "-"}</td>
+                      <td>
+                        <span className="badge badge-mut">{doc.statut}</span>
+                      </td>
+                      <td className="small">{doc.recu_le ? new Date(doc.recu_le).toLocaleString("fr-FR") : "-"}</td>
+                      <td>
+                        {doc.url ? (
+                          <a className="btn btn-ghost btn-inline" href={doc.url} target="_blank" rel="noreferrer">
+                            Ouvrir
+                          </a>
+                        ) : (
+                          <button type="button" className="btn btn-ghost btn-inline" disabled>
+                            Ouvrir
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

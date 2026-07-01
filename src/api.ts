@@ -880,6 +880,73 @@ export function decisionInscription(
   );
 }
 
+// Full registration dossier: identity photo, openable documents and e-signature proof.
+export interface DossierMembre {
+  id: string;
+  matricule: string;
+  prenoms: string | null;
+  nom: string | null;
+  email: string;
+  telephone: string | null;
+  pays: string | null;
+  ville: string | null;
+  statut_inscription: string;
+  verifie: boolean;
+}
+
+export interface DossierDocument {
+  id: string;
+  type: string;
+  statut: string;
+  nom_fichier: string | null;
+  mime: string | null;
+  recu_le: string | null;
+  url: string | null;
+}
+
+export interface DossierEngagement {
+  type: string;
+  version: string;
+  signe_le: string | null;
+  canal: string | null;
+}
+
+export interface DossierPreuve {
+  id: string;
+  signe_le: string | null;
+  hash_preuve: string | null;
+  canal: string | null;
+}
+
+export interface DossierSignature {
+  signe: boolean;
+  engagements: DossierEngagement[];
+  preuves: DossierPreuve[];
+}
+
+export interface DossierInscription {
+  membre: DossierMembre;
+  photo_url: string | null;
+  documents: DossierDocument[];
+  signature: DossierSignature;
+}
+
+export function getDossierInscription(token: string, membreId: string): Promise<DossierInscription> {
+  return authedGet<DossierInscription>(
+    `/api/v1/admin/inscriptions/${membreId}/dossier`,
+    token,
+    "Dossier indisponible",
+  );
+}
+
+export function getMembrePhotoUrl(token: string, membreId: string): Promise<{ url: string | null }> {
+  return authedGet<{ url: string | null }>(
+    `/api/v1/admin/membres/${membreId}/photo-url`,
+    token,
+    "Photo indisponible",
+  );
+}
+
 export interface CorrectionItem {
   champ: string;
   ancienne_valeur: string | null;
