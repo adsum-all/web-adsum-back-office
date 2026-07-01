@@ -467,6 +467,58 @@ export function getReponsesQuestionnaire(token: string, eventId: string): Promis
   return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Reponses indisponibles");
 }
 
+export interface IntegrationGuide {
+  titre?: string;
+  aide?: string;
+  obtenir?: string;
+  roter?: string;
+}
+
+export interface IntegrationItem {
+  cle: string;
+  categorie: string;
+  valeur_masquee: string;
+  renseigne: boolean;
+  maj_le: string | null;
+  guide: IntegrationGuide;
+}
+
+export interface CanalStatut {
+  actif: boolean;
+  note?: string;
+  provider?: string;
+  bot?: string | null;
+  gratuit?: boolean;
+}
+
+export function getIntegrations(token: string): Promise<IntegrationItem[]> {
+  return authedGet<IntegrationItem[]>("/api/v1/admin/integrations", token, "Integrations indisponibles");
+}
+
+export function setIntegration(token: string, cle: string, valeur: string): Promise<{ ok: boolean; valeur_masquee: string }> {
+  return authedSend(`/api/v1/admin/integrations/${cle}`, token, "PUT", { valeur }, "Mise a jour impossible");
+}
+
+export function getCanauxStatut(token: string): Promise<Record<string, CanalStatut>> {
+  return authedGet<Record<string, CanalStatut>>("/api/v1/admin/integrations/statut", token, "Statut indisponible");
+}
+
+export interface TypeNotification {
+  cle: string;
+  libelle: string;
+  categorie: string;
+  actif: boolean;
+  scheduled: boolean;
+}
+
+export function getTypesNotification(token: string): Promise<TypeNotification[]> {
+  return authedGet<TypeNotification[]>("/api/v1/admin/notifications/types", token, "Types indisponibles");
+}
+
+export function toggleTypeNotification(token: string, cle: string, actif: boolean): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/notifications/types/${cle}`, token, "PUT", { actif }, "Mise a jour impossible");
+}
+
 export interface RepartitionLigne {
   cle: string;
   presents: number;
