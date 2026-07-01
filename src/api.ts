@@ -467,6 +467,25 @@ export function getReponsesQuestionnaire(token: string, eventId: string): Promis
   return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Reponses indisponibles");
 }
 
+export interface ModeleAnniversaire {
+  titre: string;
+  corps: string;
+  image_url: string | null;
+  actif: boolean;
+}
+
+export function getModeleAnniversaire(token: string): Promise<ModeleAnniversaire> {
+  return authedGet<ModeleAnniversaire>("/api/v1/admin/modeles/anniversaire", token, "Modele indisponible");
+}
+
+export function setModeleAnniversaire(token: string, modele: ModeleAnniversaire): Promise<{ ok: boolean }> {
+  return authedSend("/api/v1/admin/modeles/anniversaire", token, "PUT", modele, "Enregistrement impossible");
+}
+
+export function declencherAnniversaires(token: string): Promise<{ ok: boolean; envoyes: number }> {
+  return authedSend("/api/v1/admin/anniversaires/declencher", token, "POST", {}, "Declenchement impossible");
+}
+
 export function getQuestionnaireFenetre(token: string): Promise<{ heures: number }> {
   return authedGet<{ heures: number }>("/api/v1/admin/parametres/questionnaire-fenetre", token, "Parametre indisponible");
 }
