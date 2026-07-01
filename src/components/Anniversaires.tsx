@@ -6,6 +6,7 @@ import {
   getModeleAnniversaire,
   setModeleAnniversaire,
 } from "../api.js";
+import { Switch } from "./Switch.js";
 
 /** Admin editor for the automatic birthday message, plus a manual trigger. */
 export function Anniversaires({ token }: { token: string }): JSX.Element {
@@ -89,10 +90,10 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
             <span>Image (URL, facultatif)</span>
             <input value={modele.image_url ?? ""} onChange={(e) => set("image_url", e.target.value || null)} placeholder="https://..." />
           </label>
-          <label className="check" style={{ marginTop: 8 }}>
-            <input type="checkbox" checked={modele.actif} onChange={(e) => set("actif", e.target.checked)} />
-            Envoi automatique actif
-          </label>
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
+            <Switch checked={modele.actif} onChange={() => set("actif", !modele.actif)} label="Envoi automatique des messages d'anniversaire" />
+            <span>Envoi automatique {modele.actif ? "activé" : "désactivé"}</span>
+          </div>
 
           {modele.image_url && (
             <div style={{ marginTop: 12 }}>

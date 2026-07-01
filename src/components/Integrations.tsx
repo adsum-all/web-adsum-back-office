@@ -13,6 +13,7 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
+import { Switch } from "./Switch.js";
 
 const CANAL_LABEL: Record<string, string> = {
   in_app: "Notifications in-app",
@@ -204,14 +205,10 @@ function TypeRow({ type, token, onChanged }: { type: TypeNotification; token: st
         <strong style={{ fontSize: 13.5 }}>{type.libelle}</strong>
         <span className="muted small" style={{ marginLeft: 8 }}>{type.categorie}{type.scheduled ? " . planifié" : ""}</span>
       </div>
-      <button
-        type="button"
-        className={`pill ${type.actif ? "pill-on" : "pill-off"}`}
-        disabled={busy}
-        onClick={() => void toggle()}
-      >
-        {type.actif ? "Actif" : "Désactivé"}
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span className="muted small" style={{ minWidth: 62, textAlign: "right" }}>{type.actif ? "Activé" : "Désactivé"}</span>
+        <Switch checked={type.actif} onChange={() => void toggle()} disabled={busy} label={`Notification ${type.libelle}`} />
+      </div>
     </div>
   );
 }
