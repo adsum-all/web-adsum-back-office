@@ -12,7 +12,15 @@ import { formatDate } from "../format.js";
 import { useResource } from "../useResource.js";
 import { EvenementGestion } from "./EvenementGestion.js";
 
-const EMPTY: EvenementCreateInput = { titre: "", volet: "A", debut: "" };
+const EMPTY: EvenementCreateInput = {
+  titre: "",
+  volet: "A",
+  debut: "",
+  type: "rassemblement",
+  mode: "presentiel",
+  type_diffusion: "aucun",
+  visibilite: "membres",
+};
 
 export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
@@ -40,6 +48,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         titre: form.titre.trim(),
         volet: form.volet,
         debut: new Date(form.debut).toISOString(),
+        type: form.type,
+        mode: form.mode,
+        type_diffusion: form.type_diffusion,
+        visibilite: form.visibilite,
       };
       if (form.fin) payload.fin = new Date(form.fin).toISOString();
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
@@ -82,6 +94,44 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <select value={form.volet} onChange={(e) => set("volet", e.target.value)}>
               <option value="A">A (membres)</option>
               <option value="B">B (grand public)</option>
+            </select>
+          </label>
+          <label>
+            <span>Type</span>
+            <select value={form.type ?? "rassemblement"} onChange={(e) => set("type", e.target.value)}>
+              <option value="rassemblement">Rassemblement</option>
+              <option value="formation">Formation</option>
+              <option value="priere">Priere</option>
+            </select>
+          </label>
+          <label>
+            <span>Mode</span>
+            <select value={form.mode ?? "presentiel"} onChange={(e) => set("mode", e.target.value)}>
+              <option value="presentiel">Presentiel</option>
+              <option value="hybride">Hybride</option>
+              <option value="distanciel">Distanciel</option>
+            </select>
+          </label>
+          <label>
+            <span>Diffusion</span>
+            <select
+              value={form.type_diffusion ?? "aucun"}
+              onChange={(e) => set("type_diffusion", e.target.value as EvenementCreateInput["type_diffusion"])}
+            >
+              <option value="aucun">Aucune</option>
+              <option value="embed">Diffusion integree (embed)</option>
+              <option value="externe">Lien externe</option>
+            </select>
+          </label>
+          <label>
+            <span>Visibilite</span>
+            <select
+              value={form.visibilite ?? "membres"}
+              onChange={(e) => set("visibilite", e.target.value as EvenementCreateInput["visibilite"])}
+            >
+              <option value="public">Public</option>
+              <option value="membres">Membres</option>
+              <option value="prive">Prive</option>
             </select>
           </label>
           <label>

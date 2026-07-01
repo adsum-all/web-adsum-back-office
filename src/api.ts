@@ -55,6 +55,9 @@ export interface MembreProfile {
   patriarche: string | null;
   coordination: string | null;
   coordinateur: string | null;
+  fonction_cle?: string | null;
+  fonction_confirmee?: boolean;
+  titre?: string | null;
 }
 
 export interface MembreCreateInput {
@@ -249,6 +252,9 @@ export interface CommissionCreateInput {
   description?: string;
 }
 
+export type TypeDiffusion = "aucun" | "embed" | "externe";
+export type Visibilite = "public" | "membres" | "prive";
+
 export interface Evenement {
   id: string;
   titre: string;
@@ -259,6 +265,9 @@ export interface Evenement {
   lieu: string | null;
   session_ouverte?: boolean;
   lien_session?: string | null;
+  mode?: string | null;
+  type_diffusion?: TypeDiffusion;
+  visibilite?: Visibilite;
 }
 
 export interface EvenementCreateInput {
@@ -269,6 +278,9 @@ export interface EvenementCreateInput {
   fin?: string;
   lieu?: string;
   lien_session?: string;
+  mode?: string;
+  type_diffusion?: TypeDiffusion;
+  visibilite?: Visibilite;
 }
 
 export interface MembreListQuery {
@@ -426,9 +438,80 @@ export function createEvenement(
 export function majSessionEvenement(
   token: string,
   id: string,
-  patch: { lien_session?: string; session_ouverte?: boolean },
+  patch: {
+    lien_session?: string;
+    session_ouverte?: boolean;
+    type_diffusion?: TypeDiffusion;
+    visibilite?: Visibilite;
+  },
 ): Promise<{ id: string; session_ouverte: boolean; lien_session: string | null }> {
   return authedSend(`/api/v1/admin/evenements/${id}/session`, token, "PATCH", patch, "Mise a jour impossible");
+}
+
+export function testDiffusionEvenement(token: string, id: string): Promise<{ ok: boolean; envoyes: number }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/test-diffusion`, token, "POST", {}, "Test impossible");
+}
+
+export interface FonctionHonorifique {
+  cle: string;
+  libelle_h: string;
+  libelle_f: string;
+  libelle_n: string;
+  est_vip: boolean;
+  ordre: number;
+  actif: boolean;
+}
+
+export interface FonctionCreateInput {
+  cle: string;
+  libelle_h: string;
+  libelle_f: string;
+  libelle_n: string;
+  est_vip: boolean;
+  ordre: number;
+}
+
+export interface FonctionUpdateInput {
+  libelle_h?: string;
+  libelle_f?: string;
+  libelle_n?: string;
+  est_vip?: boolean;
+  ordre?: number;
+  actif?: boolean;
+}
+
+export function getFonctions(token: string): Promise<FonctionHonorifique[]> {
+  return authedGet<FonctionHonorifique[]>("/api/v1/admin/fonctions", token, "Fonctions indisponibles");
+}
+
+export function createFonction(token: string, input: FonctionCreateInput): Promise<FonctionHonorifique> {
+  return authedSend<FonctionHonorifique>("/api/v1/admin/fonctions", token, "POST", input, "Creation impossible");
+}
+
+export function updateFonction(
+  token: string,
+  cle: string,
+  input: FonctionUpdateInput,
+): Promise<FonctionHonorifique> {
+  return authedSend<FonctionHonorifique>(`/api/v1/admin/fonctions/${cle}`, token, "PUT", input, "Mise a jour impossible");
+}
+
+export function deleteFonction(token: string, cle: string): Promise<void> {
+  return request<void>(`/api/v1/admin/fonctions/${cle}`, token, { method: "DELETE" }, "Retrait impossible");
+}
+
+export function validerFonctionMembre(
+  token: string,
+  membreId: string,
+  input: { fonction_cle?: string; confirmee: boolean },
+): Promise<{ ok: boolean; fonction_cle: string | null; fonction_confirmee: boolean; titre: string | null }> {
+  return authedSend(
+    `/api/v1/admin/membres/${membreId}/fonction`,
+    token,
+    "PUT",
+    input,
+    "Validation impossible",
+  );
 }
 
 export interface QuestionInput {

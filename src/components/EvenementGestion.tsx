@@ -4,17 +4,23 @@ import {
   type Evenement,
   type QuestionInput,
   type ReponseQuestionnaire,
+  type TypeDiffusion,
+  type Visibilite,
   definirQuestionnaire,
   getQuestionnaireAdmin,
   getReponsesQuestionnaire,
   majSessionEvenement,
+  testDiffusionEvenement,
 } from "../api.js";
+import { InfoTip } from "./InfoTip.js";
 
 /** Per-event admin panel: live session link/state and the post-session
  * questionnaire (builder + collected responses). */
 export function EvenementGestion({ token, evenement, onChanged }: { token: string; evenement: Evenement; onChanged: () => void }): JSX.Element {
   const [lien, setLien] = useState(evenement.lien_session ?? "");
   const [ouverte, setOuverte] = useState(!!evenement.session_ouverte);
+  const [diffusion, setDiffusion] = useState<TypeDiffusion>(evenement.type_diffusion ?? "aucun");
+  const [visibilite, setVisibilite] = useState<Visibilite>(evenement.visibilite ?? "membres");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [titre, setTitre] = useState("Questionnaire de session");
   const [reponses, setReponses] = useState<ReponseQuestionnaire[]>([]);
@@ -33,7 +39,12 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
     void getReponsesQuestionnaire(token, evenement.id).then(setReponses).catch(() => undefined);
   }, [token, evenement.id]);
 
-  async function saveSession(next: { lien_session?: string; session_ouverte?: boolean }): Promise<void> {
+  async function saveSession(next: {
+    lien_session?: string;
+    session_ouverte?: boolean;
+    type_diffusion?: TypeDiffusion;
+    visibilite?: Visibilite;
+  }): Promise<void> {
     setBusy(true);
     setNote(null);
     try {
@@ -42,6 +53,17 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
       setLien(r.lien_session ?? "");
       onChanged();
       setNote("Session mise a jour.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function testDiffusion(): Promise<void> {
+    setBusy(true);
+    setNote(null);
+    try {
+      const r = await testDiffusionEvenement(token, evenement.id);
+      setNote(`Test de diffusion envoye a ${r.envoyes} membre(s).`);
     } finally {
       setBusy(false);
     }
@@ -85,6 +107,53 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
         >
           {ouverte ? "Fermer la session" : "Ouvrir la session"}
         </button>
+      </div>
+
+      <div className="toolbar" style={{ marginTop: 10 }}>
+        <label style={{ flex: 1 }}>
+          <span className="muted small">Type de diffusion</span>
+          <select
+            className="search"
+            style={{ width: "100%" }}
+            value={diffusion}
+            onChange={(e) => {
+              const next = e.target.value as TypeDiffusion;
+              setDiffusion(next);
+              void saveSession({ type_diffusion: next });
+            }}
+          >
+            <option value="aucun">Aucune</option>
+            <option value="embed">Diffusion integree (embed)</option>
+            <option value="externe">Lien externe</option>
+          </select>
+        </label>
+        <label style={{ flex: 1 }}>
+          <span className="muted small">Visibilite</span>
+          <select
+            className="search"
+            style={{ width: "100%" }}
+            value={visibilite}
+            onChange={(e) => {
+              const next = e.target.value as Visibilite;
+              setVisibilite(next);
+              void saveSession({ visibilite: next });
+            }}
+          >
+            <option value="public">Public</option>
+            <option value="membres">Membres</option>
+            <option value="prive">Prive</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void testDiffusion()}>
+          Test de diffusion en live
+        </button>
+        <InfoTip
+          title="Test de diffusion"
+          text="Envoie une notification de test aux membres concernes. Le message est clairement signale comme un test afin d'eviter toute confusion."
+        />
       </div>
 
       <p className="card-title" style={{ margin: "14px 0 6px" }}>Questionnaire de session</p>

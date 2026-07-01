@@ -14,6 +14,7 @@ import {
 } from "../api.js";
 import { formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
+import { MembreFonction } from "./MembreFonction.js";
 
 interface MembreDetailProps {
   token: string;
@@ -207,6 +208,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </select>
         </label>
       </section>
+
+      <MembreFonction token={token} membre={m} onChanged={() => membre.reload()} />
 
       <div className="form-actions">
         {!m.verifie && (

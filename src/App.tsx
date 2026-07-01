@@ -7,6 +7,7 @@ import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { DemandesAdmin } from "./components/DemandesAdmin.js";
 import { Doublons } from "./components/Doublons.js";
+import { Fonctions } from "./components/Fonctions.js";
 import { Inscriptions } from "./components/Inscriptions.js";
 import { Evenements } from "./components/Evenements.js";
 import { JournalAudit } from "./components/JournalAudit.js";
@@ -29,6 +30,7 @@ type Section =
   | "membres"
   | "doublons"
   | "commissions"
+  | "fonctions"
   | "organisation"
   | "evenements"
   | "anniversaires"
@@ -48,6 +50,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
   { id: "doublons", label: "Detection de doublons", group: "MEMBRES" },
   { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
+  { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "EVENEMENTS" },
@@ -142,6 +145,7 @@ export function App(): JSX.Element {
           {section === "membres" && <Membres token={session.token} />}
           {section === "doublons" && <Doublons token={session.token} />}
           {section === "commissions" && <Commissions token={session.token} />}
+          {section === "fonctions" && <Fonctions token={session.token} />}
           {section === "organisation" && <Organisation token={session.token} />}
           {section === "evenements" && <Evenements token={session.token} />}
           {section === "anniversaires" && <Anniversaires token={session.token} />}
