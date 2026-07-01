@@ -1,16 +1,30 @@
 import { useState } from "react";
 
-import { ApiError, type EvenementCreateInput, createEvenement, getEvenements } from "../api.js";
+import {
+  ApiError,
+  type EvenementCreateInput,
+  createEvenement,
+  getEvenements,
+  getQuestionnaireFenetre,
+  setQuestionnaireFenetre,
+} from "../api.js";
 import { formatDate } from "../format.js";
 import { useResource } from "../useResource.js";
+import { EvenementGestion } from "./EvenementGestion.js";
 
 const EMPTY: EvenementCreateInput = { titre: "", volet: "A", debut: "" };
 
 export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
+  const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  function saveFenetre(heures: number): void {
+    void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
+  }
 
   function set<K extends keyof EvenementCreateInput>(key: K, value: EvenementCreateInput[K]): void {
     setForm((f) => ({ ...f, [key]: value }));
@@ -29,6 +43,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
       };
       if (form.fin) payload.fin = new Date(form.fin).toISOString();
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
+      if (form.lien_session?.trim()) payload.lien_session = form.lien_session.trim();
       await createEvenement(token, payload);
       setForm(EMPTY);
       evenements.reload();
@@ -73,6 +88,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Lieu</span>
             <input value={form.lieu ?? ""} onChange={(e) => set("lieu", e.target.value)} />
           </label>
+          <label className="full">
+            <span>Lien de session (Zoom, Meet...)</span>
+            <input value={form.lien_session ?? ""} onChange={(e) => set("lien_session", e.target.value)} placeholder="https://..." />
+          </label>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
@@ -82,21 +101,47 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         </div>
       </form>
 
+      <section className="card">
+        <h2 className="card-title">Fenetre des questionnaires</h2>
+        <p className="muted small">Duree, en heures apres la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
+        <div className="toolbar">
+          <input
+            type="range"
+            min={1}
+            max={72}
+            step={1}
+            value={fenetre.data?.heures ?? 6}
+            onChange={(e) => saveFenetre(Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetre.data?.heures ?? 6} h</span>
+        </div>
+      </section>
+
       {evenements.error && <p className="banner banner-error">{evenements.error}</p>}
-      <ul className="list">
-        {(evenements.data ?? []).map((ev) => (
-          <li key={ev.id} className="list-row">
+      {(evenements.data ?? []).map((ev) => (
+        <section className="card" key={ev.id}>
+          <div className="list-row" style={{ border: "none", background: "transparent", padding: 0 }}>
             <div className="event-main">
               <strong>{ev.titre}</strong>
               <span className="muted">{formatDate(ev.debut)}</span>
             </div>
             <div className="list-meta">
+              {ev.session_ouverte && <span className="badge badge-ok">Session ouverte</span>}
               {ev.lieu && <span className="muted">{ev.lieu}</span>}
               <span className="badge badge-mut">Volet {ev.volet}</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-inline"
+                onClick={() => setOpenId(openId === ev.id ? null : ev.id)}
+              >
+                {openId === ev.id ? "Fermer" : "Gerer la session"}
+              </button>
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+          {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={evenements.reload} />}
+        </section>
+      ))}
       {!evenements.loading && (evenements.data ?? []).length === 0 && (
         <p className="muted">Aucun evenement.</p>
       )}

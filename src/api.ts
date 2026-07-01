@@ -257,6 +257,8 @@ export interface Evenement {
   debut: string;
   fin: string | null;
   lieu: string | null;
+  session_ouverte?: boolean;
+  lien_session?: string | null;
 }
 
 export interface EvenementCreateInput {
@@ -266,6 +268,7 @@ export interface EvenementCreateInput {
   debut: string;
   fin?: string;
   lieu?: string;
+  lien_session?: string;
 }
 
 export interface MembreListQuery {
@@ -418,6 +421,58 @@ export function createEvenement(
     input,
     "Creation impossible",
   );
+}
+
+export function majSessionEvenement(
+  token: string,
+  id: string,
+  patch: { lien_session?: string; session_ouverte?: boolean },
+): Promise<{ id: string; session_ouverte: boolean; lien_session: string | null }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/session`, token, "PATCH", patch, "Mise a jour impossible");
+}
+
+export interface QuestionInput {
+  libelle: string;
+  type: string;
+  options?: string[];
+}
+
+export interface QuestionnaireAdmin {
+  id: string;
+  titre: string;
+  questions: { id: string; libelle: string; type: string; options: string[] }[];
+}
+
+export function definirQuestionnaire(
+  token: string,
+  eventId: string,
+  titre: string,
+  questions: QuestionInput[],
+): Promise<{ id: string; questions: number }> {
+  return authedSend(`/api/v1/admin/evenements/${eventId}/questionnaire`, token, "PUT", { titre, questions }, "Enregistrement impossible");
+}
+
+export function getQuestionnaireAdmin(token: string, eventId: string): Promise<QuestionnaireAdmin | null> {
+  return authedGet<QuestionnaireAdmin | null>(`/api/v1/admin/evenements/${eventId}/questionnaire`, token, "Questionnaire indisponible");
+}
+
+export interface ReponseQuestionnaire {
+  membre_nom: string;
+  matricule: string;
+  reponses: Record<string, string>;
+  soumis_le: string | null;
+}
+
+export function getReponsesQuestionnaire(token: string, eventId: string): Promise<ReponseQuestionnaire[]> {
+  return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Reponses indisponibles");
+}
+
+export function getQuestionnaireFenetre(token: string): Promise<{ heures: number }> {
+  return authedGet<{ heures: number }>("/api/v1/admin/parametres/questionnaire-fenetre", token, "Parametre indisponible");
+}
+
+export function setQuestionnaireFenetre(token: string, heures: number): Promise<{ heures: number }> {
+  return authedSend("/api/v1/admin/parametres/questionnaire-fenetre", token, "PUT", { heures }, "Mise a jour impossible");
 }
 
 export function getIntendances(token: string): Promise<Intendance[]> {
