@@ -467,6 +467,56 @@ export function getReponsesQuestionnaire(token: string, eventId: string): Promis
   return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Reponses indisponibles");
 }
 
+export interface RepartitionLigne {
+  cle: string;
+  presents: number;
+  partiels: number;
+  absents: number;
+}
+
+export interface ParticipationStats {
+  evenement: { id: string; titre: string; debut: string | null; volet: string };
+  effectif_attendu: number;
+  repondants: number;
+  non_repondants: number;
+  presents: number;
+  presents_presentiel: number;
+  presents_enligne: number;
+  partiels: number;
+  absents: number;
+  brouillons: number;
+  taux_reponse: number;
+  taux_non_reponse: number;
+  taux_presence: number;
+  taux_presence_repondants: number;
+  taux_participation: number;
+  taux_partiel: number;
+  taux_absence: number;
+  part_presentiel: number;
+  part_en_ligne: number;
+  note_moyenne: number | null;
+  nb_notes: number;
+  taux_reponse_note: number;
+  distribution_notes: { note: number; n: number }[];
+  repartitions: Record<string, RepartitionLigne[]>;
+}
+
+export interface ParticipationGlobal {
+  nb_evenements: number;
+  repartition_globale: { presents: number; partiels: number; absents: number; presentiel: number; en_ligne: number };
+  serie_evenements: { id: string; titre: string; debut: string | null; volet: string; presents: number; partiels: number; absents: number }[];
+  top_assidus: { membre: string; matricule: string; presents: number }[];
+  a_relancer: { membre: string; matricule: string; presents: number }[];
+}
+
+export function getParticipationStats(token: string, eventId: string): Promise<ParticipationStats> {
+  return authedGet<ParticipationStats>(`/api/v1/admin/evenements/${eventId}/participation-stats`, token, "Statistiques indisponibles");
+}
+
+export function getParticipationGlobal(token: string): Promise<ParticipationGlobal> {
+  return authedGet<ParticipationGlobal>("/api/v1/admin/participation/global", token, "Statistiques indisponibles");
+}
+
 export interface ModeleAnniversaire {
   titre: string;
   corps: string;

@@ -13,6 +13,7 @@ import { JournalAudit } from "./components/JournalAudit.js";
 import { Login } from "./components/Login.js";
 import { Anniversaires } from "./components/Anniversaires.js";
 import { Membres } from "./components/Membres.js";
+import { ParticipationStats } from "./components/ParticipationStats.js";
 import { Organisation } from "./components/Organisation.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
@@ -21,6 +22,7 @@ import { Utilisateurs } from "./components/Utilisateurs.js";
 type Section =
   | "dashboard"
   | "statistiques"
+  | "participation"
   | "inscriptions"
   | "demandes"
   | "membres"
@@ -38,6 +40,7 @@ type Section =
 const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
   { id: "statistiques", label: "Statistiques", group: "PILOTAGE" },
+  { id: "participation", label: "Participation & assiduité", group: "PILOTAGE" },
   { id: "inscriptions", label: "Inscriptions a valider", group: "MEMBRES" },
   { id: "demandes", label: "Demandes des membres", group: "MEMBRES" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
@@ -130,6 +133,7 @@ export function App(): JSX.Element {
         <div className="main-scroll">
           {section === "dashboard" && <Dashboard token={session.token} />}
           {section === "statistiques" && <Statistiques token={session.token} />}
+          {section === "participation" && <ParticipationStats token={session.token} />}
           {section === "inscriptions" && <Inscriptions token={session.token} />}
           {section === "demandes" && <DemandesAdmin token={session.token} />}
           {section === "membres" && <Membres token={session.token} />}
