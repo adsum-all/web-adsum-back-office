@@ -13,11 +13,18 @@ import {
   testDiffusionEvenement,
 } from "../api.js";
 import { InfoTip } from "./InfoTip.js";
+import { LiensEditor } from "./LiensEditor.js";
+
+function initialLiens(evenement: Evenement): string[] {
+  if (evenement.liens && evenement.liens.length > 0) return evenement.liens;
+  if (evenement.lien_session) return [evenement.lien_session];
+  return [""];
+}
 
 /** Per-event admin panel: live session link/state and the post-session
  * questionnaire (builder + collected responses). */
 export function EvenementGestion({ token, evenement, onChanged }: { token: string; evenement: Evenement; onChanged: () => void }): JSX.Element {
-  const [lien, setLien] = useState(evenement.lien_session ?? "");
+  const [liens, setLiens] = useState<string[]>(initialLiens(evenement));
   const [ouverte, setOuverte] = useState(!!evenement.session_ouverte);
   const [diffusion, setDiffusion] = useState<TypeDiffusion>(evenement.type_diffusion ?? "aucun");
   const [visibilite, setVisibilite] = useState<Visibilite>(evenement.visibilite ?? "membres");
@@ -41,6 +48,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
 
   async function saveSession(next: {
     lien_session?: string;
+    liens?: string[];
     session_ouverte?: boolean;
     type_diffusion?: TypeDiffusion;
     visibilite?: Visibilite;
@@ -50,12 +58,16 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
     try {
       const r = await majSessionEvenement(token, evenement.id, next);
       setOuverte(r.session_ouverte);
-      setLien(r.lien_session ?? "");
       onChanged();
       setNote("Session mise a jour.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function saveLiens(): Promise<void> {
+    const clean = liens.map((l) => l.trim()).filter((l) => l.length > 0);
+    await saveSession({ liens: clean, lien_session: clean[0] ?? "" });
   }
 
   async function testDiffusion(): Promise<void> {
@@ -88,16 +100,10 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
       {note && <p className="banner banner-ok">{note}</p>}
 
       <p className="card-title" style={{ marginBottom: 6 }}>Session en ligne</p>
-      <div className="toolbar">
-        <input
-          className="search"
-          style={{ flex: 1 }}
-          placeholder="Lien de session (Zoom, Meet...)"
-          value={lien}
-          onChange={(e) => setLien(e.target.value)}
-        />
-        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void saveSession({ lien_session: lien })}>
-          Enregistrer le lien
+      <LiensEditor liens={liens} onChange={setLiens} disabled={busy} />
+      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void saveLiens()}>
+          Enregistrer les liens
         </button>
         <button
           type="button"

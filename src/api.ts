@@ -265,6 +265,7 @@ export interface Evenement {
   lieu: string | null;
   session_ouverte?: boolean;
   lien_session?: string | null;
+  liens?: string[];
   mode?: string | null;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
@@ -278,6 +279,7 @@ export interface EvenementCreateInput {
   fin?: string;
   lieu?: string;
   lien_session?: string;
+  liens?: string[];
   mode?: string;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
@@ -440,6 +442,7 @@ export function majSessionEvenement(
   id: string,
   patch: {
     lien_session?: string;
+    liens?: string[];
     session_ouverte?: boolean;
     type_diffusion?: TypeDiffusion;
     visibilite?: Visibilite;

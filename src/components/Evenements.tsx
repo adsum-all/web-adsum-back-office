@@ -11,6 +11,7 @@ import {
 import { formatDate } from "../format.js";
 import { useResource } from "../useResource.js";
 import { EvenementGestion } from "./EvenementGestion.js";
+import { LiensEditor } from "./LiensEditor.js";
 
 const EMPTY: EvenementCreateInput = {
   titre: "",
@@ -26,6 +27,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
+  const [liens, setLiens] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -55,9 +57,14 @@ export function Evenements({ token }: { token: string }): JSX.Element {
       };
       if (form.fin) payload.fin = new Date(form.fin).toISOString();
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
-      if (form.lien_session?.trim()) payload.lien_session = form.lien_session.trim();
+      const cleanLiens = liens.map((l) => l.trim()).filter((l) => l.length > 0);
+      if (cleanLiens.length > 0) {
+        payload.liens = cleanLiens;
+        payload.lien_session = cleanLiens[0];
+      }
       await createEvenement(token, payload);
       setForm(EMPTY);
+      setLiens([""]);
       evenements.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur reseau");
@@ -138,10 +145,9 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Lieu</span>
             <input value={form.lieu ?? ""} onChange={(e) => set("lieu", e.target.value)} />
           </label>
-          <label className="full">
-            <span>Lien de session (Zoom, Meet...)</span>
-            <input value={form.lien_session ?? ""} onChange={(e) => set("lien_session", e.target.value)} placeholder="https://..." />
-          </label>
+          <div className="full">
+            <LiensEditor liens={liens} onChange={setLiens} disabled={busy} />
+          </div>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
