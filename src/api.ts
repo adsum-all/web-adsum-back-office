@@ -1045,6 +1045,65 @@ export function publishConsentDoc(
   );
 }
 
+// --- Country e-signature matrix and manual attestations ---
+export interface PaysSignature {
+  code_pays: string;
+  nom: string;
+  nom_en: string | null;
+  esignature_reconnue: boolean;
+  manuel_requis: boolean;
+  source: string | null;
+  note: string | null;
+}
+
+export interface PaysSignaturePatch {
+  manuel_requis?: boolean;
+  esignature_reconnue?: boolean;
+  note?: string;
+  source?: string;
+}
+
+export interface Attestation {
+  id: string;
+  statut: string;
+  document_id: string | null;
+  echeance: string | null;
+  membre: string | null;
+  pays: string | null;
+  email: string | null;
+}
+
+export type DecisionAttestation = "accepted" | "rejected";
+
+export function getPaysSignature(token: string): Promise<PaysSignature[]> {
+  return authedGet<PaysSignature[]>("/api/v1/admin/pays-signature", token, "Matrice indisponible");
+}
+
+export function updatePaysSignature(
+  token: string,
+  code: string,
+  patch: PaysSignaturePatch,
+): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/pays-signature/${code}`, token, "PATCH", patch, "Mise a jour impossible");
+}
+
+export function getAttestations(token: string): Promise<Attestation[]> {
+  return authedGet<Attestation[]>("/api/v1/admin/attestations", token, "Attestations indisponibles");
+}
+
+export function validerAttestation(
+  token: string,
+  id: string,
+  decision: DecisionAttestation,
+): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(`/api/v1/admin/attestations/${id}/valider`, token, "POST", { decision }, "Validation impossible");
+}
+
+// Signed download URL for an uploaded document (reuses the shared document helper).
+export function getDocumentUrl(token: string, documentId: string): Promise<{ url: string | null }> {
+  return authedGet<{ url: string | null }>(`/api/v1/admin/documents/${documentId}/url`, token, "Document indisponible");
+}
+
 export function apiBaseUrl(): string {
   return BASE;
 }

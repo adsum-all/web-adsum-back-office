@@ -14,6 +14,7 @@ import { Evenements } from "./components/Evenements.js";
 import { JournalAudit } from "./components/JournalAudit.js";
 import { Login } from "./components/Login.js";
 import { Anniversaires } from "./components/Anniversaires.js";
+import { Attestations } from "./components/Attestations.js";
 import { Integrations } from "./components/Integrations.js";
 import { Membres } from "./components/Membres.js";
 import { ParticipationStats } from "./components/ParticipationStats.js";
@@ -41,6 +42,7 @@ type Section =
   | "terminaux"
   | "integrations"
   | "consentements"
+  | "attestations"
   | "audit";
 
 const NAV: { id: Section; label: string; group: string }[] = [
@@ -62,6 +64,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
   { id: "integrations", label: "Integrations & aide", group: "SYSTEME" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTEME" },
+  { id: "attestations", label: "Attestations & pays", group: "SYSTEME" },
   { id: "audit", label: "Journal d'audit", group: "SYSTEME" },
 ];
 
@@ -158,6 +161,7 @@ export function App(): JSX.Element {
           {section === "terminaux" && <Terminaux token={session.token} />}
           {section === "integrations" && <Integrations token={session.token} />}
           {section === "consentements" && <Consentements token={session.token} />}
+          {section === "attestations" && <Attestations token={session.token} />}
           {section === "audit" && <JournalAudit token={session.token} />}
         </div>
       </main>
