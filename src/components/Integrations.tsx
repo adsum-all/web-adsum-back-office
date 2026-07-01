@@ -1,4 +1,5 @@
-import { useState } from "react";
+import QRCode from "qrcode";
+import { useEffect, useState } from "react";
 
 import {
   type CanalStatut,
@@ -37,6 +38,8 @@ export function Integrations({ token }: { token: string }): JSX.Element {
       </header>
 
       {note && <p className="banner banner-ok">{note}</p>}
+
+      <TelegramOnboarding bot={(statut.data?.telegram?.bot as string | null) ?? null} />
 
       <section className="card">
         <h2 className="card-title">
@@ -94,6 +97,43 @@ export function Integrations({ token }: { token: string }): JSX.Element {
         </div>
       </section>
     </div>
+  );
+}
+
+function TelegramOnboarding({ bot }: { bot: string | null }): JSX.Element | null {
+  const [qr, setQr] = useState<string>("");
+  const lien = bot ? `https://t.me/${bot}` : "";
+
+  useEffect(() => {
+    if (!lien) return;
+    void QRCode.toDataURL(lien, { width: 240, margin: 2, color: { dark: "#2a4fad", light: "#ffffff" } })
+      .then(setQr)
+      .catch(() => setQr(""));
+  }, [lien]);
+
+  if (!bot) return null;
+
+  return (
+    <section className="card">
+      <h2 className="card-title">
+        Inviter sur Telegram (canal gratuit)
+        <InfoTip title="Comment ça marche" text="Telegram exige que chaque personne ouvre le bot et appuie une fois sur Démarrer. Ensuite elle reçoit TOUTES les notifications automatiquement, à vie, sans rien refaire. Partagez ce QR (affiche, réunion, WhatsApp) ou le lien : c'est l'onboarding officiel." />
+      </h2>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center" }}>
+        {qr && <img src={qr} alt="QR Telegram" style={{ width: 180, height: 180, borderRadius: 12, border: "1px solid var(--adsum-line)" }} />}
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Partagez ce QR code ou le lien ci-dessous. Chaque membre qui le scanne et appuie sur <b>Démarrer</b> reçoit
+            ensuite ses notifications (anniversaires, rappels, codes) automatiquement, sans aucune autre action.
+          </p>
+          <div className="toolbar">
+            <input className="search mono" style={{ flex: 1 }} readOnly value={lien} onFocus={(e) => e.currentTarget.select()} />
+            <a className="btn btn-primary btn-inline" href={lien} target="_blank" rel="noreferrer">Ouvrir</a>
+            {qr && <a className="btn btn-ghost btn-inline" href={qr} download="adsum-telegram-qr.png">Télécharger le QR</a>}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
