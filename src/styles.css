@@ -171,6 +171,24 @@ h3 {
   top: 0;
   height: 100vh;
 }
+/* The navigation is the only scrolling area of the sidebar: the brand stays on
+   top, the account footer stays at the bottom, and no menu entry can ever be
+   pushed out of reach on small screens. */
+.sidebar nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2c3450 transparent;
+  padding-right: 2px;
+}
+.sidebar nav::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar nav::-webkit-scrollbar-thumb {
+  background: #2c3450;
+  border-radius: 3px;
+}
 .sidebar .brand {
   padding: 4px 6px 14px;
   border-bottom: 1px solid var(--sidebar-line);
@@ -193,7 +211,7 @@ h3 {
   background: none;
   border: none;
   color: var(--sidebar-mut);
-  padding: 9px 10px;
+  padding: 7px 10px;
   border-radius: 9px;
   font-size: var(--adsum-text-sm);
   font-family: inherit;

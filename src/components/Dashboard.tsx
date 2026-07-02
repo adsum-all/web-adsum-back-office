@@ -1,6 +1,8 @@
-import { getStatistiques } from "../api.js";
+import { useEffect, useState } from "react";
+
+import { getParticipationGlobal, getStatistiques } from "../api.js";
 import { useResource } from "../useResource.js";
-import { DonutChart, LineChart, type ChartDatum } from "./Charts.js";
+import { DonutChart, LineChart, StackedBar, type ChartDatum } from "./Charts.js";
 import { Kpi } from "./Kpi.js";
 
 const MONTHS_FR = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -21,10 +23,26 @@ function toSeries(rows: { mois: string; total: number }[]): ChartDatum[] {
 }
 
 export function Dashboard({ token }: { token: string }): JSX.Element {
-  const { data, loading, error } = useResource(() => getStatistiques(token), [token]);
+  const { data, loading, error, reload } = useResource(() => getStatistiques(token), [token]);
+  const participation = useResource(() => getParticipationGlobal(token), [token]);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  // Live dashboard: figures refresh on their own so the screen can stay open
+  // during a session and always show what is happening right now.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      reload();
+      participation.reload();
+      setLastUpdate(new Date());
+    }, 60000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const entries = data ? toSeries(data.entrees_mensuelles) : [];
   const aVerifier = data?.membres_a_verifier ?? [];
+  const serie = participation.data?.serie_evenements ?? [];
+  const rg = participation.data?.repartition_globale;
 
   return (
     <div className="page">
@@ -33,6 +51,9 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
           <h1>Tableau de bord</h1>
           <p className="muted">Vue d'ensemble, sur les données réelles de la base.</p>
         </div>
+        <span className="badge badge-ok" title="Actualisation automatique toutes les 60 secondes">
+          En direct{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr-FR")}` : ""}
+        </span>
       </header>
 
       {error && <p className="banner banner-error">{error}</p>}
@@ -52,10 +73,10 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
           loading={loading}
         />
         <Kpi
-          label="Commissions"
-          value={data?.commissions_total}
-          hint={`${data?.intendances_total ?? 0} intendances`}
-          loading={loading}
+          label="Présents / absents"
+          value={rg ? rg.presents + rg.presentiel + rg.en_ligne : undefined}
+          hint={rg ? `${rg.absents} absents cumulés` : ""}
+          loading={participation.loading}
         />
       </div>
 
@@ -83,6 +104,40 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
           )}
         </section>
       </div>
+
+      <section className="card">
+        <h2 className="card-title">Présence par activité</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Répartition présents / partiels / absents des dernières activités. Détail complet dans Participation &amp; assiduité.
+        </p>
+        {participation.loading ? (
+          <p className="muted">Chargement...</p>
+        ) : serie.length === 0 ? (
+          <p className="muted">Aucune activité avec présence enregistrée pour le moment.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {serie.slice(0, 8).map((ev) => {
+              const total = ev.presents + ev.partiels + ev.absents;
+              return (
+                <div key={ev.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{ev.titre}</span>
+                    <span className="muted small">
+                      {ev.presents} présents · {ev.partiels} partiels · {ev.absents} absents ({total} attendus)
+                    </span>
+                  </div>
+                  <StackedBar presents={ev.presents} partiels={ev.partiels} absents={ev.absents} />
+                </div>
+              );
+            })}
+            <div className="muted small" style={{ display: "flex", gap: 14, marginTop: 2 }}>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-ok)", marginRight: 5 }} />Présents</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-warn, #b5731a)", marginRight: 5 }} />Partiels</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-danger)", marginRight: 5 }} />Absents</span>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="card">
         <h2 className="card-title">Validations en attente</h2>

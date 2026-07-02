@@ -299,3 +299,22 @@ export function LineChart({ points, height = 240, emptyMessage }: LineProps): JS
     </svg>
   );
 }
+
+/** Stacked presence bar (present / partial / absent), shared by dashboards. */
+export function StackedBar({ presents, partiels, absents, height = 10 }: {
+  presents: number;
+  partiels: number;
+  absents: number;
+  height?: number;
+}): JSX.Element {
+  const total = Math.max(1, presents + partiels + absents);
+  const seg = (n: number, color: string, label: string) =>
+    n > 0 ? <div title={`${label} : ${n}`} style={{ width: `${(100 * n) / total}%`, background: color }} /> : null;
+  return (
+    <div style={{ display: "flex", height, borderRadius: 6, overflow: "hidden", background: "var(--adsum-line)" }}>
+      {seg(presents, "var(--adsum-ok)", "Présents")}
+      {seg(partiels, "var(--adsum-warn, #b5731a)", "Partiels")}
+      {seg(absents, "var(--adsum-danger)", "Absents")}
+    </div>
+  );
+}

@@ -7,6 +7,7 @@ import {
   getParticipationStats,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { StackedBar as Bar } from "./Charts.js";
 import { Kpi } from "./Kpi.js";
 
 const DIM_LABELS: Record<string, string> = {
@@ -22,18 +23,7 @@ const DIM_LABELS: Record<string, string> = {
   cheminement: "Cheminement",
 };
 
-/** Stacked present/partial/absent bar. */
-function Bar({ presents, partiels, absents }: { presents: number; partiels: number; absents: number }): JSX.Element {
-  const total = Math.max(1, presents + partiels + absents);
-  const seg = (n: number, c: string) => (n > 0 ? <div style={{ width: `${(100 * n) / total}%`, background: c }} /> : null);
-  return (
-    <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", background: "var(--adsum-line)" }}>
-      {seg(presents, "var(--adsum-ok)")}
-      {seg(partiels, "var(--adsum-warn, #b5731a)")}
-      {seg(absents, "var(--adsum-danger)")}
-    </div>
-  );
-}
+
 
 export function ParticipationStats({ token }: { token: string }): JSX.Element {
   const global = useResource(() => getParticipationGlobal(token), [token]);
@@ -49,6 +39,18 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
     void getParticipationStats(token, eventId).then(setStats).catch(() => setStats(null));
   }, [token, eventId]);
 
+  // Live view: presence figures refresh on their own while a session runs.
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      global.reload();
+      if (eventId) void getParticipationStats(token, eventId).then(setStats).catch(() => undefined);
+      setLastUpdate(new Date());
+    }, 30000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, eventId]);
+
   const g = global.data;
 
   return (
@@ -58,6 +60,9 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
           <h1>Statistiques de participation</h1>
           <p className="muted">Présents, partiels, absents, non-répondants, présentiel/en ligne, notes et répartitions.</p>
         </div>
+        <span className="badge badge-ok" title="Actualisation automatique toutes les 30 secondes">
+          En direct{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr-FR")}` : ""}
+        </span>
       </header>
 
       {g && (
