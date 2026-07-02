@@ -992,10 +992,14 @@ export function relancerMdpTemporaire(token: string, membreId: string): Promise<
 // --- Member requests (demandes) ---
 export interface DemandeItem {
   id: string;
+  numero: string;
   type: string;
   sujet: string;
   champ_concerne: string | null;
   statut: string;
+  categorie?: string | null;
+  sous_categorie?: string | null;
+  motif_cloture?: string | null;
   cree_le: string | null;
   membre_nom: string | null;
   nb_messages: number;
@@ -1007,14 +1011,27 @@ export interface DemandeMessageItem {
   auteur_nom: string | null;
   corps: string;
   cree_le: string | null;
+  document_id?: string | null;
 }
 
 export interface DemandeDetailAdmin extends DemandeItem {
   messages: DemandeMessageItem[];
 }
 
-export function getAdminDemandes(token: string): Promise<DemandeItem[]> {
-  return authedGet<DemandeItem[]>("/api/v1/admin/demandes", token, "Demandes indisponibles");
+export function getAdminDemandes(
+  token: string,
+  filters?: { statut?: string; categorie?: string; q?: string },
+): Promise<DemandeItem[]> {
+  const params = new URLSearchParams();
+  if (filters?.statut) params.set("statut", filters.statut);
+  if (filters?.categorie) params.set("categorie", filters.categorie);
+  if (filters?.q) params.set("q", filters.q);
+  const qs = params.toString();
+  return authedGet<DemandeItem[]>(`/api/v1/admin/demandes${qs ? `?${qs}` : ""}`, token, "Demandes indisponibles");
+}
+
+export function demanderPieceDemande(token: string, id: string, description: string): Promise<DemandeItem> {
+  return authedSend(`/api/v1/admin/demandes/${id}/demander-piece`, token, "POST", { description }, "Action impossible");
 }
 
 export function getAdminDemande(token: string, id: string): Promise<DemandeDetailAdmin> {
@@ -1028,7 +1045,7 @@ export function replyAdminDemande(token: string, id: string, corps: string): Pro
 export function updateAdminDemande(
   token: string,
   id: string,
-  patch: { statut?: string; champs_deverrouilles?: string[] },
+  patch: { statut?: string; champs_deverrouilles?: string[]; motif?: string },
 ): Promise<DemandeItem> {
   return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise a jour impossible");
 }

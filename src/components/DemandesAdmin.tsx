@@ -5,9 +5,12 @@ import {
   type DemandeItem,
   type ModificationItem,
   decideDemandeModification,
+  demanderPieceDemande,
+  fetchDocumentContentUrl,
   getAdminDemande,
   getAdminDemandes,
   getDemandeModifications,
+  getDocumentUrl,
   replyAdminDemande,
   updateAdminDemande,
 } from "../api.js";
@@ -16,10 +19,22 @@ import { useResource } from "../useResource.js";
 const STATUT: Record<string, string> = {
   ouverte: "badge-warn",
   en_cours: "badge-mut",
+  pieces_demandees: "badge-warn",
+  attente_membre: "badge-warn",
   en_validation: "badge-warn",
   resolue: "badge-ok",
   refusee: "badge-bad",
 };
+const STATUT_LIBELLE: Record<string, string> = {
+  ouverte: "Ouverte",
+  en_cours: "En cours",
+  pieces_demandees: "Pièces demandées",
+  attente_membre: "Attente membre",
+  en_validation: "En validation",
+  resolue: "Résolue",
+  refusee: "Refusée",
+};
+const CATEGORIES = ["profil", "coordonnees", "rattachement", "documents", "carte", "activites", "compte", "autre"];
 
 function formatVal(v: string | number | boolean | null): string {
   if (v === null || v === undefined || v === "") return "(vide)";
@@ -40,7 +55,13 @@ const UNLOCKABLE = [
 ];
 
 export function DemandesAdmin({ token }: { token: string }): JSX.Element {
-  const { data, loading, error, reload } = useResource(() => getAdminDemandes(token), [token]);
+  const [fStatut, setFStatut] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fQ, setFQ] = useState("");
+  const { data, loading, error, reload } = useResource(
+    () => getAdminDemandes(token, { statut: fStatut || undefined, categorie: fCat || undefined, q: fQ || undefined }),
+    [token, fStatut, fCat, fQ],
+  );
   const [openId, setOpenId] = useState<string | null>(null);
 
   const list: DemandeItem[] = data ?? [];
@@ -50,9 +71,21 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
       <header className="page-head">
         <div>
           <h1>Demandes des membres</h1>
-          <p className="muted">Messagerie, demandes de modification et déblocage de champs.</p>
+          <p className="muted">Tickets suivis de l'ouverture à la clôture : messagerie, pièces, validation.</p>
         </div>
       </header>
+
+      <div className="toolbar" style={{ marginBottom: 10, gap: 8 }}>
+        <select value={fStatut} onChange={(e) => setFStatut(e.target.value)}>
+          <option value="">Tous statuts</option>
+          {Object.entries(STATUT_LIBELLE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={fCat} onChange={(e) => setFCat(e.target.value)}>
+          <option value="">Toutes catégories</option>
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input className="search" value={fQ} placeholder="Rechercher (sujet, membre)..." onChange={(e) => setFQ(e.target.value)} />
+      </div>
 
       {error && <p className="banner banner-error">{error}</p>}
       {loading && <p className="muted">Chargement...</p>}
@@ -71,10 +104,10 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
               <span className="event-main">
                 <strong>{d.sujet}</strong>
                 <span className="muted small">
-                  {d.membre_nom} · {d.type} · {d.nb_messages} msg
+                  {d.numero} · {d.membre_nom} · {d.categorie ?? d.type} · {d.nb_messages} msg
                 </span>
               </span>
-              <span className={`badge ${STATUT[d.statut] ?? "badge-mut"}`}>{d.statut}</span>
+              <span className={`badge ${STATUT[d.statut] ?? "badge-mut"}`}>{STATUT_LIBELLE[d.statut] ?? d.statut}</span>
             </button>
           ))}
         </div>
@@ -104,10 +137,39 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
     load();
   }
 
-  async function setStatut(statut: string): Promise<void> {
-    await updateAdminDemande(token, id, { statut });
+  async function setStatut(statut: string, motif?: string): Promise<void> {
+    await updateAdminDemande(token, id, motif ? { statut, motif } : { statut });
     load();
     onChanged();
+  }
+
+  async function demanderPiece(): Promise<void> {
+    const description = window.prompt("Quelle pièce attendez-vous du membre ? (décrivez le document)");
+    if (!description || !description.trim()) return;
+    await demanderPieceDemande(token, id, description.trim());
+    load();
+    onChanged();
+  }
+
+  function cloturer(statut: "resolue" | "refusee"): void {
+    const motif = window.prompt(statut === "resolue" ? "Motif de résolution (visible par le membre) :" : "Motif du refus (visible par le membre) :");
+    if (motif === null) return;
+    void setStatut(statut, motif.trim() || undefined);
+  }
+
+  async function ouvrirPiece(documentId: string): Promise<void> {
+    try {
+      const r = await getDocumentUrl(token, documentId);
+      if (r.url) {
+        window.open(r.url, "_blank", "noreferrer");
+        return;
+      }
+      const objectUrl = await fetchDocumentContentUrl(token, `/api/v1/admin/documents/${documentId}/content`);
+      window.open(objectUrl, "_blank", "noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch {
+      window.alert("Pièce indisponible.");
+    }
   }
 
   async function unlock(): Promise<void> {
@@ -134,15 +196,36 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
   return (
     <div className="card">
       <h2 className="card-title">{detail.sujet}</h2>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        {detail.numero} · {STATUT_LIBELLE[detail.statut] ?? detail.statut}
+        {detail.motif_cloture ? ` · motif : ${detail.motif_cloture}` : ""}
+      </p>
       <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-        {detail.messages.map((m) => (
-          <div key={m.id} style={{ alignSelf: m.auteur_type === "staff" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
-            <div className={m.auteur_type === "staff" ? "bubble-staff" : "bubble-membre"}>{m.corps}</div>
-            <span className="muted" style={{ fontSize: 10 }}>
-              {m.auteur_nom} · {m.cree_le ? new Date(m.cree_le).toLocaleString("fr-FR") : ""}
-            </span>
-          </div>
-        ))}
+        {detail.messages.map((m) =>
+          m.auteur_type === "systeme" ? (
+            <div key={m.id} style={{ alignSelf: "center", textAlign: "center" }}>
+              <span className="muted" style={{ fontSize: 10.5, border: "1px dashed var(--adsum-line)", borderRadius: 8, padding: "3px 9px" }}>
+                {m.corps} · {m.cree_le ? new Date(m.cree_le).toLocaleString("fr-FR") : ""}
+              </span>
+            </div>
+          ) : (
+            <div key={m.id} style={{ alignSelf: m.auteur_type === "staff" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+              <div className={m.auteur_type === "staff" ? "bubble-staff" : "bubble-membre"}>
+                {m.corps}
+                {m.document_id && (
+                  <div>
+                    <button type="button" className="link" style={{ fontSize: 11 }} onClick={() => void ouvrirPiece(m.document_id as string)}>
+                      Ouvrir la pièce jointe
+                    </button>
+                  </div>
+                )}
+              </div>
+              <span className="muted" style={{ fontSize: 10 }}>
+                {m.auteur_nom} · {m.cree_le ? new Date(m.cree_le).toLocaleString("fr-FR") : ""}
+              </span>
+            </div>
+          ),
+        )}
       </div>
       <div className="toolbar">
         <input className="search" value={draft} placeholder="Répondre au membre..." onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void reply()} />
@@ -200,13 +283,24 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
         </div>
       )}
 
-      <div className="form-actions" style={{ marginTop: 12 }}>
-        <button type="button" className="btn btn-ghost btn-inline" onClick={() => void setStatut("refusee")}>
-          Refuser
-        </button>
-        <button type="button" className="btn btn-primary btn-inline" onClick={() => void setStatut("resolue")}>
-          Marquer résolu
-        </button>
+      <div className="form-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
+        {detail.statut !== "resolue" && detail.statut !== "refusee" ? (
+          <>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => void demanderPiece()}>
+              Demander une pièce
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => cloturer("refusee")}>
+              Refuser
+            </button>
+            <button type="button" className="btn btn-primary btn-inline" onClick={() => cloturer("resolue")}>
+              Marquer résolu
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-ghost btn-inline" onClick={() => void setStatut("en_cours")}>
+            Rouvrir la demande
+          </button>
+        )}
       </div>
     </div>
   );
