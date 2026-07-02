@@ -53,14 +53,14 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
 
       <form className="toolbar">
         <select className="search" value={eventId} onChange={(e) => void load(e.target.value)}>
-          <option value="">Choisir un evenement volet B...</option>
+          <option value="">Choisir un événement volet B...</option>
           {voletB.map((e) => (
             <option key={e.id} value={e.id}>{e.titre}</option>
           ))}
         </select>
       </form>
       {voletB.length === 0 && !events.loading && (
-        <p className="muted">Aucun evenement volet B. Creez-en un dans le calendrier.</p>
+        <p className="muted">Aucun événement volet B. Creez-en un dans le calendrier.</p>
       )}
       {error && <p className="banner banner-error">{error}</p>}
 

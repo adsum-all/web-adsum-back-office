@@ -7,6 +7,7 @@ import {
   getParticipationStats,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { Kpi } from "./Kpi.js";
 
 const DIM_LABELS: Record<string, string> = {
   genre: "Genre",
@@ -20,16 +21,6 @@ const DIM_LABELS: Record<string, string> = {
   type_membre: "Type de membre",
   cheminement: "Cheminement",
 };
-
-function Kpi({ label, value, tone }: { label: string; value: string | number; tone?: "ok" | "bad" | "warn" | "mut" }): JSX.Element {
-  const color = tone === "ok" ? "var(--adsum-ok)" : tone === "bad" ? "var(--adsum-danger)" : tone === "warn" ? "var(--adsum-warn, #b5731a)" : "var(--adsum-ink)";
-  return (
-    <div style={{ background: "var(--adsum-panel)", border: "1px solid var(--adsum-line)", borderRadius: 14, padding: "14px 16px", minWidth: 130, flex: 1 }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      <div className="muted small" style={{ marginTop: 2 }}>{label}</div>
-    </div>
-  );
-}
 
 /** Stacked present/partial/absent bar. */
 function Bar({ presents, partiels, absents }: { presents: number; partiels: number; absents: number }): JSX.Element {
@@ -71,8 +62,8 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
 
       {g && (
         <section className="card">
-          <h2 className="card-title">Vue globale ({g.nb_evenements} évènements)</h2>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+          <h2 className="card-title">Vue globale ({g.nb_evenements} événements)</h2>
+          <div className="kpi-grid kpi-grid-compact">
             <Kpi label="Présences (présentiel)" value={g.repartition_globale.presentiel} tone="ok" />
             <Kpi label="Présences (en ligne)" value={g.repartition_globale.en_ligne} tone="ok" />
             <Kpi label="Suivis partiels" value={g.repartition_globale.partiels} tone="warn" />
@@ -106,9 +97,9 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
       )}
 
       <section className="card">
-        <h2 className="card-title">Détail par évènement</h2>
+        <h2 className="card-title">Détail par événement</h2>
         <select className="search" value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ width: "100%" }}>
-          <option value="">Choisir un évènement...</option>
+          <option value="">Choisir un événement...</option>
           {(evenements.data ?? []).map((ev) => (
             <option key={ev.id} value={ev.id}>
               {ev.titre}
@@ -118,14 +109,14 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
 
         {stats && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <div className="kpi-grid kpi-grid-compact">
               <Kpi label="Effectif attendu" value={stats.effectif_attendu} tone="mut" />
               <Kpi label={`Présents (${stats.taux_presence}%)`} value={stats.presents} tone="ok" />
               <Kpi label={`Partiels (${stats.taux_partiel}%)`} value={stats.partiels} tone="warn" />
               <Kpi label={`Absents (${stats.taux_absence}%)`} value={stats.absents} tone="bad" />
               <Kpi label={`Non-répondants (${stats.taux_non_reponse}%)`} value={stats.non_repondants} tone="mut" />
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <div className="kpi-grid kpi-grid-compact">
               <Kpi label="Présentiel (scan)" value={stats.presents_presentiel} />
               <Kpi label="En ligne (déclaré)" value={stats.presents_enligne} />
               <Kpi label="Taux de participation" value={`${stats.taux_participation}%`} />
@@ -143,7 +134,7 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                         <td style={{ width: 60 }}>{d.note}/5</td>
                         <td>
                           <div style={{ display: "flex", height: 10, background: "var(--adsum-line)", borderRadius: 6, overflow: "hidden" }}>
-                            <div style={{ width: `${(100 * d.n) / Math.max(1, stats.nb_notes)}%`, background: "var(--adsum-accent, #2a4fad)" }} />
+                            <div style={{ width: `${(100 * d.n) / Math.max(1, stats.nb_notes)}%`, background: "var(--adsum-acc, #2a4fad)" }} />
                           </div>
                         </td>
                         <td style={{ width: 40, textAlign: "right" }}>{d.n}</td>

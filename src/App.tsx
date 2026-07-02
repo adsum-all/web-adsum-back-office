@@ -49,20 +49,20 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
   { id: "statistiques", label: "Statistiques", group: "PILOTAGE" },
   { id: "participation", label: "Participation & assiduité", group: "PILOTAGE" },
-  { id: "inscriptions", label: "Inscriptions a valider", group: "MEMBRES" },
+  { id: "inscriptions", label: "Inscriptions à valider", group: "MEMBRES" },
   { id: "demandes", label: "Demandes des membres", group: "MEMBRES" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
-  { id: "doublons", label: "Detection de doublons", group: "MEMBRES" },
+  { id: "doublons", label: "Détection de doublons", group: "MEMBRES" },
   { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
   { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
-  { id: "evenements", label: "Calendrier des evenements", group: "EVENEMENTS" },
+  { id: "evenements", label: "Calendrier des événements", group: "EVENEMENTS" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "EVENEMENTS" },
   { id: "comptage", label: "Comptage volet B", group: "EVENEMENTS" },
-  { id: "utilisateurs", label: "Utilisateurs & roles", group: "SYSTEME" },
-  { id: "comptes-masse", label: "Creer comptes (masse)", group: "SYSTEME" },
+  { id: "utilisateurs", label: "Utilisateurs & rôles", group: "SYSTEME" },
+  { id: "comptes-masse", label: "Créer comptes (masse)", group: "SYSTEME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTEME" },
-  { id: "integrations", label: "Integrations & aide", group: "SYSTEME" },
+  { id: "integrations", label: "Intégrations & aide", group: "SYSTEME" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTEME" },
   { id: "attestations", label: "Attestations & pays", group: "SYSTEME" },
   { id: "audit", label: "Journal d'audit", group: "SYSTEME" },
@@ -130,13 +130,13 @@ export function App(): JSX.Element {
             </span>
             <input
               type="search"
-              placeholder="Rechercher un membre, un evenement..."
+              placeholder="Rechercher un membre, un événement..."
               aria-label="Recherche globale"
             />
           </label>
           <span className="event-chip" title="Evenement actif">
             <span className="event-dot" aria-hidden="true" />
-            Aucun evenement actif
+            Aucun événement actif
           </span>
           <span className="topbar-avatar" title={session.role}>
             {initials}

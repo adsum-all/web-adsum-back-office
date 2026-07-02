@@ -1,14 +1,22 @@
 import { getStatistiques } from "../api.js";
 import { useResource } from "../useResource.js";
 import { DonutChart, LineChart, type ChartDatum } from "./Charts.js";
+import { Kpi } from "./Kpi.js";
 
-const MONTHS_FR = ["janv.", "fevr.", "mars", "avr.", "mai", "juin", "juil.", "aout", "sept.", "oct.", "nov.", "dec."];
+const MONTHS_FR = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 
-/** Turn the server "YYYY-MM" buckets into short French month labels. */
+/**
+ * Turn the server "YYYY-MM" buckets into short French month labels. When the
+ * window spans two calendar years, the two-digit year is appended to the first
+ * point and to every January so the reading stays unambiguous.
+ */
 function toSeries(rows: { mois: string; total: number }[]): ChartDatum[] {
-  return rows.map((r) => {
+  const spansYears = new Set(rows.map((r) => r.mois.slice(0, 4))).size > 1;
+  return rows.map((r, i) => {
     const month = Number(r.mois.slice(5, 7)) - 1;
-    return { label: MONTHS_FR[month] ?? r.mois, value: r.total };
+    const base = MONTHS_FR[month] ?? r.mois;
+    const withYear = spansYears && (i === 0 || month === 0);
+    return { label: withYear ? `${base} ${r.mois.slice(2, 4)}` : base, value: r.total };
   });
 }
 
@@ -23,7 +31,7 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
       <header className="page-head">
         <div>
           <h1>Tableau de bord</h1>
-          <p className="muted">Vue d'ensemble, sur les donnees reelles de la base.</p>
+          <p className="muted">Vue d'ensemble, sur les données réelles de la base.</p>
         </div>
       </header>
 
@@ -32,15 +40,15 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
       <div className="kpi-grid">
         <Kpi label="Membres" value={data?.membres_total} hint={`${data?.membres_actifs ?? 0} actifs`} loading={loading} accent />
         <Kpi
-          label="Identites verifiees"
+          label="Identités vérifiées"
           value={data?.membres_verifies}
           hint={`${data?.membres_en_attente ?? 0} en attente`}
           loading={loading}
         />
         <Kpi
-          label="Evenements"
+          label="Événements"
           value={data?.evenements_total}
-          hint={`${data?.presences_total ?? 0} presences`}
+          hint={`${data?.presences_total ?? 0} présences`}
           loading={loading}
         />
         <Kpi
@@ -53,18 +61,22 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
 
       <div className="card-grid-2">
         <section className="card">
-          <h2 className="card-title">Entrees de membres, 12 derniers mois</h2>
-          {loading ? <p className="muted">Chargement...</p> : <LineChart points={entries} />}
+          <h2 className="card-title">Entrées de membres, 12 derniers mois</h2>
+          {loading ? (
+            <p className="muted">Chargement...</p>
+          ) : (
+            <LineChart points={entries} emptyMessage="Aucune entrée de membre sur la période." />
+          )}
         </section>
         <section className="card">
-          <h2 className="card-title">Verification d'identite</h2>
+          <h2 className="card-title">Vérification d'identité</h2>
           {loading || !data ? (
             <p className="muted">Chargement...</p>
           ) : (
             <DonutChart
               centerLabel="membres"
               segments={[
-                { label: "Verifies", value: data.membres_verifies },
+                { label: "Vérifiés", value: data.membres_verifies },
                 { label: "En attente", value: data.membres_en_attente },
               ]}
             />
@@ -77,7 +89,7 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
         {loading ? (
           <p className="muted">Chargement...</p>
         ) : aVerifier.length === 0 ? (
-          <p className="muted">Aucune identite en attente de validation.</p>
+          <p className="muted">Aucune identité en attente de validation.</p>
         ) : (
           <ul className="mini-list">
             {aVerifier.map((m) => (
@@ -89,24 +101,6 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
           </ul>
         )}
       </section>
-    </div>
-  );
-}
-
-interface KpiProps {
-  label: string;
-  value: number | undefined;
-  hint: string;
-  loading: boolean;
-  accent?: boolean;
-}
-
-function Kpi({ label, value, hint, loading, accent }: KpiProps): JSX.Element {
-  return (
-    <div className={`kpi ${accent ? "kpi-accent" : ""}`}>
-      <span className="kpi-label">{label}</span>
-      <span className="kpi-value">{loading || value === undefined ? "..." : value.toLocaleString("fr-FR")}</span>
-      <span className="kpi-hint">{hint}</span>
     </div>
   );
 }

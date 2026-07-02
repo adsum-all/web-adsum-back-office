@@ -77,7 +77,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Calendrier des evenements</h1>
+          <h1>Calendrier des événements</h1>
           <p className="muted">Rencontres, formations, sessions en ligne.</p>
         </div>
       </header>
@@ -199,7 +199,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         </section>
       ))}
       {!evenements.loading && (evenements.data ?? []).length === 0 && (
-        <p className="muted">Aucun evenement.</p>
+        <p className="muted">Aucun événement.</p>
       )}
     </div>
   );

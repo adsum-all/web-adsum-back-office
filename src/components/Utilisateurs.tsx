@@ -56,7 +56,7 @@ export function Utilisateurs({ token }: { token: string }): JSX.Element {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Utilisateurs & roles</h1>
+          <h1>Utilisateurs & rôles</h1>
           <p className="muted">Moindre privilege : le super-admin cree les comptes et attribue les droits.</p>
         </div>
       </header>
