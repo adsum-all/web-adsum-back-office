@@ -117,7 +117,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       {error && <p className="banner banner-error">{error}</p>}
 
       <section className="card">
-        <h2 className="card-title">Informations generales</h2>
+        <h2 className="card-title">Informations générales</h2>
         <dl className="detail-grid">
           <div>
             <dt>Telephone</dt>
@@ -204,7 +204,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             <dd>{m.profession ?? "-"}</dd>
           </div>
           <div>
-            <dt>Niveau d'etudes</dt>
+            <dt>Niveau d'études</dt>
             <dd>{m.niveau_etudes ?? "-"}</dd>
           </div>
           <div>
@@ -270,7 +270,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       </div>
 
       <section className="card">
-        <h2 className="card-title">Connexions recentes (securite)</h2>
+        <h2 className="card-title">Connexions récentes (sécurité)</h2>
         {connexions.loading ? (
           <p className="muted small">Chargement...</p>
         ) : connexions.error ? (
@@ -340,7 +340,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
           {confirmDelete ? (
             <>
-              <span className="muted small">Confirmer la suppression definitive (RGPD) ?</span>
+              <span className="muted small">Confirmér la suppression definitive (RGPD) ?</span>
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
@@ -434,9 +434,9 @@ function situationLabel(situation: string | null, mariage: string | null): strin
 
 function sacrements(baptise: boolean | null, confirme: boolean | null, communion: boolean | null): string {
   const list: string[] = [];
-  if (baptise) list.push("Baptise");
-  if (confirme) list.push("Confirme");
-  if (communion) list.push("Premiere communion");
+  if (baptise) list.push("Baptisé");
+  if (confirme) list.push("Confirmé");
+  if (communion) list.push("Première communion");
   return list.length > 0 ? list.join(", ") : "Non renseigne";
 }
 
