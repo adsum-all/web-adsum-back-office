@@ -112,6 +112,8 @@ function DocEditor({
     setNote(null);
   }, [doc]);
 
+  const [preview, setPreview] = useState(false);
+  const [previewLang, setPreviewLang] = useState<"fr" | "en">("fr");
   function set<K extends keyof ConsentDocPayload>(key: K, value: ConsentDocPayload[K]): void {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -190,6 +192,27 @@ function DocEditor({
           onChange={(e) => set("contenu_en", e.target.value)}
         />
       </label>
+
+      <div className="form-actions" style={{ marginTop: 12 }}>
+        <button type="button" className="btn btn-ghost btn-inline" onClick={() => setPreview((v) => !v)}>
+          {preview ? "Masquer l'aperçu" : "Aperçu du document"}
+        </button>
+        {preview && (
+          <div style={{ display: "inline-flex", gap: 6, marginLeft: 8 }}>
+            <button type="button" className={`btn btn-inline ${previewLang === "fr" ? "btn-primary" : "btn-ghost"}`} onClick={() => setPreviewLang("fr")}>FR</button>
+            <button type="button" className={`btn btn-inline ${previewLang === "en" ? "btn-primary" : "btn-ghost"}`} onClick={() => setPreviewLang("en")}>EN</button>
+          </div>
+        )}
+      </div>
+      {preview && (
+        <div className="doc-preview">
+          <h3>{(previewLang === "en" ? form.titre_en : form.titre) || form.titre || "Document"}</h3>
+          <div className="doc-meta">Version {form.version || "nouvelle"}{form.bloquant ? " . Signature obligatoire" : ""}</div>
+          {((previewLang === "en" ? form.contenu_en : form.contenu) || "").split(/\n\s*\n/).map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
+      )}
 
       {error && <p className="banner banner-error">{error}</p>}
       {note && <p className="banner banner-ok">{note}</p>}

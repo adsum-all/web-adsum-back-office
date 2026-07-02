@@ -49,20 +49,7 @@ export function Integrations({ token }: { token: string }): JSX.Element {
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {Object.entries(statut.data ?? {}).map(([cle, s]: [string, CanalStatut]) => (
-            <div key={cle} className="list-row">
-              <div className="event-main">
-                <strong>
-                  {CANAL_LABEL[cle] ?? cle}
-                  {s.note && <InfoTip text={s.note} />}
-                </strong>
-                <span className="muted small">
-                  {s.provider ? `Fournisseur : ${s.provider}. ` : ""}
-                  {s.bot ? `Bot : @${s.bot}. ` : ""}
-                  {s.gratuit === true ? "Gratuit." : s.gratuit === false ? "Payant." : ""}
-                </span>
-              </div>
-              <span className={`badge ${s.actif ? "badge-ok" : "badge-mut"}`}>{s.actif ? "Actif" : "Inactif"}</span>
-            </div>
+            <CanalRow key={cle} cle={cle} statut={s} token={token} onChanged={() => statut.reload()} />
           ))}
         </div>
       </section>
@@ -97,6 +84,46 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+function CanalRow({ cle, statut, token, onChanged }: { cle: string; statut: CanalStatut; token: string; onChanged: () => void }): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const autorise = statut.autorise !== false;
+  async function toggle(): Promise<void> {
+    setBusy(true);
+    try {
+      await setIntegration(token, `canal_${cle}`, autorise ? "off" : "on");
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="list-row">
+      <div className="event-main">
+        <strong>
+          {CANAL_LABEL[cle] ?? cle}
+          {statut.note && <InfoTip text={statut.note} />}
+        </strong>
+        <span className="muted small">
+          {statut.provider ? `Fournisseur : ${statut.provider}. ` : ""}
+          {statut.bot ? `Bot : @${statut.bot}. ` : ""}
+          {statut.gratuit === true ? "Gratuit." : statut.gratuit === false ? "Payant." : ""}
+          {statut.actif ? "Configure." : "Non configure."}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {statut.verrouille ? (
+          <span className="badge badge-ok">Toujours actif</span>
+        ) : (
+          <>
+            <span className="muted small" style={{ minWidth: 58, textAlign: "right" }}>{autorise ? "Activé" : "Désactivé"}</span>
+            <Switch checked={autorise} onChange={() => void toggle()} disabled={busy} label={`Canal ${CANAL_LABEL[cle] ?? cle}`} />
+          </>
+        )}
+      </div>
     </div>
   );
 }

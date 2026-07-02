@@ -571,6 +571,8 @@ export interface IntegrationItem {
 
 export interface CanalStatut {
   actif: boolean;
+  autorise?: boolean;
+  verrouille?: boolean;
   note?: string;
   provider?: string;
   bot?: string | null;

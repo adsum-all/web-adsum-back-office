@@ -977,3 +977,43 @@ h3 {
 .check.small {
   font-size: var(--adsum-text-xs);
 }
+
+/* Document preview: renders consent text as a clean, readable page (like a PDF
+   view) so an admin sees exactly what a member will read. */
+.doc-preview {
+  background: #ffffff;
+  border: 1px solid var(--adsum-line);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(16, 22, 40, 0.10);
+  max-width: 760px;
+  margin: 10px auto;
+  padding: 48px 56px;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #1b2333;
+  line-height: 1.7;
+}
+.doc-preview h3 {
+  font-family: var(--adsum-font-display), Georgia, serif;
+  font-size: 22px;
+  margin: 0 0 6px;
+  text-align: center;
+}
+.doc-preview .doc-meta {
+  text-align: center;
+  color: var(--adsum-mut);
+  font-size: 12px;
+  font-family: var(--adsum-font-ui);
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--adsum-line);
+  padding-bottom: 14px;
+}
+.doc-preview p {
+  margin: 0 0 14px;
+  text-align: justify;
+  white-space: pre-wrap;
+}
+@media (max-width: 640px) {
+  .doc-preview {
+    padding: 26px 20px;
+  }
+}
