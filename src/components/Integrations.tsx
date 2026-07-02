@@ -217,6 +217,9 @@ function TokenRow({ item, token, onSaved }: { item: IntegrationItem; token: stri
 
 function TypeRow({ type, token, onChanged }: { type: TypeNotification; token: string; onChanged: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
+  // A critical security type is always delivered by the engine; it cannot be
+  // turned off, so the switch is locked and a badge states it plainly.
+  const critique = type.sensibilite === "critique";
   async function toggle(): Promise<void> {
     setBusy(true);
     try {
@@ -233,8 +236,14 @@ function TypeRow({ type, token, onChanged }: { type: TypeNotification; token: st
         <span className="muted small" style={{ marginLeft: 8 }}>{type.categorie}{type.scheduled ? " . planifié" : ""}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span className="muted small" style={{ minWidth: 62, textAlign: "right" }}>{type.actif ? "Activé" : "Désactivé"}</span>
-        <Switch checked={type.actif} onChange={() => void toggle()} disabled={busy} label={`Notification ${type.libelle}`} />
+        {critique ? (
+          <span className="badge badge-ok">Toujours actif</span>
+        ) : (
+          <>
+            <span className="muted small" style={{ minWidth: 62, textAlign: "right" }}>{type.actif ? "Activé" : "Désactivé"}</span>
+            <Switch checked={type.actif} onChange={() => void toggle()} disabled={busy} label={`Notification ${type.libelle}`} />
+          </>
+        )}
       </div>
     </div>
   );

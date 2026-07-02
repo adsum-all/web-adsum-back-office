@@ -597,6 +597,7 @@ export interface TypeNotification {
   categorie: string;
   actif: boolean;
   scheduled: boolean;
+  sensibilite: string;
 }
 
 export function getTypesNotification(token: string): Promise<TypeNotification[]> {
