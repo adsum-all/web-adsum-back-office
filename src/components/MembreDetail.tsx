@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 
 import {
   ApiError,
+  type DossierDocument,
   type MembreUpdateInput,
   bloquerMembre,
   debloquerMembre,
   demanderDocumentMembre,
+  fetchDocumentContentUrl,
   getCommissions,
   getConnexions,
+  getDossierInscription,
   getMembre,
   getMembrePhotoUrl,
   supprimerMembre,
@@ -27,6 +30,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
+  const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -107,6 +111,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             src={photoUrl}
             alt={`Photo de ${name}`}
             style={{ objectFit: "cover" }}
+            onError={() => setPhotoUrl(null)}
           />
         ) : (
           <div className="avatar">{initials(name)}</div>
@@ -236,6 +241,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       </section>
 
       <MembreFonction token={token} membre={m} onChanged={() => membre.reload()} />
+
+      <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
 
       <div className="form-actions">
         {!m.verifie && (
@@ -466,4 +473,90 @@ function deviceLabel(ua: string | null): string {
   if (/Macintosh|Mac OS/i.test(ua)) return "macOS";
   if (/Linux/i.test(ua)) return "Linux";
   return ua.length > 40 ? `${ua.slice(0, 40)}...` : ua;
+}
+
+const DOC_LABELS: Record<string, string> = {
+  piece_identite: "Pièce d'identité",
+  passeport: "Passeport",
+  permis: "Permis de conduire",
+  carte_consulaire: "Carte consulaire",
+  justificatif_domicile: "Justificatif de domicile",
+  photo_identite: "Photo d'identité",
+  attestation_manuelle: "Attestation signée",
+  autre: "Autre document",
+};
+
+/** Documents attached to the member, opened through the signed URL or, for
+ * encrypted files, the audited decrypting endpoint. Read-only, admin-gated. */
+function MembreDocuments({
+  token,
+  documents,
+  loading,
+  onError,
+}: {
+  token: string;
+  documents: DossierDocument[];
+  loading: boolean;
+  onError: (msg: string) => void;
+}): JSX.Element {
+  async function open(doc: DossierDocument): Promise<void> {
+    try {
+      if (doc.url) {
+        window.open(doc.url, "_blank", "noreferrer");
+        return;
+      }
+      if (doc.content_path) {
+        const objectUrl = await fetchDocumentContentUrl(token, doc.content_path);
+        window.open(objectUrl, "_blank", "noreferrer");
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      }
+    } catch {
+      onError("Document indisponible.");
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2 className="card-title">Documents liés</h2>
+      {loading ? (
+        <p className="muted">Chargement...</p>
+      ) : documents.length === 0 ? (
+        <p className="muted">Aucun document rattaché à ce membre.</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Fichier</th>
+              <th>Reçu le</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((doc) => (
+              <tr key={doc.id}>
+                <td>
+                  {DOC_LABELS[doc.type] ?? doc.type}
+                  {doc.chiffre ? <span className="badge badge-mut" style={{ marginLeft: 6 }}>chiffré</span> : null}
+                </td>
+                <td className="muted small">{doc.nom_fichier ?? "-"}</td>
+                <td className="small">{doc.recu_le ? new Date(doc.recu_le).toLocaleString("fr-FR") : "-"}</td>
+                <td>
+                  {doc.url || doc.content_path ? (
+                    <button type="button" className="btn btn-ghost btn-inline" onClick={() => void open(doc)}>
+                      Ouvrir
+                    </button>
+                  ) : (
+                    <button type="button" className="btn btn-ghost btn-inline" disabled>
+                      Ouvrir
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
 }
