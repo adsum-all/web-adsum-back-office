@@ -301,8 +301,8 @@ export class ApiError extends Error {
 }
 
 function messageForStatus(status: number, fallback: string): string {
-  if (status === 401) return "Session expiree";
-  if (status === 403) return "Acces refuse";
+  if (status === 401) return "Session expirée";
+  if (status === 403) return "Accès refusé";
   if (status === 404) return "Ressource indisponible";
   return fallback;
 }
@@ -386,7 +386,7 @@ export function getMembre(token: string, id: string): Promise<MembreProfile> {
 }
 
 export function createMembre(token: string, input: MembreCreateInput): Promise<MembreProfile> {
-  return authedSend<MembreProfile>("/api/v1/admin/membres", token, "POST", input, "Creation impossible");
+  return authedSend<MembreProfile>("/api/v1/admin/membres", token, "POST", input, "Création impossible");
 }
 
 export function updateMembre(
@@ -399,7 +399,7 @@ export function updateMembre(
     token,
     "PATCH",
     input,
-    "Mise a jour impossible",
+    "Mise à jour impossible",
   );
 }
 
@@ -416,12 +416,12 @@ export function createCommission(
     token,
     "POST",
     input,
-    "Creation impossible",
+    "Création impossible",
   );
 }
 
 export function getEvenements(token: string): Promise<Evenement[]> {
-  return authedGet<Evenement[]>("/api/v1/admin/evenements", token, "Evenements indisponibles");
+  return authedGet<Evenement[]>("/api/v1/admin/evenements", token, "Événements indisponibles");
 }
 
 export function createEvenement(
@@ -433,7 +433,7 @@ export function createEvenement(
     token,
     "POST",
     input,
-    "Creation impossible",
+    "Création impossible",
   );
 }
 
@@ -448,7 +448,7 @@ export function majSessionEvenement(
     visibilite?: Visibilite;
   },
 ): Promise<{ id: string; session_ouverte: boolean; lien_session: string | null }> {
-  return authedSend(`/api/v1/admin/evenements/${id}/session`, token, "PATCH", patch, "Mise a jour impossible");
+  return authedSend(`/api/v1/admin/evenements/${id}/session`, token, "PATCH", patch, "Mise à jour impossible");
 }
 
 export function testDiffusionEvenement(token: string, id: string): Promise<{ ok: boolean; envoyes: number }> {
@@ -488,7 +488,7 @@ export function getFonctions(token: string): Promise<FonctionHonorifique[]> {
 }
 
 export function createFonction(token: string, input: FonctionCreateInput): Promise<FonctionHonorifique> {
-  return authedSend<FonctionHonorifique>("/api/v1/admin/fonctions", token, "POST", input, "Creation impossible");
+  return authedSend<FonctionHonorifique>("/api/v1/admin/fonctions", token, "POST", input, "Création impossible");
 }
 
 export function updateFonction(
@@ -496,7 +496,7 @@ export function updateFonction(
   cle: string,
   input: FonctionUpdateInput,
 ): Promise<FonctionHonorifique> {
-  return authedSend<FonctionHonorifique>(`/api/v1/admin/fonctions/${cle}`, token, "PUT", input, "Mise a jour impossible");
+  return authedSend<FonctionHonorifique>(`/api/v1/admin/fonctions/${cle}`, token, "PUT", input, "Mise à jour impossible");
 }
 
 export function deleteFonction(token: string, cle: string): Promise<void> {
@@ -550,7 +550,7 @@ export interface ReponseQuestionnaire {
 }
 
 export function getReponsesQuestionnaire(token: string, eventId: string): Promise<ReponseQuestionnaire[]> {
-  return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Reponses indisponibles");
+  return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Réponses indisponibles");
 }
 
 export interface IntegrationGuide {
@@ -580,11 +580,11 @@ export interface CanalStatut {
 }
 
 export function getIntegrations(token: string): Promise<IntegrationItem[]> {
-  return authedGet<IntegrationItem[]>("/api/v1/admin/integrations", token, "Integrations indisponibles");
+  return authedGet<IntegrationItem[]>("/api/v1/admin/integrations", token, "Intégrations indisponibles");
 }
 
 export function setIntegration(token: string, cle: string, valeur: string): Promise<{ ok: boolean; valeur_masquee: string }> {
-  return authedSend(`/api/v1/admin/integrations/${cle}`, token, "PUT", { valeur }, "Mise a jour impossible");
+  return authedSend(`/api/v1/admin/integrations/${cle}`, token, "PUT", { valeur }, "Mise à jour impossible");
 }
 
 export function getCanauxStatut(token: string): Promise<Record<string, CanalStatut>> {
@@ -604,7 +604,7 @@ export function getTypesNotification(token: string): Promise<TypeNotification[]>
 }
 
 export function toggleTypeNotification(token: string, cle: string, actif: boolean): Promise<{ ok: boolean }> {
-  return authedSend(`/api/v1/admin/notifications/types/${cle}`, token, "PUT", { actif }, "Mise a jour impossible");
+  return authedSend(`/api/v1/admin/notifications/types/${cle}`, token, "PUT", { actif }, "Mise à jour impossible");
 }
 
 export interface RepartitionLigne {
@@ -665,7 +665,7 @@ export interface ModeleAnniversaire {
 }
 
 export function getModeleAnniversaire(token: string): Promise<ModeleAnniversaire> {
-  return authedGet<ModeleAnniversaire>("/api/v1/admin/modeles/anniversaire", token, "Modele indisponible");
+  return authedGet<ModeleAnniversaire>("/api/v1/admin/modeles/anniversaire", token, "Modèle indisponible");
 }
 
 export function setModeleAnniversaire(token: string, modele: ModeleAnniversaire): Promise<{ ok: boolean }> {
@@ -673,15 +673,15 @@ export function setModeleAnniversaire(token: string, modele: ModeleAnniversaire)
 }
 
 export function declencherAnniversaires(token: string): Promise<{ ok: boolean; envoyes: number }> {
-  return authedSend("/api/v1/admin/anniversaires/declencher", token, "POST", {}, "Declenchement impossible");
+  return authedSend("/api/v1/admin/anniversaires/declencher", token, "POST", {}, "Déclenchement impossible");
 }
 
 export function getQuestionnaireFenetre(token: string): Promise<{ heures: number }> {
-  return authedGet<{ heures: number }>("/api/v1/admin/parametres/questionnaire-fenetre", token, "Parametre indisponible");
+  return authedGet<{ heures: number }>("/api/v1/admin/parametres/questionnaire-fenetre", token, "Paramètre indisponible");
 }
 
 export function setQuestionnaireFenetre(token: string, heures: number): Promise<{ heures: number }> {
-  return authedSend("/api/v1/admin/parametres/questionnaire-fenetre", token, "PUT", { heures }, "Mise a jour impossible");
+  return authedSend("/api/v1/admin/parametres/questionnaire-fenetre", token, "PUT", { heures }, "Mise à jour impossible");
 }
 
 export function getIntendances(token: string): Promise<Intendance[]> {
@@ -692,7 +692,7 @@ export function createIntendance(
   token: string,
   input: { nom: string; pays?: string; ville?: string; coordination_id?: string },
 ): Promise<Intendance> {
-  return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Creation impossible");
+  return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Création impossible");
 }
 
 export function getBergers(token: string): Promise<Berger[]> {
@@ -707,7 +707,7 @@ export function createCoordination(
   token: string,
   input: { nom: string; description?: string },
 ): Promise<Coordination> {
-  return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Creation impossible");
+  return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Création impossible");
 }
 
 export function getSousCommissions(token: string): Promise<SousCommission[]> {
@@ -718,7 +718,7 @@ export function createSousCommission(
   token: string,
   input: { nom: string; commission_id?: string },
 ): Promise<SousCommission> {
-  return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Creation impossible");
+  return authedSend<SousCommission>("/api/v1/admin/sous-commissions", token, "POST", input, "Création impossible");
 }
 
 export interface BulkResult {
@@ -731,7 +731,7 @@ export function bulkCreateUtilisateurs(
   token: string,
   comptes: { email: string; password: string; role: string }[],
 ): Promise<BulkResult> {
-  return authedSend<BulkResult>("/api/v1/admin/utilisateurs/lot", token, "POST", { comptes }, "Creation impossible");
+  return authedSend<BulkResult>("/api/v1/admin/utilisateurs/lot", token, "POST", { comptes }, "Création impossible");
 }
 
 export function getUtilisateurs(token: string): Promise<Utilisateur[]> {
@@ -742,7 +742,7 @@ export function createUtilisateur(
   token: string,
   input: { email: string; role: string; password: string; membre_id?: string },
 ): Promise<Utilisateur> {
-  return authedSend<Utilisateur>("/api/v1/admin/utilisateurs", token, "POST", input, "Creation impossible");
+  return authedSend<Utilisateur>("/api/v1/admin/utilisateurs", token, "POST", input, "Création impossible");
 }
 
 export function updateUtilisateur(
@@ -750,7 +750,7 @@ export function updateUtilisateur(
   id: string,
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
-  return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise a jour impossible");
+  return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise à jour impossible");
 }
 
 export function getComptage(token: string, evenementId: string): Promise<ComptageResume> {
@@ -784,7 +784,7 @@ export function updateTerminal(
   id: string,
   input: { autorise?: boolean; nom?: string },
 ): Promise<Terminal> {
-  return authedSend<Terminal>(`/api/v1/admin/terminaux/${id}`, token, "PATCH", input, "Mise a jour impossible");
+  return authedSend<Terminal>(`/api/v1/admin/terminaux/${id}`, token, "PATCH", input, "Mise à jour impossible");
 }
 
 export function getTribus(token: string): Promise<Tribu[]> {
@@ -828,7 +828,7 @@ export interface Comparaison {
 
 export function getDoublons(token: string, statut?: string): Promise<DetectionDoublon[]> {
   const q = statut ? `?statut=${encodeURIComponent(statut)}` : "";
-  return authedGet<DetectionDoublon[]>(`/api/v1/admin/doublons${q}`, token, "Detection indisponible");
+  return authedGet<DetectionDoublon[]>(`/api/v1/admin/doublons${q}`, token, "Détection indisponible");
 }
 
 export function scanDoublons(token: string): Promise<{ ok: boolean; seuil: number; pairs_scanned: number; flagged: number }> {
@@ -840,7 +840,7 @@ export function getComparaisonDoublon(token: string, a: string, b: string): Prom
 }
 
 export function deciderDoublon(token: string, id: string, statut: "confirme" | "ignore"): Promise<{ ok: boolean; statut: string }> {
-  return authedSend(`/api/v1/admin/doublons/${id}/statut`, token, "POST", { statut }, "Decision impossible");
+  return authedSend(`/api/v1/admin/doublons/${id}/statut`, token, "POST", { statut }, "Décision impossible");
 }
 
 export function getSeuilDoublon(token: string): Promise<{ seuil: number }> {
@@ -848,7 +848,7 @@ export function getSeuilDoublon(token: string): Promise<{ seuil: number }> {
 }
 
 export function setSeuilDoublon(token: string, seuil: number): Promise<{ seuil: number }> {
-  return authedSend("/api/v1/admin/doublons/seuil", token, "PUT", { seuil }, "Mise a jour impossible");
+  return authedSend("/api/v1/admin/doublons/seuil", token, "PUT", { seuil }, "Mise à jour impossible");
 }
 
 // --- Registrations (inscriptions) ---
@@ -878,7 +878,7 @@ export function decisionInscription(
     token,
     "POST",
     { decision, motif, champs_cibles: champsCibles },
-    "Decision impossible",
+    "Décision impossible",
   );
 }
 
@@ -984,7 +984,7 @@ export function creerCompteMembre(
   token: string,
   input: { email: string; prenoms?: string; nom?: string },
 ): Promise<{ membre_id: string; matricule: string }> {
-  return authedSend("/api/v1/admin/inscriptions/membre", token, "POST", input, "Creation impossible");
+  return authedSend("/api/v1/admin/inscriptions/membre", token, "POST", input, "Création impossible");
 }
 
 export function relancerMdpTemporaire(token: string, membreId: string): Promise<{ ok: boolean }> {
@@ -1049,7 +1049,7 @@ export function updateAdminDemande(
   id: string,
   patch: { statut?: string; champs_deverrouilles?: string[]; motif?: string },
 ): Promise<DemandeItem> {
-  return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise a jour impossible");
+  return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise à jour impossible");
 }
 
 export interface ModificationDiff {
@@ -1075,7 +1075,7 @@ export function decideDemandeModification(
   id: string,
   decision: "valider" | "rejeter",
 ): Promise<{ ok: boolean; statut: string }> {
-  return authedSend(`/api/v1/admin/demandes/${id}/modifications/decision`, token, "POST", { decision }, "Decision impossible");
+  return authedSend(`/api/v1/admin/demandes/${id}/modifications/decision`, token, "POST", { decision }, "Décision impossible");
 }
 
 // --- Member management (RGPD, block) ---
@@ -1084,7 +1084,7 @@ export function bloquerMembre(token: string, id: string): Promise<{ ok: boolean 
 }
 
 export function debloquerMembre(token: string, id: string): Promise<{ ok: boolean }> {
-  return authedSend(`/api/v1/admin/membres/${id}/debloquer`, token, "POST", {}, "Deblocage impossible");
+  return authedSend(`/api/v1/admin/membres/${id}/debloquer`, token, "POST", {}, "Déblocage impossible");
 }
 
 export function demanderDocumentMembre(token: string, id: string, type: string, message?: string): Promise<{ ok: boolean }> {
@@ -1186,7 +1186,7 @@ export function updatePaysSignature(
   code: string,
   patch: PaysSignaturePatch,
 ): Promise<{ ok: boolean }> {
-  return authedSend(`/api/v1/admin/pays-signature/${code}`, token, "PATCH", patch, "Mise a jour impossible");
+  return authedSend(`/api/v1/admin/pays-signature/${code}`, token, "PATCH", patch, "Mise à jour impossible");
 }
 
 export function getAttestations(token: string): Promise<Attestation[]> {

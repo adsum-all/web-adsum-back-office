@@ -28,7 +28,7 @@ export function Utilisateurs({ token }: { token: string }): JSX.Element {
   function guard<T>(p: Promise<T>): void {
     setError(null);
     p.then(() => users.reload()).catch((e: unknown) =>
-      setError(e instanceof ApiError ? e.message : "Erreur reseau"),
+      setError(e instanceof ApiError ? e.message : "Erreur réseau"),
     );
   }
 
@@ -46,7 +46,7 @@ export function Utilisateurs({ token }: { token: string }): JSX.Element {
       setPassword("");
       users.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

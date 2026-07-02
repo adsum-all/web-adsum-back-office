@@ -21,7 +21,7 @@ export function Organisation({ token }: { token: string }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   function guard<T>(p: Promise<T>, reload: () => void): void {
-    p.then(reload).catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Erreur reseau"));
+    p.then(reload).catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Erreur réseau"));
   }
 
   return (

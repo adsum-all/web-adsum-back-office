@@ -22,7 +22,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
       setDescription("");
       commissions.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -33,7 +33,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
       <header className="page-head">
         <div>
           <h1>Commissions & groupes</h1>
-          <p className="muted">Une commission a un libelle et un responsable; un membre y appartient.</p>
+          <p className="muted">Une commission a un libellé et un responsable ; un membre y appartient.</p>
         </div>
       </header>
 
@@ -51,7 +51,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>
-            {busy ? "Creation..." : "+ Commission"}
+            {busy ? "Création..." : "+ Commission"}
           </button>
         </div>
       </form>
@@ -72,7 +72,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
         ))}
       </ul>
       {!commissions.loading && (commissions.data ?? []).length === 0 && (
-        <p className="muted">Aucune commission. Creez la premiere.</p>
+        <p className="muted">Aucune commission. Créez la première.</p>
       )}
     </div>
   );

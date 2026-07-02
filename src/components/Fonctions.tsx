@@ -49,7 +49,7 @@ export function Fonctions({ token }: { token: string }): JSX.Element {
       setForm(EMPTY);
       fonctions.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

@@ -68,11 +68,38 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "audit", label: "Journal d'audit", group: "SYSTÈME" },
 ];
 
+// Persisted admin session: a refresh no longer signs the administrator out.
+const SESSION_KEY = "adsum.bo.session";
+function loadSession(): Session | null {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(SESSION_KEY) : null;
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
+}
+function saveSession(s: Session | null): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* private mode: session stays in memory only. */
+  }
+}
+
 export function App(): JSX.Element {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => loadSession());
   const [section, setSection] = useState<Section>("dashboard");
 
-  const onAuth = useCallback((s: Session) => setSession(s), []);
+  const onAuth = useCallback((s: Session) => {
+    saveSession(s);
+    setSession(s);
+  }, []);
+  const deconnexion = useCallback(() => {
+    saveSession(null);
+    setSession(null);
+  }, []);
 
   if (!session) {
     return <Login onAuth={onAuth} />;
@@ -113,8 +140,8 @@ export function App(): JSX.Element {
         </nav>
         <div className="sidebar-foot">
           <span className="muted small">{session.role}</span>
-          <button type="button" className="link" onClick={() => setSession(null)}>
-            Deconnexion
+          <button type="button" className="link" onClick={deconnexion}>
+            Déconnexion
           </button>
         </div>
       </aside>
@@ -134,7 +161,7 @@ export function App(): JSX.Element {
               aria-label="Recherche globale"
             />
           </label>
-          <span className="event-chip" title="Evenement actif">
+          <span className="event-chip" title="Événement actif">
             <span className="event-dot" aria-hidden="true" />
             Aucun événement actif
           </span>

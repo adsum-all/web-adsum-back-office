@@ -31,7 +31,7 @@ export function MembreFonction({
       setNote(confirm ? "Fonction confirmee." : "Fonction mise a jour.");
       onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

@@ -26,11 +26,11 @@ export function Consentements({ token }: { token: string }): JSX.Element {
             Documents & consentements
             <InfoTip
               title="Versionnement et preuve de signature"
-              text="Publier enregistre une NOUVELLE version du document. L'ancienne version reste conservee comme preuve pour les signatures deja recueillies (piste d'audit). A l'inscription, chaque membre doit lire et signer ces documents avant de finaliser son dossier."
+              text="Publier enregistre une NOUVELLE version du document. L'ancienne version reste conservée comme preuve pour les signatures déjà recueillies (piste d'audit). À l'inscription, chaque membre doit lire et signer ces documents avant de finaliser son dossier."
             />
           </h1>
           <p className="muted">
-            RGPD, confidentialite, lettre d'engagement et reglement interieur presentes aux membres a l'inscription.
+            RGPD, confidentialité, lettre d'engagement et règlement intérieur présentés aux membres à l'inscription.
           </p>
         </div>
       </header>
@@ -39,7 +39,7 @@ export function Consentements({ token }: { token: string }): JSX.Element {
       {docs.loading && <p className="muted">Chargement...</p>}
 
       {!docs.loading && list.length === 0 && !docs.error && (
-        <p className="muted">Aucun document configure.</p>
+        <p className="muted">Aucun document configuré.</p>
       )}
 
       {list.length > 0 && (
@@ -135,10 +135,10 @@ function DocEditor({
         bloquant: form.bloquant,
         ordre: form.ordre,
       });
-      setNote("Nouvelle version publiee. La version precedente est conservee comme preuve.");
+      setNote("Nouvelle version publiée. La version précédente est conservée comme preuve.");
       onPublished();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

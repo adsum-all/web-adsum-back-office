@@ -30,7 +30,7 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
     setError(null);
     try {
       await setModeleAnniversaire(token, modele);
-      setNote("Message enregistre.");
+      setNote("Message enregistré.");
     } catch {
       setError("Enregistrement impossible.");
     } finally {
@@ -44,7 +44,7 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
     setError(null);
     try {
       const r = await declencherAnniversaires(token);
-      setNote(`Envoi declenche : ${r.envoyes} membre(s) fete(s) aujourd'hui.`);
+      setNote(`Envoi déclenché : ${r.envoyes} membre(s) fêté(s) aujourd'hui.`);
     } catch {
       setError("Declenchement impossible.");
     } finally {
@@ -58,12 +58,12 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
         <div>
           <h1>Souhaits d'anniversaire</h1>
           <p className="muted">
-            Message envoye automatiquement chaque jour aux membres dont c'est l'anniversaire (in-app, e-mail, et Telegram
-            ou WhatsApp si le membre a lie son canal). Utilisez <span className="mono">{"{prenom}"}</span> pour inserer le prenom.
+            Message envoyé automatiquement chaque jour aux membres dont c'est l'anniversaire (in-app, e-mail, et Telegram
+            ou WhatsApp si le membre a lié son canal). Utilisez <span className="mono">{"{prenom}"}</span> pour insérer le prénom.
           </p>
         </div>
         <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void trigger()}>
-          Declencher maintenant
+          Déclencher maintenant
         </button>
       </header>
 
@@ -110,7 +110,7 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
       )}
 
       <section className="card">
-        <h2 className="card-title">Apercu du rendu</h2>
+        <h2 className="card-title">Aperçu du rendu</h2>
         <div style={{ textAlign: "center", padding: "22px 16px", background: "#f4f6fb", borderRadius: 14 }}>
           <div style={{ fontSize: 40 }}>🎉🎂</div>
           <div style={{ fontFamily: "var(--adsum-font-display, inherit)", fontWeight: 700, fontSize: 20, margin: "8px 0", color: "var(--adsum-ink)" }}>
@@ -119,7 +119,7 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
           <p className="muted" style={{ maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>
             {(modele?.corps ?? "").replace("{prenom}", "Emmanuel")}
           </p>
-          <p style={{ marginTop: 14, fontWeight: 600, color: "var(--adsum-accent, #2a4fad)" }}>La fraternité du Sacerdoce Royal 🙏</p>
+          <p style={{ marginTop: 14, fontWeight: 600, color: "var(--adsum-accent, #2a4fad)" }}>Sacerdoce Royal 🙏</p>
         </div>
       </section>
     </div>

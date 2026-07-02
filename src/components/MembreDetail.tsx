@@ -66,7 +66,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       membre.reload();
       setNote(message);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -81,7 +81,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       membre.reload();
       setNote(message);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

@@ -67,7 +67,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
       setLiens([""]);
       evenements.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -89,7 +89,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <input value={form.titre} onChange={(e) => set("titre", e.target.value)} required />
           </label>
           <label>
-            <span>Debut *</span>
+            <span>Début *</span>
             <input type="datetime-local" value={form.debut} onChange={(e) => set("debut", e.target.value)} required />
           </label>
           <label>
@@ -108,13 +108,13 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <select value={form.type ?? "rassemblement"} onChange={(e) => set("type", e.target.value)}>
               <option value="rassemblement">Rassemblement</option>
               <option value="formation">Formation</option>
-              <option value="priere">Priere</option>
+              <option value="priere">Prière</option>
             </select>
           </label>
           <label>
             <span>Mode</span>
             <select value={form.mode ?? "presentiel"} onChange={(e) => set("mode", e.target.value)}>
-              <option value="presentiel">Presentiel</option>
+              <option value="presentiel">Présentiel</option>
               <option value="hybride">Hybride</option>
               <option value="distanciel">Distanciel</option>
             </select>
@@ -126,19 +126,19 @@ export function Evenements({ token }: { token: string }): JSX.Element {
               onChange={(e) => set("type_diffusion", e.target.value as EvenementCreateInput["type_diffusion"])}
             >
               <option value="aucun">Aucune</option>
-              <option value="embed">Diffusion integree (embed)</option>
+              <option value="embed">Diffusion intégrée (embed)</option>
               <option value="externe">Lien externe</option>
             </select>
           </label>
           <label>
-            <span>Visibilite</span>
+            <span>Visibilité</span>
             <select
               value={form.visibilite ?? "membres"}
               onChange={(e) => set("visibilite", e.target.value as EvenementCreateInput["visibilite"])}
             >
               <option value="public">Public</option>
               <option value="membres">Membres</option>
-              <option value="prive">Prive</option>
+              <option value="prive">Privé</option>
             </select>
           </label>
           <label>
@@ -152,14 +152,14 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>
-            {busy ? "Creation..." : "+ Nouvel evenement"}
+            {busy ? "Création..." : "+ Nouvel événement"}
           </button>
         </div>
       </form>
 
       <section className="card">
-        <h2 className="card-title">Fenetre des questionnaires</h2>
-        <p className="muted small">Duree, en heures apres la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
+        <h2 className="card-title">Fenêtre des questionnaires</h2>
+        <p className="muted small">Durée, en heures après la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
         <div className="toolbar">
           <input
             type="range"
@@ -191,7 +191,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
                 className="btn btn-ghost btn-inline"
                 onClick={() => setOpenId(openId === ev.id ? null : ev.id)}
               >
-                {openId === ev.id ? "Fermer" : "Gerer la session"}
+                {openId === ev.id ? "Fermer" : "Gérer la session"}
               </button>
             </div>
           </div>

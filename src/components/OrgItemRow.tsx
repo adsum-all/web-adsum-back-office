@@ -27,7 +27,7 @@ export function OrgItemRow({ token, entity, id, nom, meta, publie, onChanged }: 
       await action();
       onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

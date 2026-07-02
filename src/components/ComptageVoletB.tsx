@@ -23,7 +23,7 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
     try {
       setResume(await getComptage(token, id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     }
   }
 
@@ -36,7 +36,7 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
       setSegment("");
       setCount(0);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     }
   }
 
@@ -47,7 +47,7 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
       <header className="page-head">
         <div>
           <h1>Comptage volet B</h1>
-          <p className="muted">Grands evenements ouverts au public : membres scannes + non-membres.</p>
+          <p className="muted">Grands événements ouverts au public : membres scannés + non-membres.</p>
         </div>
       </header>
 
@@ -60,14 +60,14 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
         </select>
       </form>
       {voletB.length === 0 && !events.loading && (
-        <p className="muted">Aucun événement volet B. Creez-en un dans le calendrier.</p>
+        <p className="muted">Aucun événement volet B. Créez-en un dans le calendrier.</p>
       )}
       {error && <p className="banner banner-error">{error}</p>}
 
       {resume && (
         <>
           <div className="kpi-grid">
-            <div className="kpi"><span className="kpi-label">Membres scannes</span><span className="kpi-value">{resume.membres_scannes.toLocaleString("fr-FR")}</span></div>
+            <div className="kpi"><span className="kpi-label">Membres scannés</span><span className="kpi-value">{resume.membres_scannes.toLocaleString("fr-FR")}</span></div>
             <div className="kpi"><span className="kpi-label">Non-membres</span><span className="kpi-value">{resume.non_membres.toLocaleString("fr-FR")}</span></div>
             <div className="kpi"><span className="kpi-label">Total participants</span><span className="kpi-value">{resume.total_participants.toLocaleString("fr-FR")}</span></div>
           </div>
@@ -93,7 +93,7 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
 
           <section className="card">
             <h2 className="card-title">QR public self-service</h2>
-            <p className="muted small">Affichez ce QR a l'entree. Les non-membres scannent et confirment « Je suis present ».</p>
+            <p className="muted small">Affichez ce QR à l'entrée. Les non-membres scannent et confirment « Je suis présent ».</p>
             <PublicQr url={publicUrl} />
             <p className="mono small">{publicUrl}</p>
           </section>

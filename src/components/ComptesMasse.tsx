@@ -3,8 +3,8 @@ import { useState } from "react";
 import { ApiError, type BulkResult, bulkCreateUtilisateurs } from "../api.js";
 
 const ROLES: [string, string][] = [
-  ["direction", "Acces membre (direction)"],
-  ["controleur", "Controleur"],
+  ["direction", "Accès membre (direction)"],
+  ["controleur", "Contrôleur"],
   ["gestionnaire", "Gestionnaire (berger)"],
   ["admin", "Administrateur"],
 ];
@@ -41,7 +41,7 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (emails.length === 0) {
-      setError("Aucun email valide detecte.");
+      setError("Aucun email valide détecté.");
       return;
     }
     setBusy(true);
@@ -54,7 +54,7 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
       const dup = new Set(res.doublons);
       setCredentials(comptes.filter((c) => !dup.has(c.email)).map((c) => ({ email: c.email, password: c.password })));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -64,16 +64,16 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Creation de comptes en masse</h1>
+          <h1>Création de comptes en masse</h1>
           <p className="muted">
-            L'admin cree les comptes d'acces (pas les profils). Une ligne = une personne, email unique.
+            L'admin crée les comptes d'accès (pas les profils). Une ligne = une personne, email unique.
           </p>
         </div>
       </header>
 
       <form className="form-card" onSubmit={submit}>
         <label className="full">
-          <span>Emails (un par ligne, ou separes par virgule)</span>
+          <span>Emails (un par ligne, ou séparés par virgule)</span>
           <textarea
             className="textarea"
             rows={8}
@@ -84,34 +84,34 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
         </label>
         <div className="row">
           <label>
-            <span>Role attribue</span>
+            <span>Rôle attribué</span>
             <select value={role} onChange={(e) => setRole(e.target.value)}>
               {ROLES.map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
             </select>
           </label>
-          <span className="muted small">{emails.length} email(s) valide(s) detecte(s)</span>
+          <span className="muted small">{emails.length} email(s) valide(s) détecté(s)</span>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy || emails.length === 0}>
-            {busy ? "Creation..." : "Creer les comptes"}
+            {busy ? "Création..." : "Créer les comptes"}
           </button>
         </div>
       </form>
 
       {result && (
         <section className="card">
-          <h2 className="card-title">Resultat</h2>
+          <h2 className="card-title">Résultat</h2>
           <div className="kpi-grid">
-            <div className="kpi"><span className="kpi-label">Comptes crees</span><span className="kpi-value">{result.crees}</span></div>
+            <div className="kpi"><span className="kpi-label">Comptes créés</span><span className="kpi-value">{result.crees}</span></div>
             <div className="kpi"><span className="kpi-label">Doublons</span><span className="kpi-value">{result.doublons.length}</span></div>
             <div className="kpi"><span className="kpi-label">Erreurs</span><span className="kpi-value">{result.erreurs.length}</span></div>
           </div>
           {credentials.length > 0 && (
             <>
-              <p className="muted small">Mots de passe temporaires (a distribuer, valables une fois, a changer a la premiere connexion) :</p>
+              <p className="muted small">Mots de passe temporaires (à distribuer, valables une fois, à changer à la première connexion) :</p>
               <ul className="list">
                 {credentials.map((c) => (
                   <li key={c.email} className="list-row">

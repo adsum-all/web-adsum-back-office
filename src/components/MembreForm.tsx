@@ -99,7 +99,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
       await createMembre(token, payload);
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }

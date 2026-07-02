@@ -19,12 +19,12 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
     try {
       const session = await login(email, password);
       if (session.role !== "admin" && session.role !== "super_admin") {
-        setError("Acces reserve aux administrateurs.");
+        setError("Accès réservé aux administrateurs.");
         return;
       }
       onAuth(session);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -60,7 +60,7 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Connexion..." : "Se connecter"}
         </button>
-        <p className="muted small center">Acces reserve aux administrateurs autorises.</p>
+        <p className="muted small center">Accès réservé aux administrateurs autorisés.</p>
       </form>
     </div>
   );

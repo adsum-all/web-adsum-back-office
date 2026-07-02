@@ -26,8 +26,8 @@ const STATUT_LIBELLE: Record<string, string> = {
   awaiting: "En attente",
   reminded: "Relance",
   overdue: "En retard",
-  under_review: "A examiner",
-  rejected: "Refusee",
+  under_review: "À examiner",
+  rejected: "Refusée",
 };
 
 /**
@@ -48,7 +48,7 @@ export function Attestations({ token }: { token: string }): JSX.Element {
         <div>
           <h1>Attestations & pays</h1>
           <p className="muted">
-            Suivi des attestations manuscrites a valider et matrice juridique des pays.
+            Suivi des attestations manuscrites à valider et matrice juridique des pays.
           </p>
         </div>
       </header>
@@ -56,7 +56,7 @@ export function Attestations({ token }: { token: string }): JSX.Element {
       <section className="card">
         <h2 className="card-title">File d'attente des attestations</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
-          Attestations manuscrites deposees par les membres, en attente d'un examen. Les dossiers en retard sont signales.
+          Attestations manuscrites déposées par les membres, en attente d'un examen. Les dossiers en retard sont signalés.
         </p>
         {attestations.error && <p className="banner banner-error">{attestations.error}</p>}
         {attestations.loading && <p className="muted">Chargement...</p>}
@@ -73,7 +73,7 @@ export function Attestations({ token }: { token: string }): JSX.Element {
                   <th>Membre</th>
                   <th>Pays</th>
                   <th>Statut</th>
-                  <th>Echeance</th>
+                  <th>Échéance</th>
                   <th>Scan</th>
                   <th>Decision</th>
                 </tr>
@@ -93,14 +93,14 @@ export function Attestations({ token }: { token: string }): JSX.Element {
           Matrice juridique des pays
           <InfoTip
             title="Attestation manuscrite par pays"
-            text="Ce tableau controle, pour chaque pays, si une attestation signee a la main est requise en plus de la signature electronique. C'est une aide operationnelle, pas un avis juridique, et il est entierement modifiable."
+            text="Ce tableau contrôle, pour chaque pays, si une attestation signée à la main est requise en plus de la signature électronique. C'est une aide opérationnelle, pas un avis juridique, et il est entièrement modifiable."
           />
         </h2>
         {pays.error && <p className="banner banner-error">{pays.error}</p>}
         {pays.loading && <p className="muted">Chargement...</p>}
 
         {!pays.loading && matrice.length === 0 && !pays.error && (
-          <p className="muted">Aucun pays configure.</p>
+          <p className="muted">Aucun pays configuré.</p>
         )}
 
         {matrice.length > 0 && (
@@ -195,7 +195,7 @@ function AttestationRow({
             Ouvrir le scan
           </button>
         ) : (
-          <span className="muted small">Aucun depot</span>
+          <span className="muted small">Aucun dépôt</span>
         )}
       </td>
       <td>
@@ -209,7 +209,7 @@ function AttestationRow({
             </button>
           </div>
         ) : (
-          <span className="muted small">En attente du depot</span>
+          <span className="muted small">En attente du dépôt</span>
         )}
         {error && <p className="banner banner-error" style={{ marginTop: 6 }}>{error}</p>}
       </td>
@@ -280,7 +280,7 @@ function PaysRow({
           disabled={busy}
           onChange={(e) => setSource(e.target.value)}
           onBlur={saveSource}
-          placeholder="Reference"
+          placeholder="Référence"
         />
       </td>
       <td>

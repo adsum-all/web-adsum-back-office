@@ -59,7 +59,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
       const r = await majSessionEvenement(token, evenement.id, next);
       setOuverte(r.session_ouverte);
       onChanged();
-      setNote("Session mise a jour.");
+      setNote("Session mise à jour.");
     } finally {
       setBusy(false);
     }
@@ -75,7 +75,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
     setNote(null);
     try {
       const r = await testDiffusionEvenement(token, evenement.id);
-      setNote(`Test de diffusion envoye a ${r.envoyes} membre(s).`);
+      setNote(`Test de diffusion envoyé à ${r.envoyes} membre(s).`);
     } finally {
       setBusy(false);
     }
@@ -89,7 +89,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
     try {
       await definirQuestionnaire(token, evenement.id, titre, valid);
       void getReponsesQuestionnaire(token, evenement.id).then(setReponses).catch(() => undefined);
-      setNote("Questionnaire enregistre.");
+      setNote("Questionnaire enregistré.");
     } finally {
       setBusy(false);
     }
@@ -129,12 +129,12 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
             }}
           >
             <option value="aucun">Aucune</option>
-            <option value="embed">Diffusion integree (embed)</option>
+            <option value="embed">Diffusion intégrée (embed)</option>
             <option value="externe">Lien externe</option>
           </select>
         </label>
         <label style={{ flex: 1 }}>
-          <span className="muted small">Visibilite</span>
+          <span className="muted small">Visibilité</span>
           <select
             className="search"
             style={{ width: "100%" }}
@@ -147,7 +147,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
           >
             <option value="public">Public</option>
             <option value="membres">Membres</option>
-            <option value="prive">Prive</option>
+            <option value="prive">Privé</option>
           </select>
         </label>
       </div>
@@ -158,7 +158,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
         </button>
         <InfoTip
           title="Test de diffusion"
-          text="Envoie une notification de test aux membres concernes. Le message est clairement signale comme un test afin d'eviter toute confusion."
+          text="Envoie une notification de test aux membres concernés. Le message est clairement signalé comme un test afin d'éviter toute confusion."
         />
       </div>
 
@@ -170,7 +170,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
             <input
               className="search"
               style={{ flex: 1 }}
-              placeholder="Intitule de la question"
+              placeholder="Intitulé de la question"
               value={q.libelle}
               onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, libelle: e.target.value } : x)))}
             />
@@ -200,7 +200,7 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
 
       {reponses.length > 0 && (
         <>
-          <p className="card-title" style={{ margin: "14px 0 6px" }}>Reponses ({reponses.length})</p>
+          <p className="card-title" style={{ margin: "14px 0 6px" }}>Réponses ({reponses.length})</p>
           <ul className="list">
             {reponses.map((r, i) => (
               <li key={i} className="list-row">
