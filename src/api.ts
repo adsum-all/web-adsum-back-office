@@ -1030,6 +1030,9 @@ export interface DemandeItem {
   cree_le: string | null;
   membre_nom: string | null;
   nb_messages: number;
+  /** Step tracking: when the staff took the request over / closed it. */
+  pris_en_charge_le?: string | null;
+  clos_le?: string | null;
 }
 
 export interface DemandeMessageItem {
@@ -1043,22 +1046,29 @@ export interface DemandeMessageItem {
 
 export interface DemandeDetailAdmin extends DemandeItem {
   messages: DemandeMessageItem[];
+  /** Staff member handling the request (admin view only). */
+  pris_en_charge_par_email?: string | null;
 }
 
 export function getAdminDemandes(
   token: string,
-  filters?: { statut?: string; categorie?: string; q?: string },
+  filters?: { statut?: string; categorie?: string; q?: string; membre_id?: string },
 ): Promise<DemandeItem[]> {
   const params = new URLSearchParams();
   if (filters?.statut) params.set("statut", filters.statut);
   if (filters?.categorie) params.set("categorie", filters.categorie);
   if (filters?.q) params.set("q", filters.q);
+  if (filters?.membre_id) params.set("membre_id", filters.membre_id);
   const qs = params.toString();
   return authedGet<DemandeItem[]>(`/api/v1/admin/demandes${qs ? `?${qs}` : ""}`, token, "Demandes indisponibles");
 }
 
 export function demanderPieceDemande(token: string, id: string, description: string): Promise<DemandeItem> {
   return authedSend(`/api/v1/admin/demandes/${id}/demander-piece`, token, "POST", { description }, "Action impossible");
+}
+
+export function prendreEnChargeDemande(token: string, id: string): Promise<DemandeItem> {
+  return authedSend(`/api/v1/admin/demandes/${id}/prendre-en-charge`, token, "POST", {}, "Action impossible");
 }
 
 export function getAdminDemande(token: string, id: string): Promise<DemandeDetailAdmin> {

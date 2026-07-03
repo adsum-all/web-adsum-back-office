@@ -8,6 +8,7 @@ import {
   debloquerMembre,
   demanderDocumentMembre,
   fetchDocumentContentUrl,
+  getAdminDemandes,
   getCommissions,
   getConnexions,
   getDossierInscription,
@@ -20,6 +21,16 @@ import { displayName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 import { MembreFonction } from "./MembreFonction.js";
 
+const DEMANDE_STATUT: Record<string, string> = {
+  ouverte: "Ouverte",
+  en_cours: "En cours",
+  pieces_demandees: "Pièces demandées",
+  attente_membre: "Attente membre",
+  en_validation: "En validation",
+  resolue: "Résolue",
+  refusee: "Refusée",
+};
+
 interface MembreDetailProps {
   token: string;
   id: string;
@@ -31,6 +42,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const commissions = useResource(() => getCommissions(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
+  const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -277,6 +289,45 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
         )}
       </div>
+
+      <section className="card">
+        <h2 className="card-title">Demandes du membre (historique complet)</h2>
+        {demandes.loading ? (
+          <p className="muted small">Chargement...</p>
+        ) : (demandes.data ?? []).length === 0 ? (
+          <p className="muted small">Aucune demande enregistrée pour ce membre.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Numéro</th>
+                <th>Sujet</th>
+                <th>Statut</th>
+                <th>Ouverte le</th>
+                <th>Prise en charge</th>
+                <th>Clôturée le</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(demandes.data ?? []).map((d) => (
+                <tr key={d.id}>
+                  <td className="mono">{d.numero}</td>
+                  <td>{d.sujet}</td>
+                  <td>
+                    <span className={`badge ${d.statut === "resolue" ? "badge-ok" : d.statut === "refusee" ? "badge-bad" : "badge-warn"}`}>
+                      {DEMANDE_STATUT[d.statut] ?? d.statut}
+                    </span>
+                    {d.motif_cloture ? <span className="muted small"> {d.motif_cloture}</span> : null}
+                  </td>
+                  <td className="muted small">{d.cree_le ? new Date(d.cree_le).toLocaleDateString("fr-FR") : "-"}</td>
+                  <td className="muted small">{d.pris_en_charge_le ? new Date(d.pris_en_charge_le).toLocaleDateString("fr-FR") : "non"}</td>
+                  <td className="muted small">{d.clos_le ? new Date(d.clos_le).toLocaleDateString("fr-FR") : "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <section className="card">
         <h2 className="card-title">Connexions récentes (sécurité)</h2>

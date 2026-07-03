@@ -11,6 +11,7 @@ import {
   getAdminDemandes,
   getDemandeModifications,
   getDocumentUrl,
+  prendreEnChargeDemande,
   replyAdminDemande,
   updateAdminDemande,
 } from "../api.js";
@@ -40,6 +41,47 @@ function formatVal(v: string | number | boolean | null): string {
   if (v === null || v === undefined || v === "") return "(vide)";
   if (typeof v === "boolean") return v ? "Oui" : "Non";
   return String(v);
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Step path of the request so the staff sees at a glance where it stands. */
+function Etapes({ d }: { d: DemandeDetailAdmin }): JSX.Element {
+  const closed = d.statut === "resolue" || d.statut === "refusee";
+  const enCharge = Boolean(d.pris_en_charge_le) || d.statut !== "ouverte";
+  const traitement: Record<string, string> = {
+    en_cours: "En cours de traitement",
+    pieces_demandees: "Pièces attendues du membre",
+    attente_membre: "Réponse attendue du membre",
+    en_validation: "En validation",
+  };
+  const steps: { label: string; date?: string | null; state: "done" | "current" | "todo" }[] = [
+    { label: "Envoyée", date: d.cree_le, state: "done" },
+    { label: "Prise en charge", date: d.pris_en_charge_le, state: enCharge ? "done" : "current" },
+    { label: traitement[d.statut] ?? "Traitement", state: closed ? "done" : enCharge ? "current" : "todo" },
+    { label: d.statut === "resolue" ? "Résolue" : d.statut === "refusee" ? "Refusée" : "Clôture", date: d.clos_le, state: closed ? "done" : "todo" },
+  ];
+  return (
+    <div style={{ display: "flex", border: "1px solid var(--adsum-line)", borderRadius: 10, padding: "10px 6px", marginBottom: 12 }}>
+      {steps.map((s, i) => {
+        const color = s.state === "done" ? "var(--adsum-ok, #1e8e5a)" : s.state === "current" ? "var(--adsum-accent, #2a4fad)" : "var(--adsum-line)";
+        return (
+          <div key={s.label} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+            {i > 0 && <div style={{ position: "absolute", left: "-50%", right: "50%", top: 8, height: 2, background: s.state === "todo" ? "var(--adsum-line)" : "var(--adsum-ok, #1e8e5a)" }} />}
+            <div style={{ position: "relative", width: 16, height: 16, margin: "0 auto", borderRadius: "50%", background: s.state === "todo" ? "transparent" : color, border: `2px solid ${color}`, color: "#fff", fontSize: 9, lineHeight: "12px", fontWeight: 700 }}>
+              {s.state === "done" ? "✓" : ""}
+            </div>
+            <div style={{ fontSize: 10.5, fontWeight: s.state === "current" ? 700 : 500, marginTop: 4, lineHeight: 1.25 }}>{s.label}</div>
+            {s.date && <div className="muted" style={{ fontSize: 9 }}>{fmtDate(s.date)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 const UNLOCKABLE = [
@@ -199,7 +241,22 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
       <p className="muted small" style={{ marginTop: 0 }}>
         {detail.numero} · {STATUT_LIBELLE[detail.statut] ?? detail.statut}
         {detail.motif_cloture ? ` · motif : ${detail.motif_cloture}` : ""}
+        {detail.pris_en_charge_le
+          ? ` · prise en charge${detail.pris_en_charge_par_email ? ` par ${detail.pris_en_charge_par_email}` : ""} le ${fmtDate(detail.pris_en_charge_le)}`
+          : " · pas encore prise en charge"}
       </p>
+      <Etapes d={detail} />
+      {detail.statut === "ouverte" && (
+        <div style={{ marginBottom: 10 }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-inline"
+            onClick={() => void prendreEnChargeDemande(token, id).then(() => { load(); onChanged(); })}
+          >
+            Prendre en charge la demande
+          </button>
+        </div>
+      )}
       <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
         {detail.messages.map((m) =>
           m.auteur_type === "systeme" ? (
