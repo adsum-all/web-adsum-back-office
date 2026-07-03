@@ -165,6 +165,12 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // Inline decision panel: the reason is typed inside the app (never a browser
+  // prompt) and stays optional for resolve/refuse.
+  const [action, setAction] = useState<"resolue" | "refusee" | "piece" | null>(null);
+  const [actionTexte, setActionTexte] = useState("");
+  const [actionErreur, setActionErreur] = useState<string | null>(null);
+  const [pieceErreur, setPieceErreur] = useState<string | null>(null);
 
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
@@ -185,21 +191,40 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
     onChanged();
   }
 
-  async function demanderPiece(): Promise<void> {
-    const description = window.prompt("Quelle pièce attendez-vous du membre ? (décrivez le document)");
-    if (!description || !description.trim()) return;
-    await demanderPieceDemande(token, id, description.trim());
-    load();
-    onChanged();
+  function ouvrirPanneau(cible: "resolue" | "refusee" | "piece"): void {
+    setAction((prev) => (prev === cible ? null : cible));
+    setActionTexte("");
+    setActionErreur(null);
   }
 
-  function cloturer(statut: "resolue" | "refusee"): void {
-    const motif = window.prompt(statut === "resolue" ? "Motif de résolution (visible par le membre) :" : "Motif du refus (visible par le membre) :");
-    if (motif === null) return;
-    void setStatut(statut, motif.trim() || undefined);
+  async function confirmerAction(): Promise<void> {
+    if (!action || busy) return;
+    const texte = actionTexte.trim();
+    if (action === "piece" && !texte) {
+      setActionErreur("Décrivez la pièce attendue : ce texte guide le membre.");
+      return;
+    }
+    setBusy(true);
+    setActionErreur(null);
+    try {
+      if (action === "piece") {
+        await demanderPieceDemande(token, id, texte);
+        load();
+        onChanged();
+      } else {
+        await setStatut(action, texte || undefined);
+      }
+      setAction(null);
+      setActionTexte("");
+    } catch {
+      setActionErreur("Action impossible. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function ouvrirPiece(documentId: string): Promise<void> {
+    setPieceErreur(null);
     try {
       const r = await getDocumentUrl(token, documentId);
       if (r.url) {
@@ -210,7 +235,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
       window.open(objectUrl, "_blank", "noreferrer");
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     } catch {
-      window.alert("Pièce indisponible.");
+      setPieceErreur("Pièce indisponible pour le moment. Réessayez ou vérifiez le document du membre.");
     }
   }
 
@@ -340,16 +365,18 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         </div>
       )}
 
+      {pieceErreur && <p className="banner banner-error" style={{ marginTop: 8 }}>{pieceErreur}</p>}
+
       <div className="form-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
         {detail.statut !== "resolue" && detail.statut !== "refusee" ? (
           <>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => void demanderPiece()}>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("piece")}>
               Demander une pièce
             </button>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => cloturer("refusee")}>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("refusee")}>
               Refuser
             </button>
-            <button type="button" className="btn btn-primary btn-inline" onClick={() => cloturer("resolue")}>
+            <button type="button" className="btn btn-primary btn-inline" onClick={() => ouvrirPanneau("resolue")}>
               Marquer résolu
             </button>
           </>
@@ -359,6 +386,36 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
           </button>
         )}
       </div>
+
+      {action && (
+        <div style={{ marginTop: 10, padding: 14, border: "1px solid var(--adsum-line)", borderRadius: 10 }}>
+          <p className="card-title" style={{ marginBottom: 4 }}>
+            {action === "resolue" ? "Marquer la demande comme résolue" : action === "refusee" ? "Refuser la demande" : "Demander une pièce au membre"}
+          </p>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            {action === "piece"
+              ? "Décrivez précisément la pièce attendue : ce texte est envoyé au membre."
+              : "Le motif est facultatif. S'il est renseigné, il sera visible par le membre."}
+          </p>
+          <textarea
+            rows={2}
+            value={actionTexte}
+            autoFocus
+            placeholder={action === "piece" ? "Ex. : scan recto-verso de la pièce d'identité, lisible et en couleur" : "Motif (facultatif)"}
+            onChange={(e) => setActionTexte(e.target.value)}
+            style={{ width: "100%", resize: "vertical", border: "1px solid var(--adsum-line)", borderRadius: 8, padding: "9px 11px", font: "inherit" }}
+          />
+          {actionErreur && <p className="banner banner-error" style={{ marginTop: 8 }}>{actionErreur}</p>}
+          <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void confirmerAction()}>
+              {action === "resolue" ? "Confirmer la résolution" : action === "refusee" ? "Confirmer le refus" : "Envoyer au membre"}
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => { setAction(null); setActionTexte(""); setActionErreur(null); }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
