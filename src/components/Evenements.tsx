@@ -56,6 +56,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         visibilite: form.visibilite,
       };
       if (form.fin) payload.fin = new Date(form.fin).toISOString();
+      if (form.fenetre_reponse_heures) payload.fenetre_reponse_heures = Number(form.fenetre_reponse_heures);
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
       const cleanLiens = liens.map((l) => l.trim()).filter((l) => l.length > 0);
       if (cleanLiens.length > 0) {
@@ -95,6 +96,17 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           <label>
             <span>Fin</span>
             <input type="datetime-local" value={form.fin ?? ""} onChange={(e) => set("fin", e.target.value)} />
+          </label>
+          <label>
+            <span>Fenêtre de réponse (h après la fin)</span>
+            <input
+              type="number"
+              min={1}
+              max={336}
+              placeholder="Réglage global"
+              value={form.fenetre_reponse_heures ?? ""}
+              onChange={(e) => set("fenetre_reponse_heures", e.target.value ? Number(e.target.value) : undefined)}
+            />
           </label>
           <label>
             <span>Volet</span>

@@ -122,11 +122,17 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
               <Kpi label={`Non-répondants (${stats.taux_non_reponse}%)`} value={stats.non_repondants} tone="mut" />
             </div>
             <div className="kpi-grid kpi-grid-compact">
-              <Kpi label="Présentiel (scan)" value={stats.presents_presentiel} />
+              <Kpi label="Présentiel prouvé (scan)" value={stats.presents_presentiel} />
+              <Kpi label="Présentiel déclaré" value={stats.presents_presentiel_declare ?? 0} />
               <Kpi label="En ligne (déclaré)" value={stats.presents_enligne} />
+              <Kpi label="Modalité non précisée" value={stats.presents_modalite_inconnue ?? 0} tone="mut" />
+              <Kpi label="Note moyenne" value={stats.note_moyenne != null ? `${stats.note_moyenne}/5` : "-"} />
+            </div>
+            <div className="kpi-grid kpi-grid-compact">
               <Kpi label="Taux de participation" value={`${stats.taux_participation}%`} />
               <Kpi label="Taux de réponse" value={`${stats.taux_reponse}%`} />
-              <Kpi label="Note moyenne" value={stats.note_moyenne != null ? `${stats.note_moyenne}/5` : "-"} />
+              <Kpi label="Non-rép. connectés (fenêtre)" value={stats.non_repondants_connectes ?? 0} tone="warn" />
+              <Kpi label="Non-rép. non connectés" value={stats.non_repondants_non_connectes ?? 0} tone="mut" />
             </div>
 
             {stats.distribution_notes.length > 0 && (

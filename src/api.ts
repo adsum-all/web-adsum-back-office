@@ -283,6 +283,8 @@ export interface EvenementCreateInput {
   mode?: string;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
+  /** Response window in hours after the end; empty = admin default (6h). */
+  fenetre_reponse_heures?: number;
 }
 
 export interface MembreListQuery {
@@ -647,6 +649,11 @@ export interface ParticipationStats {
   presents: number;
   presents_presentiel: number;
   presents_enligne: number;
+  presents_presentiel_declare?: number;
+  presents_modalite_inconnue?: number;
+  non_repondants_connectes?: number;
+  non_repondants_non_connectes?: number;
+  croisement_modalite?: { modalite: string; statut: string; n: number }[];
   partiels: number;
   absents: number;
   brouillons: number;
