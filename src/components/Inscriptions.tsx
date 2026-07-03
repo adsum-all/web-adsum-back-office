@@ -306,6 +306,7 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
                     width: 220,
                     height: 280,
                     objectFit: "cover",
+                    objectPosition: "50% 30%",
                     borderRadius: "var(--adsum-radius-lg)",
                     border: "1px solid var(--adsum-line)",
                     display: "block",

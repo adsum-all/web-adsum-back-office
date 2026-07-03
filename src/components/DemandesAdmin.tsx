@@ -349,7 +349,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
           {photoPending && (
             <div style={{ marginBottom: 10 }}>
               <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Nouvelle photo d'identité proposée par le membre :</p>
-              <img src={photoPending} alt="Nouvelle photo proposée" style={{ width: 96, height: 96, borderRadius: 12, objectFit: "cover", border: "1px solid var(--adsum-line)" }} />
+              <img src={photoPending} alt="Nouvelle photo proposée" style={{ width: 96, height: 120, borderRadius: 12, objectFit: "cover", objectPosition: "50% 30%", border: "1px solid var(--adsum-line)" }} />
             </div>
           )}
           <div className="form-actions" style={{ justifyContent: "flex-start" }}>
