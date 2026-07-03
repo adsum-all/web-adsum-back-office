@@ -3,11 +3,14 @@ import { useEffect, useState } from "react";
 
 import {
   type CanalStatut,
+  type EchecNotification,
   type IntegrationItem,
   type TypeNotification,
   getCanauxStatut,
+  getEchecsNotification,
   getIntegrations,
   getTypesNotification,
+  resoudreEchecNotification,
   setIntegration,
   toggleTypeNotification,
 } from "../api.js";
@@ -27,6 +30,7 @@ export function Integrations({ token }: { token: string }): JSX.Element {
   const statut = useResource(() => getCanauxStatut(token), [token]);
   const integrations = useResource(() => getIntegrations(token), [token]);
   const types = useResource(() => getTypesNotification(token), [token]);
+  const echecs = useResource(() => getEchecsNotification(token), [token]);
   const [note, setNote] = useState<string | null>(null);
 
   return (
@@ -84,6 +88,53 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           ))}
         </div>
       </section>
+
+      <section className="card">
+        <h2 className="card-title">
+          Échecs de livraison
+          {(echecs.data?.ouverts ?? 0) > 0 && (
+            <span className="badge badge-dng" style={{ marginLeft: 8 }}>{echecs.data?.ouverts}</span>
+          )}
+          <InfoTip title="Livraison" text="Les envois de notifications qui n'ont pas abouti (e-mail refusé, Telegram ou WhatsApp injoignable). Contactez le membre puis marquez l'échec comme traité pour le retirer de la liste. Les envois in-app n'échouent jamais." />
+        </h2>
+        {(echecs.data?.echecs ?? []).length === 0 ? (
+          <p className="muted small">Aucun échec de livraison à traiter.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(echecs.data?.echecs ?? []).map((e: EchecNotification) => (
+              <EchecRow key={e.id} echec={e} token={token} onChanged={() => echecs.reload()} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function EchecRow({ echec, token, onChanged }: { echec: EchecNotification; token: string; onChanged: () => void }): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const quand = echec.cree_le ? new Date(echec.cree_le).toLocaleString("fr-FR") : "";
+  async function resoudre(): Promise<void> {
+    setBusy(true);
+    try {
+      await resoudreEchecNotification(token, echec.id);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--adsum-line)" }}>
+      <div style={{ minWidth: 0 }}>
+        <strong style={{ fontSize: 13 }}>{echec.membre ?? "Membre inconnu"}</strong>
+        <span className="muted small" style={{ marginLeft: 8 }}>{CANAL_LABEL[echec.canal] ?? echec.canal} . {echec.type_cle}</span>
+        <div className="muted small" style={{ marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {quand}{echec.detail ? ` . ${echec.detail}` : ""}
+        </div>
+      </div>
+      <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void resoudre()}>
+        Marquer traité
+      </button>
     </div>
   );
 }

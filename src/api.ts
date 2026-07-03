@@ -608,6 +608,30 @@ export function toggleTypeNotification(token: string, cle: string, actif: boolea
   return authedSend(`/api/v1/admin/notifications/types/${cle}`, token, "PUT", { actif }, "Mise à jour impossible");
 }
 
+export interface EchecNotification {
+  id: string;
+  membre_id: string | null;
+  membre: string | null;
+  type_cle: string;
+  canal: string;
+  detail: string | null;
+  resolu: boolean;
+  cree_le: string | null;
+}
+
+export interface EchecsNotification {
+  ouverts: number;
+  echecs: EchecNotification[];
+}
+
+export function getEchecsNotification(token: string): Promise<EchecsNotification> {
+  return authedGet<EchecsNotification>("/api/v1/admin/notifications/echecs", token, "Échecs indisponibles");
+}
+
+export function resoudreEchecNotification(token: string, id: string): Promise<void> {
+  return authedSend<void>(`/api/v1/admin/notifications/echecs/${id}/resolu`, token, "POST", {}, "Action impossible");
+}
+
 export interface RepartitionLigne {
   cle: string;
   presents: number;
