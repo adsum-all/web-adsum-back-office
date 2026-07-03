@@ -1078,11 +1078,15 @@ export interface DemandeItem {
   /** Step tracking: when the staff took the request over / closed it. */
   pris_en_charge_le?: string | null;
   clos_le?: string | null;
+  /** Deadline granted to the member after an unlock (auto-close when over). */
+  echeance_reponse?: string | null;
 }
 
 export interface DemandeMessageItem {
   id: string;
   auteur_type: string;
+  lu_par_membre_le?: string | null;
+  lu_par_staff_le?: string | null;
   auteur_nom: string | null;
   corps: string;
   cree_le: string | null;
@@ -1112,6 +1116,17 @@ export function demanderPieceDemande(token: string, id: string, description: str
   return authedSend(`/api/v1/admin/demandes/${id}/demander-piece`, token, "POST", { description }, "Action impossible");
 }
 
+export interface ElementDeblocable {
+  cle: string;
+  libelle: string;
+  type: "champ" | "photo" | "document";
+  sensibilite: "haute" | "normale";
+}
+
+export function getElementsDeblocables(token: string): Promise<ElementDeblocable[]> {
+  return authedGet<ElementDeblocable[]>("/api/v1/admin/deblocage/elements", token, "Catalogue indisponible");
+}
+
 export function prendreEnChargeDemande(token: string, id: string): Promise<DemandeItem> {
   return authedSend(`/api/v1/admin/demandes/${id}/prendre-en-charge`, token, "POST", {}, "Action impossible");
 }
@@ -1127,7 +1142,7 @@ export function replyAdminDemande(token: string, id: string, corps: string): Pro
 export function updateAdminDemande(
   token: string,
   id: string,
-  patch: { statut?: string; champs_deverrouilles?: string[]; motif?: string },
+  patch: { statut?: string; champs_deverrouilles?: string[]; motif?: string; delai_jours?: number },
 ): Promise<DemandeItem> {
   return authedSend(`/api/v1/admin/demandes/${id}`, token, "PATCH", patch, "Mise à jour impossible");
 }
