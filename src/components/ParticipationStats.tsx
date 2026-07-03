@@ -69,8 +69,10 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
         <section className="card">
           <h2 className="card-title">Vue globale ({g.nb_evenements} événements)</h2>
           <div className="kpi-grid kpi-grid-compact">
-            <Kpi label="Présences (présentiel)" value={g.repartition_globale.presentiel} tone="ok" />
-            <Kpi label="Présences (en ligne)" value={g.repartition_globale.en_ligne} tone="ok" />
+            <Kpi label="Présents (total)" value={g.repartition_globale.presents} tone="ok" />
+            <Kpi label="dont présentiel prouvé (scan)" value={g.repartition_globale.presentiel} />
+            <Kpi label="dont présentiel déclaré" value={g.repartition_globale.presentiel_declare ?? 0} />
+            <Kpi label="dont en ligne (déclaré)" value={g.repartition_globale.en_ligne} />
             <Kpi label="Suivis partiels" value={g.repartition_globale.partiels} tone="warn" />
             <Kpi label="Absents" value={g.repartition_globale.absents} tone="bad" />
           </div>

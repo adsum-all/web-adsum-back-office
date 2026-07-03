@@ -675,7 +675,17 @@ export interface ParticipationStats {
 
 export interface ParticipationGlobal {
   nb_evenements: number;
-  repartition_globale: { presents: number; partiels: number; absents: number; presentiel: number; en_ligne: number };
+  repartition_globale: {
+    presents: number;
+    partiels: number;
+    absents: number;
+    /** Proven on-site (member-QR scan). */
+    presentiel: number;
+    presentiel_declare?: number;
+    /** Declared online modality (no strong online proof exists). */
+    en_ligne: number;
+    modalite_inconnue?: number;
+  };
   serie_evenements: { id: string; titre: string; debut: string | null; volet: string; presents: number; partiels: number; absents: number }[];
   top_assidus: { membre: string; matricule: string; presents: number }[];
   a_relancer: { membre: string; matricule: string; presents: number }[];
