@@ -8,17 +8,31 @@ import {
   debloquerMembre,
   demanderDocumentMembre,
   fetchDocumentContentUrl,
+  getAdminDemandes,
   getCommissions,
   getConnexions,
   getDossierInscription,
   getMembre,
+  getMembreParticipationAnalytique,
   getMembrePhotoUrl,
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { formatDate, fullName, initials } from "../format.js";
+import { displayName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
+import { Conversation } from "./DemandesAdmin.js";
+import { Kpi } from "./Kpi.js";
 import { MembreFonction } from "./MembreFonction.js";
+
+const DEMANDE_STATUT: Record<string, string> = {
+  ouverte: "Ouverte",
+  en_cours: "En cours",
+  pieces_demandees: "Pièces demandées",
+  attente_membre: "Attente membre",
+  en_validation: "En validation",
+  resolue: "Résolue",
+  refusee: "Refusée",
+};
 
 interface MembreDetailProps {
   token: string;
@@ -31,6 +45,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const commissions = useResource(() => getCommissions(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
+  const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
+  const analytique = useResource(() => getMembreParticipationAnalytique(token, id), [token, id]);
+  const [demandeOuverte, setDemandeOuverte] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -91,7 +108,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   if (membre.error || !membre.data) return <div className="page banner banner-error">{membre.error ?? "Introuvable"}</div>;
 
   const m = membre.data;
+  // Bare name for initials; the heading carries the confirmed honorific prefix.
   const name = fullName(m.prenoms, m.nom, m.matricule);
+  const heading = displayName(m.titre, m.prenoms, m.nom, m.matricule);
 
   return (
     <div className="page">
@@ -100,7 +119,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           <button type="button" className="link" onClick={onBack}>
             Annuaire
           </button>
-          <h1>{name}</h1>
+          <h1>{heading}</h1>
           <p className="mono muted">
             {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
@@ -275,6 +294,135 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
         )}
       </div>
+
+      <section className="card">
+        <h2 className="card-title">Participation et assiduité ({analytique.data?.fenetre_jours ?? 90} derniers jours)</h2>
+        {analytique.loading ? (
+          <p className="muted small">Chargement...</p>
+        ) : !analytique.data ? (
+          <p className="muted small">Analyse indisponible.</p>
+        ) : (
+          <>
+            <div className="kpi-grid kpi-grid-compact">
+              <Kpi
+                label="Taux de participation"
+                value={analytique.data.taux_participation != null ? `${analytique.data.taux_participation}%` : "-"}
+                tone="ok"
+              />
+              <Kpi
+                label="Tendance récente"
+                value={
+                  analytique.data.taux_recent != null && analytique.data.taux_anterieur != null
+                    ? `${analytique.data.taux_recent >= analytique.data.taux_anterieur ? "↑" : "↓"} ${analytique.data.taux_recent}%`
+                    : analytique.data.taux_recent != null
+                      ? `${analytique.data.taux_recent}%`
+                      : "-"
+                }
+                tone={
+                  analytique.data.taux_recent != null && analytique.data.taux_anterieur != null && analytique.data.taux_recent < analytique.data.taux_anterieur
+                    ? "warn"
+                    : "ok"
+                }
+              />
+              <Kpi label="Présences prouvées (scan)" value={analytique.data.presents_prouves} />
+              <Kpi label="En ligne (déclaré)" value={analytique.data.presents_en_ligne} />
+              <Kpi label="Suivis partiels" value={analytique.data.partiels} tone="warn" />
+              <Kpi label="Sans réponse" value={analytique.data.sans_reponse} tone="mut" />
+            </div>
+            <p className="card-title" style={{ margin: "10px 0 6px" }}>Dernières activités du membre</p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Activité</th>
+                  <th>Date</th>
+                  <th>Suivi</th>
+                  <th>Modalité</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytique.data.historique.map((h, i) => (
+                  <tr key={`${h.titre}-${i}`}>
+                    <td>{h.titre}</td>
+                    <td className="muted small">{h.debut ? new Date(h.debut).toLocaleDateString("fr-FR") : "-"}</td>
+                    <td>
+                      {h.statut === "present" ? (
+                        <span className="badge badge-ok">Présent</span>
+                      ) : h.statut === "partiel" ? (
+                        <span className="badge badge-warn">Partiel</span>
+                      ) : h.statut === "absent" ? (
+                        <span className="badge badge-bad">Absent</span>
+                      ) : (
+                        <span className="badge badge-mut">Sans réponse</span>
+                      )}
+                    </td>
+                    <td className="muted small">
+                      {h.prouve ? "Présentiel (scan)" : h.modalite === "presentiel" ? "Présentiel (déclaré)" : h.modalite === "en_ligne" ? "En ligne (déclaré)" : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted small" style={{ marginTop: 8, lineHeight: 1.5 }}>{analytique.data.avertissement}</p>
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2 className="card-title">Demandes du membre (historique complet)</h2>
+        {demandes.loading ? (
+          <p className="muted small">Chargement...</p>
+        ) : (demandes.data ?? []).length === 0 ? (
+          <p className="muted small">Aucune demande enregistrée pour ce membre.</p>
+        ) : (
+          <>
+            <p className="muted small" style={{ marginTop: 0 }}>Cliquez sur une demande pour l'ouvrir et agir directement depuis cette fiche.</p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Numéro</th>
+                  <th>Sujet</th>
+                  <th>Statut</th>
+                  <th>Ouverte le</th>
+                  <th>Prise en charge</th>
+                  <th>Clôturée le</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(demandes.data ?? []).map((d) => (
+                  <tr
+                    key={d.id}
+                    className={`row-click ${demandeOuverte === d.id ? "row-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setDemandeOuverte(demandeOuverte === d.id ? null : d.id)}
+                  >
+                    <td className="mono">{d.numero}</td>
+                    <td>{d.sujet}</td>
+                    <td>
+                      <span className={`badge ${d.statut === "resolue" ? "badge-ok" : d.statut === "refusee" ? "badge-bad" : "badge-warn"}`}>
+                        {DEMANDE_STATUT[d.statut] ?? d.statut}
+                      </span>
+                      {d.motif_cloture ? <span className="muted small"> {d.motif_cloture}</span> : null}
+                    </td>
+                    <td className="muted small">{d.cree_le ? new Date(d.cree_le).toLocaleDateString("fr-FR") : "-"}</td>
+                    <td className="muted small">{d.pris_en_charge_le ? new Date(d.pris_en_charge_le).toLocaleDateString("fr-FR") : "non"}</td>
+                    <td className="muted small">{d.clos_le ? new Date(d.clos_le).toLocaleDateString("fr-FR") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {demandeOuverte && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => setDemandeOuverte(null)}>
+                    Fermer la demande
+                  </button>
+                </div>
+                <Conversation token={token} id={demandeOuverte} onChanged={() => demandes.reload()} />
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <section className="card">
         <h2 className="card-title">Connexions récentes (sécurité)</h2>

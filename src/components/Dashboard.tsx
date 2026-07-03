@@ -43,7 +43,9 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
   const aVerifier = data?.membres_a_verifier ?? [];
   const serie = participation.data?.serie_evenements ?? [];
   const rg = participation.data?.repartition_globale;
-  const presentsCumules = rg ? rg.presents + rg.presentiel + rg.en_ligne : 0;
+  // presentiel and en_ligne are subsets of presents: never add them together
+  // (doing so double-counted every presence on the dashboard).
+  const presentsCumules = rg ? rg.presents : 0;
 
   return (
     <div className="page">

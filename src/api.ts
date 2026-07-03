@@ -283,6 +283,8 @@ export interface EvenementCreateInput {
   mode?: string;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
+  /** Response window in hours after the end; empty = admin default (6h). */
+  fenetre_reponse_heures?: number;
 }
 
 export interface MembreListQuery {
@@ -647,6 +649,12 @@ export interface ParticipationStats {
   presents: number;
   presents_presentiel: number;
   presents_enligne: number;
+  presents_presentiel_declare?: number;
+  presents_modalite_inconnue?: number;
+  non_repondants_connectes?: number;
+  non_repondants_non_connectes?: number;
+  croisement_modalite?: { modalite: string; statut: string; n: number }[];
+  definitions?: Record<string, string>;
   partiels: number;
   absents: number;
   brouillons: number;
@@ -668,10 +676,47 @@ export interface ParticipationStats {
 
 export interface ParticipationGlobal {
   nb_evenements: number;
-  repartition_globale: { presents: number; partiels: number; absents: number; presentiel: number; en_ligne: number };
+  repartition_globale: {
+    presents: number;
+    partiels: number;
+    absents: number;
+    /** Proven on-site (member-QR scan). */
+    presentiel: number;
+    presentiel_declare?: number;
+    /** Declared online modality (no strong online proof exists). */
+    en_ligne: number;
+    modalite_inconnue?: number;
+  };
   serie_evenements: { id: string; titre: string; debut: string | null; volet: string; presents: number; partiels: number; absents: number }[];
-  top_assidus: { membre: string; matricule: string; presents: number }[];
-  a_relancer: { membre: string; matricule: string; presents: number }[];
+  /** Anonymous attendance cohorts (no nominative ranking, by design). */
+  fenetre_assiduite_jours?: number;
+  distribution_assiduite?: { tranche: string; membres: number }[];
+  evolution_mensuelle?: { mois: string; participations: number }[];
+  definitions?: Record<string, string>;
+}
+
+export interface MembreParticipationAnalytique {
+  fenetre_jours: number;
+  evenements_fenetre: number;
+  presents: number;
+  presents_prouves: number;
+  presents_en_ligne: number;
+  partiels: number;
+  absents: number;
+  sans_reponse: number;
+  taux_participation: number | null;
+  taux_recent: number | null;
+  taux_anterieur: number | null;
+  historique: { titre: string; debut: string | null; statut: string | null; modalite: string | null; prouve: boolean }[];
+  avertissement: string;
+}
+
+export function getMembreParticipationAnalytique(token: string, membreId: string): Promise<MembreParticipationAnalytique> {
+  return authedGet<MembreParticipationAnalytique>(
+    `/api/v1/admin/membres/${membreId}/participation-analytique`,
+    token,
+    "Analyse indisponible",
+  );
 }
 
 export function getParticipationStats(token: string, eventId: string): Promise<ParticipationStats> {
@@ -1030,6 +1075,9 @@ export interface DemandeItem {
   cree_le: string | null;
   membre_nom: string | null;
   nb_messages: number;
+  /** Step tracking: when the staff took the request over / closed it. */
+  pris_en_charge_le?: string | null;
+  clos_le?: string | null;
 }
 
 export interface DemandeMessageItem {
@@ -1043,22 +1091,29 @@ export interface DemandeMessageItem {
 
 export interface DemandeDetailAdmin extends DemandeItem {
   messages: DemandeMessageItem[];
+  /** Staff member handling the request (admin view only). */
+  pris_en_charge_par_email?: string | null;
 }
 
 export function getAdminDemandes(
   token: string,
-  filters?: { statut?: string; categorie?: string; q?: string },
+  filters?: { statut?: string; categorie?: string; q?: string; membre_id?: string },
 ): Promise<DemandeItem[]> {
   const params = new URLSearchParams();
   if (filters?.statut) params.set("statut", filters.statut);
   if (filters?.categorie) params.set("categorie", filters.categorie);
   if (filters?.q) params.set("q", filters.q);
+  if (filters?.membre_id) params.set("membre_id", filters.membre_id);
   const qs = params.toString();
   return authedGet<DemandeItem[]>(`/api/v1/admin/demandes${qs ? `?${qs}` : ""}`, token, "Demandes indisponibles");
 }
 
 export function demanderPieceDemande(token: string, id: string, description: string): Promise<DemandeItem> {
   return authedSend(`/api/v1/admin/demandes/${id}/demander-piece`, token, "POST", { description }, "Action impossible");
+}
+
+export function prendreEnChargeDemande(token: string, id: string): Promise<DemandeItem> {
+  return authedSend(`/api/v1/admin/demandes/${id}/prendre-en-charge`, token, "POST", {}, "Action impossible");
 }
 
 export function getAdminDemande(token: string, id: string): Promise<DemandeDetailAdmin> {

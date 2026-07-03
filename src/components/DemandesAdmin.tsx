@@ -11,6 +11,7 @@ import {
   getAdminDemandes,
   getDemandeModifications,
   getDocumentUrl,
+  prendreEnChargeDemande,
   replyAdminDemande,
   updateAdminDemande,
 } from "../api.js";
@@ -40,6 +41,47 @@ function formatVal(v: string | number | boolean | null): string {
   if (v === null || v === undefined || v === "") return "(vide)";
   if (typeof v === "boolean") return v ? "Oui" : "Non";
   return String(v);
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Step path of the request so the staff sees at a glance where it stands. */
+function Etapes({ d }: { d: DemandeDetailAdmin }): JSX.Element {
+  const closed = d.statut === "resolue" || d.statut === "refusee";
+  const enCharge = Boolean(d.pris_en_charge_le) || d.statut !== "ouverte";
+  const traitement: Record<string, string> = {
+    en_cours: "En cours de traitement",
+    pieces_demandees: "Pièces attendues du membre",
+    attente_membre: "Réponse attendue du membre",
+    en_validation: "En validation",
+  };
+  const steps: { label: string; date?: string | null; state: "done" | "current" | "todo" }[] = [
+    { label: "Envoyée", date: d.cree_le, state: "done" },
+    { label: "Prise en charge", date: d.pris_en_charge_le, state: enCharge ? "done" : "current" },
+    { label: traitement[d.statut] ?? "Traitement", state: closed ? "done" : enCharge ? "current" : "todo" },
+    { label: d.statut === "resolue" ? "Résolue" : d.statut === "refusee" ? "Refusée" : "Clôture", date: d.clos_le, state: closed ? "done" : "todo" },
+  ];
+  return (
+    <div style={{ display: "flex", border: "1px solid var(--adsum-line)", borderRadius: 10, padding: "10px 6px", marginBottom: 12 }}>
+      {steps.map((s, i) => {
+        const color = s.state === "done" ? "var(--adsum-ok, #1e8e5a)" : s.state === "current" ? "var(--adsum-accent, #2a4fad)" : "var(--adsum-line)";
+        return (
+          <div key={s.label} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+            {i > 0 && <div style={{ position: "absolute", left: "-50%", right: "50%", top: 8, height: 2, background: s.state === "todo" ? "var(--adsum-line)" : "var(--adsum-ok, #1e8e5a)" }} />}
+            <div style={{ position: "relative", width: 16, height: 16, margin: "0 auto", borderRadius: "50%", background: s.state === "todo" ? "transparent" : color, border: `2px solid ${color}`, color: "#fff", fontSize: 9, lineHeight: "12px", fontWeight: 700 }}>
+              {s.state === "done" ? "✓" : ""}
+            </div>
+            <div style={{ fontSize: 10.5, fontWeight: s.state === "current" ? 700 : 500, marginTop: 4, lineHeight: 1.25 }}>{s.label}</div>
+            {s.date && <div className="muted" style={{ fontSize: 9 }}>{fmtDate(s.date)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 const UNLOCKABLE = [
@@ -117,12 +159,18 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
   );
 }
 
-function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
+export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // Inline decision panel: the reason is typed inside the app (never a browser
+  // prompt) and stays optional for resolve/refuse.
+  const [action, setAction] = useState<"resolue" | "refusee" | "piece" | null>(null);
+  const [actionTexte, setActionTexte] = useState("");
+  const [actionErreur, setActionErreur] = useState<string | null>(null);
+  const [pieceErreur, setPieceErreur] = useState<string | null>(null);
 
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
@@ -143,21 +191,40 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
     onChanged();
   }
 
-  async function demanderPiece(): Promise<void> {
-    const description = window.prompt("Quelle pièce attendez-vous du membre ? (décrivez le document)");
-    if (!description || !description.trim()) return;
-    await demanderPieceDemande(token, id, description.trim());
-    load();
-    onChanged();
+  function ouvrirPanneau(cible: "resolue" | "refusee" | "piece"): void {
+    setAction((prev) => (prev === cible ? null : cible));
+    setActionTexte("");
+    setActionErreur(null);
   }
 
-  function cloturer(statut: "resolue" | "refusee"): void {
-    const motif = window.prompt(statut === "resolue" ? "Motif de résolution (visible par le membre) :" : "Motif du refus (visible par le membre) :");
-    if (motif === null) return;
-    void setStatut(statut, motif.trim() || undefined);
+  async function confirmerAction(): Promise<void> {
+    if (!action || busy) return;
+    const texte = actionTexte.trim();
+    if (action === "piece" && !texte) {
+      setActionErreur("Décrivez la pièce attendue : ce texte guide le membre.");
+      return;
+    }
+    setBusy(true);
+    setActionErreur(null);
+    try {
+      if (action === "piece") {
+        await demanderPieceDemande(token, id, texte);
+        load();
+        onChanged();
+      } else {
+        await setStatut(action, texte || undefined);
+      }
+      setAction(null);
+      setActionTexte("");
+    } catch {
+      setActionErreur("Action impossible. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function ouvrirPiece(documentId: string): Promise<void> {
+    setPieceErreur(null);
     try {
       const r = await getDocumentUrl(token, documentId);
       if (r.url) {
@@ -168,7 +235,7 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
       window.open(objectUrl, "_blank", "noreferrer");
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     } catch {
-      window.alert("Pièce indisponible.");
+      setPieceErreur("Pièce indisponible pour le moment. Réessayez ou vérifiez le document du membre.");
     }
   }
 
@@ -199,7 +266,22 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
       <p className="muted small" style={{ marginTop: 0 }}>
         {detail.numero} · {STATUT_LIBELLE[detail.statut] ?? detail.statut}
         {detail.motif_cloture ? ` · motif : ${detail.motif_cloture}` : ""}
+        {detail.pris_en_charge_le
+          ? ` · prise en charge${detail.pris_en_charge_par_email ? ` par ${detail.pris_en_charge_par_email}` : ""} le ${fmtDate(detail.pris_en_charge_le)}`
+          : " · pas encore prise en charge"}
       </p>
+      <Etapes d={detail} />
+      {detail.statut === "ouverte" && (
+        <div style={{ marginBottom: 10 }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-inline"
+            onClick={() => void prendreEnChargeDemande(token, id).then(() => { load(); onChanged(); })}
+          >
+            Prendre en charge la demande
+          </button>
+        </div>
+      )}
       <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
         {detail.messages.map((m) =>
           m.auteur_type === "systeme" ? (
@@ -283,16 +365,18 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
         </div>
       )}
 
+      {pieceErreur && <p className="banner banner-error" style={{ marginTop: 8 }}>{pieceErreur}</p>}
+
       <div className="form-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
         {detail.statut !== "resolue" && detail.statut !== "refusee" ? (
           <>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => void demanderPiece()}>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("piece")}>
               Demander une pièce
             </button>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => cloturer("refusee")}>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("refusee")}>
               Refuser
             </button>
-            <button type="button" className="btn btn-primary btn-inline" onClick={() => cloturer("resolue")}>
+            <button type="button" className="btn btn-primary btn-inline" onClick={() => ouvrirPanneau("resolue")}>
               Marquer résolu
             </button>
           </>
@@ -302,6 +386,36 @@ function Conversation({ token, id, onChanged }: { token: string; id: string; onC
           </button>
         )}
       </div>
+
+      {action && (
+        <div style={{ marginTop: 10, padding: 14, border: "1px solid var(--adsum-line)", borderRadius: 10 }}>
+          <p className="card-title" style={{ marginBottom: 4 }}>
+            {action === "resolue" ? "Marquer la demande comme résolue" : action === "refusee" ? "Refuser la demande" : "Demander une pièce au membre"}
+          </p>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            {action === "piece"
+              ? "Décrivez précisément la pièce attendue : ce texte est envoyé au membre."
+              : "Le motif est facultatif. S'il est renseigné, il sera visible par le membre."}
+          </p>
+          <textarea
+            rows={2}
+            value={actionTexte}
+            autoFocus
+            placeholder={action === "piece" ? "Ex. : scan recto-verso de la pièce d'identité, lisible et en couleur" : "Motif (facultatif)"}
+            onChange={(e) => setActionTexte(e.target.value)}
+            style={{ width: "100%", resize: "vertical", border: "1px solid var(--adsum-line)", borderRadius: 8, padding: "9px 11px", font: "inherit" }}
+          />
+          {actionErreur && <p className="banner banner-error" style={{ marginTop: 8 }}>{actionErreur}</p>}
+          <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void confirmerAction()}>
+              {action === "resolue" ? "Confirmer la résolution" : action === "refusee" ? "Confirmer le refus" : "Envoyer au membre"}
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => { setAction(null); setActionTexte(""); setActionErreur(null); }}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
