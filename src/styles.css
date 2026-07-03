@@ -1017,3 +1017,125 @@ h3 {
     padding: 26px 20px;
   }
 }
+
+/* --- Analytics: styled tables, cohort bars, legends, dimension chips ------- */
+/* data-table: same premium look as .table, usable inside a .card. */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--adsum-text-sm);
+}
+.data-table th {
+  text-align: left;
+  padding: 11px 14px;
+  background: var(--adsum-bg);
+  color: var(--adsum-mut);
+  font-size: var(--adsum-text-xs);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--adsum-line);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--adsum-line);
+  vertical-align: middle;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.table-embed {
+  border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-lg);
+  overflow: hidden;
+  background: var(--adsum-panel);
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horizontal cohort bars (anonymous attendance bands). */
+.cohorte-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 0;
+}
+.cohorte-label {
+  width: 220px;
+  flex-shrink: 0;
+  font-size: var(--adsum-text-sm);
+}
+.cohorte-track {
+  flex: 1;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--adsum-bg);
+  border: 1px solid var(--adsum-line);
+  overflow: hidden;
+}
+.cohorte-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.cohorte-count {
+  width: 150px;
+  flex-shrink: 0;
+  text-align: right;
+  font-weight: 600;
+  font-size: var(--adsum-text-sm);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colour legend chips shared by presence charts. */
+.legende {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 2px 2px;
+}
+.legende span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--adsum-text-xs);
+  color: var(--adsum-mut);
+}
+.legende i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Dimension selector chips (one breakdown at a time, readable). */
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.chip {
+  border: 1.5px solid var(--adsum-line);
+  background: var(--adsum-panel);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: var(--adsum-text-sm);
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--adsum-ink);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.chip:hover {
+  border-color: #5b82d8;
+}
+.chip-active {
+  border-color: #2a4fad;
+  background: #2a4fad;
+  color: #fff;
+  font-weight: 600;
+}
