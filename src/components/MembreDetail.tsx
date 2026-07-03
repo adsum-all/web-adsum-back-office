@@ -19,6 +19,7 @@ import {
 } from "../api.js";
 import { displayName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
+import { Conversation } from "./DemandesAdmin.js";
 import { MembreFonction } from "./MembreFonction.js";
 
 const DEMANDE_STATUT: Record<string, string> = {
@@ -43,6 +44,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
+  const [demandeOuverte, setDemandeOuverte] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -297,35 +299,53 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         ) : (demandes.data ?? []).length === 0 ? (
           <p className="muted small">Aucune demande enregistrée pour ce membre.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Numéro</th>
-                <th>Sujet</th>
-                <th>Statut</th>
-                <th>Ouverte le</th>
-                <th>Prise en charge</th>
-                <th>Clôturée le</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(demandes.data ?? []).map((d) => (
-                <tr key={d.id}>
-                  <td className="mono">{d.numero}</td>
-                  <td>{d.sujet}</td>
-                  <td>
-                    <span className={`badge ${d.statut === "resolue" ? "badge-ok" : d.statut === "refusee" ? "badge-bad" : "badge-warn"}`}>
-                      {DEMANDE_STATUT[d.statut] ?? d.statut}
-                    </span>
-                    {d.motif_cloture ? <span className="muted small"> {d.motif_cloture}</span> : null}
-                  </td>
-                  <td className="muted small">{d.cree_le ? new Date(d.cree_le).toLocaleDateString("fr-FR") : "-"}</td>
-                  <td className="muted small">{d.pris_en_charge_le ? new Date(d.pris_en_charge_le).toLocaleDateString("fr-FR") : "non"}</td>
-                  <td className="muted small">{d.clos_le ? new Date(d.clos_le).toLocaleDateString("fr-FR") : "-"}</td>
+          <>
+            <p className="muted small" style={{ marginTop: 0 }}>Cliquez sur une demande pour l'ouvrir et agir directement depuis cette fiche.</p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Numéro</th>
+                  <th>Sujet</th>
+                  <th>Statut</th>
+                  <th>Ouverte le</th>
+                  <th>Prise en charge</th>
+                  <th>Clôturée le</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(demandes.data ?? []).map((d) => (
+                  <tr
+                    key={d.id}
+                    className={`row-click ${demandeOuverte === d.id ? "row-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setDemandeOuverte(demandeOuverte === d.id ? null : d.id)}
+                  >
+                    <td className="mono">{d.numero}</td>
+                    <td>{d.sujet}</td>
+                    <td>
+                      <span className={`badge ${d.statut === "resolue" ? "badge-ok" : d.statut === "refusee" ? "badge-bad" : "badge-warn"}`}>
+                        {DEMANDE_STATUT[d.statut] ?? d.statut}
+                      </span>
+                      {d.motif_cloture ? <span className="muted small"> {d.motif_cloture}</span> : null}
+                    </td>
+                    <td className="muted small">{d.cree_le ? new Date(d.cree_le).toLocaleDateString("fr-FR") : "-"}</td>
+                    <td className="muted small">{d.pris_en_charge_le ? new Date(d.pris_en_charge_le).toLocaleDateString("fr-FR") : "non"}</td>
+                    <td className="muted small">{d.clos_le ? new Date(d.clos_le).toLocaleDateString("fr-FR") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {demandeOuverte && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => setDemandeOuverte(null)}>
+                    Fermer la demande
+                  </button>
+                </div>
+                <Conversation token={token} id={demandeOuverte} onChanged={() => demandes.reload()} />
+              </div>
+            )}
+          </>
         )}
       </section>
 

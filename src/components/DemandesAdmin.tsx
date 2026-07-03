@@ -159,7 +159,7 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
   );
 }
 
-function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
+export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
   const [draft, setDraft] = useState("");
