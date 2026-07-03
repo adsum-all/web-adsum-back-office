@@ -11,6 +11,7 @@ import {
   getAdminDemandes,
   type ElementDeblocable,
   getDemandeModifications,
+  getDemandePhotoPending,
   getDocumentUrl,
   getElementsDeblocables,
   prendreEnChargeDemande,
@@ -152,6 +153,7 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
 export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
+  const [photoPending, setPhotoPending] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
   const [elements, setElements] = useState<ElementDeblocable[]>([]);
@@ -170,6 +172,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
     void getDemandeModifications(token, id).then(setMods).catch(() => setMods([]));
+    void getDemandePhotoPending(token, id).then((r) => setPhotoPending(r.url)).catch(() => setPhotoPending(null));
   };
   useEffect(load, [token, id]);
 
@@ -320,27 +323,35 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         </button>
       </div>
 
-      {pending && (
+      {(pending || photoPending) && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
           <p className="card-title" style={{ marginBottom: 8 }}>Validation finale de la modification</p>
-          <table className="data-table" style={{ marginBottom: 10 }}>
-            <thead>
-              <tr>
-                <th>Champ</th>
-                <th>Valeur actuelle</th>
-                <th>Valeur proposée</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.diff.map((d) => (
-                <tr key={d.champ}>
-                  <td>{d.champ}</td>
-                  <td className="muted">{formatVal(d.avant)}</td>
-                  <td style={{ fontWeight: 600 }}>{formatVal(d.apres)}</td>
+          {pending && (
+            <table className="data-table" style={{ marginBottom: 10 }}>
+              <thead>
+                <tr>
+                  <th>Champ</th>
+                  <th>Valeur actuelle</th>
+                  <th>Valeur proposée</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pending.diff.map((d) => (
+                  <tr key={d.champ}>
+                    <td>{d.champ}</td>
+                    <td className="muted">{formatVal(d.avant)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatVal(d.apres)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {photoPending && (
+            <div style={{ marginBottom: 10 }}>
+              <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Nouvelle photo d'identité proposée par le membre :</p>
+              <img src={photoPending} alt="Nouvelle photo proposée" style={{ width: 96, height: 96, borderRadius: 12, objectFit: "cover", border: "1px solid var(--adsum-line)" }} />
+            </div>
+          )}
           <div className="form-actions" style={{ justifyContent: "flex-start" }}>
             <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("valider")}>
               Valider et enregistrer

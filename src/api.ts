@@ -1165,6 +1165,12 @@ export function getDemandeModifications(token: string, id: string): Promise<Modi
   return authedGet<ModificationItem[]>(`/api/v1/admin/demandes/${id}/modifications`, token, "Modifications indisponibles");
 }
 
+/** Signed preview of a replacement photo the member staged on this request, to
+ * review before validating. Returns { url: null } when none is pending. */
+export function getDemandePhotoPending(token: string, id: string): Promise<{ url: string | null }> {
+  return authedGet<{ url: string | null }>(`/api/v1/admin/demandes/${id}/photo-pending`, token, "Aperçu indisponible");
+}
+
 export function decideDemandeModification(
   token: string,
   id: string,
