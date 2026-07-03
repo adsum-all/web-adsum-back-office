@@ -654,6 +654,7 @@ export interface ParticipationStats {
   non_repondants_connectes?: number;
   non_repondants_non_connectes?: number;
   croisement_modalite?: { modalite: string; statut: string; n: number }[];
+  definitions?: Record<string, string>;
   partiels: number;
   absents: number;
   brouillons: number;
@@ -687,8 +688,35 @@ export interface ParticipationGlobal {
     modalite_inconnue?: number;
   };
   serie_evenements: { id: string; titre: string; debut: string | null; volet: string; presents: number; partiels: number; absents: number }[];
-  top_assidus: { membre: string; matricule: string; presents: number }[];
-  a_relancer: { membre: string; matricule: string; presents: number }[];
+  /** Anonymous attendance cohorts (no nominative ranking, by design). */
+  fenetre_assiduite_jours?: number;
+  distribution_assiduite?: { tranche: string; membres: number }[];
+  evolution_mensuelle?: { mois: string; participations: number }[];
+  definitions?: Record<string, string>;
+}
+
+export interface MembreParticipationAnalytique {
+  fenetre_jours: number;
+  evenements_fenetre: number;
+  presents: number;
+  presents_prouves: number;
+  presents_en_ligne: number;
+  partiels: number;
+  absents: number;
+  sans_reponse: number;
+  taux_participation: number | null;
+  taux_recent: number | null;
+  taux_anterieur: number | null;
+  historique: { titre: string; debut: string | null; statut: string | null; modalite: string | null; prouve: boolean }[];
+  avertissement: string;
+}
+
+export function getMembreParticipationAnalytique(token: string, membreId: string): Promise<MembreParticipationAnalytique> {
+  return authedGet<MembreParticipationAnalytique>(
+    `/api/v1/admin/membres/${membreId}/participation-analytique`,
+    token,
+    "Analyse indisponible",
+  );
 }
 
 export function getParticipationStats(token: string, eventId: string): Promise<ParticipationStats> {

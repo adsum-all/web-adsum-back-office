@@ -13,6 +13,7 @@ import {
   getConnexions,
   getDossierInscription,
   getMembre,
+  getMembreParticipationAnalytique,
   getMembrePhotoUrl,
   supprimerMembre,
   updateMembre,
@@ -20,6 +21,7 @@ import {
 import { displayName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
+import { Kpi } from "./Kpi.js";
 import { MembreFonction } from "./MembreFonction.js";
 
 const DEMANDE_STATUT: Record<string, string> = {
@@ -44,6 +46,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
+  const analytique = useResource(() => getMembreParticipationAnalytique(token, id), [token, id]);
   const [demandeOuverte, setDemandeOuverte] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -291,6 +294,78 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
         )}
       </div>
+
+      <section className="card">
+        <h2 className="card-title">Participation et assiduité ({analytique.data?.fenetre_jours ?? 90} derniers jours)</h2>
+        {analytique.loading ? (
+          <p className="muted small">Chargement...</p>
+        ) : !analytique.data ? (
+          <p className="muted small">Analyse indisponible.</p>
+        ) : (
+          <>
+            <div className="kpi-grid kpi-grid-compact">
+              <Kpi
+                label="Taux de participation"
+                value={analytique.data.taux_participation != null ? `${analytique.data.taux_participation}%` : "-"}
+                tone="ok"
+              />
+              <Kpi
+                label="Tendance récente"
+                value={
+                  analytique.data.taux_recent != null && analytique.data.taux_anterieur != null
+                    ? `${analytique.data.taux_recent >= analytique.data.taux_anterieur ? "↑" : "↓"} ${analytique.data.taux_recent}%`
+                    : analytique.data.taux_recent != null
+                      ? `${analytique.data.taux_recent}%`
+                      : "-"
+                }
+                tone={
+                  analytique.data.taux_recent != null && analytique.data.taux_anterieur != null && analytique.data.taux_recent < analytique.data.taux_anterieur
+                    ? "warn"
+                    : "ok"
+                }
+              />
+              <Kpi label="Présences prouvées (scan)" value={analytique.data.presents_prouves} />
+              <Kpi label="En ligne (déclaré)" value={analytique.data.presents_en_ligne} />
+              <Kpi label="Suivis partiels" value={analytique.data.partiels} tone="warn" />
+              <Kpi label="Sans réponse" value={analytique.data.sans_reponse} tone="mut" />
+            </div>
+            <p className="card-title" style={{ margin: "10px 0 6px" }}>Dernières activités du membre</p>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Activité</th>
+                  <th>Date</th>
+                  <th>Suivi</th>
+                  <th>Modalité</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytique.data.historique.map((h, i) => (
+                  <tr key={`${h.titre}-${i}`}>
+                    <td>{h.titre}</td>
+                    <td className="muted small">{h.debut ? new Date(h.debut).toLocaleDateString("fr-FR") : "-"}</td>
+                    <td>
+                      {h.statut === "present" ? (
+                        <span className="badge badge-ok">Présent</span>
+                      ) : h.statut === "partiel" ? (
+                        <span className="badge badge-warn">Partiel</span>
+                      ) : h.statut === "absent" ? (
+                        <span className="badge badge-bad">Absent</span>
+                      ) : (
+                        <span className="badge badge-mut">Sans réponse</span>
+                      )}
+                    </td>
+                    <td className="muted small">
+                      {h.prouve ? "Présentiel (scan)" : h.modalite === "presentiel" ? "Présentiel (déclaré)" : h.modalite === "en_ligne" ? "En ligne (déclaré)" : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted small" style={{ marginTop: 8, lineHeight: 1.5 }}>{analytique.data.avertissement}</p>
+          </>
+        )}
+      </section>
 
       <section className="card">
         <h2 className="card-title">Demandes du membre (historique complet)</h2>
