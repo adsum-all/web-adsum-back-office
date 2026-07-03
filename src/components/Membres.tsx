@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { getMembres } from "../api.js";
-import { fullName } from "../format.js";
+import { displayName } from "../format.js";
 import { useResource } from "../useResource.js";
 import { MembreDetail } from "./MembreDetail.js";
 import { MembreForm } from "./MembreForm.js";
@@ -102,7 +102,7 @@ export function Membres({ token }: { token: string }): JSX.Element {
             )}
             {list.map((m) => (
               <tr key={m.id} className="row-click" onClick={() => setView({ kind: "detail", id: m.id })}>
-                <td>{fullName(m.prenoms, m.nom, m.matricule)}</td>
+                <td>{displayName(m.titre, m.prenoms, m.nom, m.matricule)}</td>
                 <td className="mono">{m.matricule}</td>
                 <td>{m.commission ?? "-"}</td>
                 <td>

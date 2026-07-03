@@ -16,7 +16,7 @@ import {
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { formatDate, fullName, initials } from "../format.js";
+import { displayName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 import { MembreFonction } from "./MembreFonction.js";
 
@@ -91,7 +91,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   if (membre.error || !membre.data) return <div className="page banner banner-error">{membre.error ?? "Introuvable"}</div>;
 
   const m = membre.data;
+  // Bare name for initials; the heading carries the confirmed honorific prefix.
   const name = fullName(m.prenoms, m.nom, m.matricule);
+  const heading = displayName(m.titre, m.prenoms, m.nom, m.matricule);
 
   return (
     <div className="page">
@@ -100,7 +102,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           <button type="button" className="link" onClick={onBack}>
             Annuaire
           </button>
-          <h1>{name}</h1>
+          <h1>{heading}</h1>
           <p className="mono muted">
             {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>

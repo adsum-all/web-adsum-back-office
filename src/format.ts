@@ -6,6 +6,14 @@ export function fullName(prenoms: string | null, nom: string | null, fallback: s
   return value.length > 0 ? value : fallback;
 }
 
+/** Rendered name with the confirmed honorific prefix (Berger, Coordinatrice...)
+ *  before it, exactly as the member app renders it. The API only fills `titre`
+ *  once an administrator confirmed the function, so no unearned title shows. */
+export function displayName(titre: string | null | undefined, prenoms: string | null, nom: string | null, fallback: string): string {
+  const base = fullName(prenoms, nom, fallback);
+  return titre ? `${titre} ${base}` : base;
+}
+
 export function initials(label: string): string {
   const parts = label.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "??";
