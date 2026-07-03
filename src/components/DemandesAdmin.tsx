@@ -9,8 +9,11 @@ import {
   fetchDocumentContentUrl,
   getAdminDemande,
   getAdminDemandes,
+  type ElementDeblocable,
   getDemandeModifications,
+  getDemandePhotoPending,
   getDocumentUrl,
+  getElementsDeblocables,
   prendreEnChargeDemande,
   replyAdminDemande,
   updateAdminDemande,
@@ -84,18 +87,6 @@ function Etapes({ d }: { d: DemandeDetailAdmin }): JSX.Element {
   );
 }
 
-const UNLOCKABLE = [
-  "nom",
-  "prenoms",
-  "telephone",
-  "ville",
-  "pays",
-  "date_naissance",
-  "situation_matrimoniale",
-  "profession",
-  "niveau_etudes",
-];
-
 export function DemandesAdmin({ token }: { token: string }): JSX.Element {
   const [fStatut, setFStatut] = useState("");
   const [fCat, setFCat] = useState("");
@@ -162,8 +153,14 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
 export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
+  const [photoPending, setPhotoPending] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
+  const [elements, setElements] = useState<ElementDeblocable[]>([]);
+  const [delaiJours, setDelaiJours] = useState<string>("");
+  useEffect(() => {
+    void getElementsDeblocables(token).then(setElements).catch(() => setElements([]));
+  }, [token]);
   const [busy, setBusy] = useState(false);
   // Inline decision panel: the reason is typed inside the app (never a browser
   // prompt) and stays optional for resolve/refuse.
@@ -175,6 +172,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
     void getDemandeModifications(token, id).then(setMods).catch(() => setMods([]));
+    void getDemandePhotoPending(token, id).then((r) => setPhotoPending(r.url)).catch(() => setPhotoPending(null));
   };
   useEffect(load, [token, id]);
 
@@ -240,7 +238,10 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
   }
 
   async function unlock(): Promise<void> {
-    await updateAdminDemande(token, id, { statut: "en_cours", champs_deverrouilles: fields });
+    const delai = delaiJours.trim() ? Number(delaiJours) : undefined;
+    await updateAdminDemande(token, id, { champs_deverrouilles: fields, delai_jours: delai });
+    setFields([]);
+    setDelaiJours("");
     load();
     onChanged();
   }
@@ -269,6 +270,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         {detail.pris_en_charge_le
           ? ` · prise en charge${detail.pris_en_charge_par_email ? ` par ${detail.pris_en_charge_par_email}` : ""} le ${fmtDate(detail.pris_en_charge_le)}`
           : " · pas encore prise en charge"}
+        {detail.echeance_reponse ? ` · réponse du membre attendue avant le ${new Date(detail.echeance_reponse).toLocaleDateString("fr-FR")}` : ""}
       </p>
       <Etapes d={detail} />
       {detail.statut === "ouverte" && (
@@ -304,6 +306,11 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
               </div>
               <span className="muted" style={{ fontSize: 10 }}>
                 {m.auteur_nom} · {m.cree_le ? new Date(m.cree_le).toLocaleString("fr-FR") : ""}
+                {m.auteur_type !== "membre"
+                  ? m.lu_par_membre_le
+                    ? <span style={{ color: "var(--adsum-ok)", fontWeight: 700 }}> · Lu par le membre {new Date(m.lu_par_membre_le).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                    : " · Envoyé"
+                  : null}
               </span>
             </div>
           ),
@@ -316,27 +323,35 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         </button>
       </div>
 
-      {pending && (
+      {(pending || photoPending) && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
           <p className="card-title" style={{ marginBottom: 8 }}>Validation finale de la modification</p>
-          <table className="data-table" style={{ marginBottom: 10 }}>
-            <thead>
-              <tr>
-                <th>Champ</th>
-                <th>Valeur actuelle</th>
-                <th>Valeur proposée</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.diff.map((d) => (
-                <tr key={d.champ}>
-                  <td>{d.champ}</td>
-                  <td className="muted">{formatVal(d.avant)}</td>
-                  <td style={{ fontWeight: 600 }}>{formatVal(d.apres)}</td>
+          {pending && (
+            <table className="data-table" style={{ marginBottom: 10 }}>
+              <thead>
+                <tr>
+                  <th>Champ</th>
+                  <th>Valeur actuelle</th>
+                  <th>Valeur proposée</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pending.diff.map((d) => (
+                  <tr key={d.champ}>
+                    <td>{d.champ}</td>
+                    <td className="muted">{formatVal(d.avant)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatVal(d.apres)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {photoPending && (
+            <div style={{ marginBottom: 10 }}>
+              <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Nouvelle photo d'identité proposée par le membre :</p>
+              <img src={photoPending} alt="Nouvelle photo proposée" style={{ width: 96, height: 96, borderRadius: 12, objectFit: "cover", border: "1px solid var(--adsum-line)" }} />
+            </div>
+          )}
           <div className="form-actions" style={{ justifyContent: "flex-start" }}>
             <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("valider")}>
               Valider et enregistrer
@@ -348,20 +363,52 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         </div>
       )}
 
-      {detail.type === "modification_info" && (
+      {detail.statut !== "resolue" && detail.statut !== "refusee" && elements.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
-          <p className="card-title" style={{ marginBottom: 8 }}>Débloquer des champs pour modification</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-            {UNLOCKABLE.map((f) => (
-              <label key={f} className="check small">
-                <input type="checkbox" checked={fields.includes(f)} onChange={(e) => setFields((prev) => (e.target.checked ? [...prev, f] : prev.filter((x) => x !== f)))} />
-                {f}
-              </label>
-            ))}
+          <p className="card-title" style={{ marginBottom: 4 }}>Débloquer des éléments pour correction</p>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Le membre reçoit automatiquement un message dans cette demande avec la liste débloquée et la date limite.
+          </p>
+          {(["champ", "photo", "document"] as const).map((type) => {
+            const groupe = elements.filter((e) => e.type === type);
+            if (groupe.length === 0) return null;
+            const titreGroupe = type === "champ" ? "Champs du profil" : type === "photo" ? "Photo" : "Pièces et documents";
+            return (
+              <div key={type} style={{ marginBottom: 8 }}>
+                <p className="muted small" style={{ margin: "6px 0 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10.5 }}>{titreGroupe}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {groupe.map((e) => (
+                    <label key={e.cle} className="check small" title={e.sensibilite === "haute" ? "Élément sensible (identité)" : undefined}>
+                      <input
+                        type="checkbox"
+                        checked={fields.includes(e.cle)}
+                        onChange={(ev) => setFields((prev) => (ev.target.checked ? [...prev, e.cle] : prev.filter((x) => x !== e.cle)))}
+                      />
+                      {e.libelle}
+                      {e.sensibilite === "haute" ? <span className="badge badge-warn" style={{ marginLeft: 6 }}>sensible</span> : null}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <div className="form-actions" style={{ justifyContent: "flex-start", alignItems: "center", gap: 10, marginTop: 8 }}>
+            <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              Délai de retour (jours)
+              <input
+                type="number"
+                min={1}
+                max={90}
+                placeholder="Réglage global"
+                value={delaiJours}
+                onChange={(e) => setDelaiJours(e.target.value)}
+                style={{ width: 130, border: "1px solid var(--adsum-line)", borderRadius: 8, padding: "7px 10px", font: "inherit" }}
+              />
+            </label>
+            <button type="button" className="btn btn-primary btn-inline" disabled={fields.length === 0} onClick={() => void unlock()}>
+              Débloquer ({fields.length}) et prévenir le membre
+            </button>
           </div>
-          <button type="button" className="btn btn-primary btn-inline" disabled={fields.length === 0} onClick={() => void unlock()}>
-            Débloquer ({fields.length})
-          </button>
         </div>
       )}
 
