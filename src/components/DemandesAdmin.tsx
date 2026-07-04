@@ -153,7 +153,7 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
 export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
-  const [photoPending, setPhotoPending] = useState<string | null>(null);
+  const [photoPending, setPhotoPending] = useState<{ url: string; fx: number | null; fy: number | null } | null>(null);
   const [draft, setDraft] = useState("");
   const [fields, setFields] = useState<string[]>([]);
   const [elements, setElements] = useState<ElementDeblocable[]>([]);
@@ -172,7 +172,9 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
   const load = (): void => {
     void getAdminDemande(token, id).then(setDetail).catch(() => undefined);
     void getDemandeModifications(token, id).then(setMods).catch(() => setMods([]));
-    void getDemandePhotoPending(token, id).then((r) => setPhotoPending(r.url)).catch(() => setPhotoPending(null));
+    void getDemandePhotoPending(token, id)
+      .then((r) => setPhotoPending(r.url ? { url: r.url, fx: r.focus_x, fy: r.focus_y } : null))
+      .catch(() => setPhotoPending(null));
   };
   useEffect(load, [token, id]);
 
@@ -349,7 +351,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
           {photoPending && (
             <div style={{ marginBottom: 10 }}>
               <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Nouvelle photo d'identité proposée par le membre :</p>
-              <img src={photoPending} alt="Nouvelle photo proposée" style={{ width: 96, height: 120, borderRadius: 12, objectFit: "cover", objectPosition: "50% 30%", border: "1px solid var(--adsum-line)" }} />
+              <img src={photoPending.url} alt="Nouvelle photo proposée" style={{ width: 96, height: 120, borderRadius: 12, objectFit: "cover", objectPosition: `${photoPending.fx ?? 50}% ${photoPending.fy ?? 30}%`, border: "1px solid var(--adsum-line)" }} />
             </div>
           )}
           <div className="form-actions" style={{ justifyContent: "flex-start" }}>

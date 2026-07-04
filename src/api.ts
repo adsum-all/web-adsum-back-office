@@ -58,6 +58,8 @@ export interface MembreProfile {
   fonction_cle?: string | null;
   fonction_confirmee?: boolean;
   titre?: string | null;
+  photo_focus_x?: number | null;
+  photo_focus_y?: number | null;
 }
 
 export interface MembreCreateInput {
@@ -1165,10 +1167,13 @@ export function getDemandeModifications(token: string, id: string): Promise<Modi
   return authedGet<ModificationItem[]>(`/api/v1/admin/demandes/${id}/modifications`, token, "Modifications indisponibles");
 }
 
-/** Signed preview of a replacement photo the member staged on this request, to
- * review before validating. Returns { url: null } when none is pending. */
-export function getDemandePhotoPending(token: string, id: string): Promise<{ url: string | null }> {
-  return authedGet<{ url: string | null }>(`/api/v1/admin/demandes/${id}/photo-pending`, token, "Aperçu indisponible");
+/** Signed preview of a replacement photo the member staged on this request, with
+ * its focal point, to review before validating. Returns url null when none. */
+export function getDemandePhotoPending(
+  token: string,
+  id: string,
+): Promise<{ url: string | null; focus_x: number | null; focus_y: number | null }> {
+  return authedGet(`/api/v1/admin/demandes/${id}/photo-pending`, token, "Aperçu indisponible");
 }
 
 export function decideDemandeModification(
