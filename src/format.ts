@@ -18,7 +18,7 @@ function capWord(word: string): string {
     .join("");
 }
 
-/** Civil display name: NOM (uppercase) + first two given names (title case),
+/** Civil display name: first two given names (title case) + NOM (uppercase),
  * never a function. Prefers the server value (nom_affichage) when present. */
 export function civilName(m: { nom_affichage?: string | null; nom?: string | null; prenoms?: string | null }, fallback = ""): string {
   const server = (m.nom_affichage ?? "").trim();
@@ -31,7 +31,7 @@ export function civilName(m: { nom_affichage?: string | null; nom?: string | nul
     .filter(Boolean)
     .map((mot, i) => (i > 0 && PARTICULES.has(mot.toLowerCase()) ? mot.toLowerCase() : capWord(mot)))
     .slice(0, 2);
-  const value = [fam, ...prenoms].filter(Boolean).join(" ");
+  const value = [...prenoms, fam].filter(Boolean).join(" ");
   return value || fallback;
 }
 
