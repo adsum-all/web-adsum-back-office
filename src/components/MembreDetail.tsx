@@ -12,13 +12,15 @@ import {
   getCommissions,
   getConnexions,
   getDossierInscription,
+  getIntendances,
   getMembre,
   getMembreParticipationAnalytique,
   getMembrePhotoUrl,
+  getTribus,
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { civilName, formatDate, fullName, initials } from "../format.js";
+import { civilName, formatDate, fullName, initials, uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
@@ -42,9 +44,22 @@ interface MembreDetailProps {
   onBack: () => void;
 }
 
+type TabKey = "apercu" | "consecration" | "participation" | "demandes" | "securite" | "avance";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "apercu", label: "Vue d'ensemble" },
+  { key: "consecration", label: "Consécration & fonctions" },
+  { key: "participation", label: "Participation & assiduité" },
+  { key: "demandes", label: "Demandes" },
+  { key: "securite", label: "Historique & sécurité" },
+  { key: "avance", label: "Gestion avancée" },
+];
+
 export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
+  const tribus = useResource(() => getTribus(token), [token]);
+  const intendances = useResource(() => getIntendances(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
@@ -56,6 +71,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [docType, setDocType] = useState("piece_identite");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("apercu");
+  // Security connections can be numerous: show them five at a time.
+  const [connexionsShown, setConnexionsShown] = useState(5);
 
   useEffect(() => {
     let active = true;
@@ -151,6 +169,28 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       {note && <p className="banner banner-ok">{note}</p>}
       {error && <p className="banner banner-error">{error}</p>}
 
+      <div
+        className="tabs-row"
+        role="tablist"
+        style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "4px 0 14px", borderBottom: "1px solid var(--adsum-line)", paddingBottom: 8 }}
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`btn btn-inline ${tab === t.key ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" aria-label={TABS.find((t) => t.key === tab)?.label}>
+      {tab === "apercu" && (
+      <>
       <section className="card">
         <h2 className="card-title">Informations générales</h2>
         <dl className="detail-grid">
@@ -251,31 +291,80 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
 
       <section className="card">
         <h2 className="card-title">Affectation</h2>
-        <label className="full">
-          <span>Commission</span>
-          <select
-            defaultValue=""
-            disabled={busy}
-            onChange={(e) => {
-              if (e.target.value) void patch({ commission_id: e.target.value }, "Commission mise a jour.");
-            }}
-          >
-            <option value="">Changer de commission...</option>
-            {(commissions.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          Un membre appartient à la fois à une commission ou mission et à une tribu ; il peut changer de l'une ou de l'autre
+          à tout moment. Chaque changement est tracé.
+        </p>
+        <div className="form-grid">
+          <label>
+            <span>Commission / mission (actuelle : {m.commission ?? "aucune"})</span>
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) void patch({ commission_id: e.target.value }, "Commission / mission mise à jour.");
+              }}
+            >
+              <option value="">Changer...</option>
+              {(commissions.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {uniteLabel(c)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Tribu (actuelle : {m.tribu ?? "aucune"})</span>
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) void patch({ tribu_id: e.target.value }, "Tribu mise à jour.");
+              }}
+            >
+              <option value="">Changer...</option>
+              {(tribus.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Intendance (actuelle : {m.intendance ?? "aucune"})</span>
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) void patch({ intendance_id: e.target.value }, "Intendance mise à jour.");
+              }}
+            >
+              <option value="">Changer...</option>
+              {(intendances.data ?? []).map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </section>
+      </>
+      )}
 
+      {tab === "consecration" && (
+      <>
       <MembreConsecration token={token} membre={m} onChanged={() => membre.reload()} />
       <MembreFonctions token={token} membreId={m.id} onChanged={() => membre.reload()} />
       <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
+      </>
+      )}
 
-      <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
+      {tab === "securite" && (
+        <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
+      )}
 
+      {tab === "apercu" && (
       <div className="form-actions">
         {!m.verifie && (
           <button
@@ -307,7 +396,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
         )}
       </div>
+      )}
 
+      {tab === "participation" && (
       <section className="card">
         <h2 className="card-title">Participation et assiduité ({analytique.data?.fenetre_jours ?? 90} derniers jours)</h2>
         {analytique.loading ? (
@@ -379,7 +470,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </>
         )}
       </section>
+      )}
 
+      {tab === "demandes" && (
       <section className="card">
         <h2 className="card-title">Demandes du membre (historique complet)</h2>
         {demandes.loading ? (
@@ -436,7 +529,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </>
         )}
       </section>
+      )}
 
+      {tab === "securite" && (
       <section className="card">
         <h2 className="card-title">Connexions récentes (sécurité)</h2>
         {connexions.loading ? (
@@ -456,19 +551,28 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
               </tr>
             </thead>
             <tbody>
-              {(connexions.data ?? []).map((c, i) => (
+              {(connexions.data ?? []).slice(0, connexionsShown).map((c, i) => (
                 <tr key={i}>
                   <td>{c.cree_le ? formatDateTime(c.cree_le) : "-"}</td>
                   <td className="mono">{cleanIp(c.ip)}</td>
                   <td className="muted">{deviceLabel(c.appareil)}</td>
-                  <td>{c.revoque ? "Revoquee" : "Active"}</td>
+                  <td>{c.revoque ? "Revoquée" : "Active"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        {(connexions.data ?? []).length > connexionsShown && (
+          <div className="form-actions" style={{ justifyContent: "center", marginTop: 8 }}>
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => setConnexionsShown((n) => n + 5)}>
+              Voir 5 de plus ({connexionsShown} / {(connexions.data ?? []).length})
+            </button>
+          </div>
+        )}
       </section>
+      )}
 
+      {tab === "avance" && (
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
         <div className="toolbar">
@@ -530,6 +634,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         </div>
         <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
       </section>
+      )}
+      </div>
     </div>
   );
 }

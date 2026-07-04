@@ -53,7 +53,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "demandes", label: "Demandes des membres", group: "MEMBRES" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
   { id: "doublons", label: "Détection de doublons", group: "MEMBRES" },
-  { id: "commissions", label: "Commissions & groupes", group: "ORGANISATION" },
+  { id: "commissions", label: "Commissions & missions", group: "ORGANISATION" },
   { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS" },

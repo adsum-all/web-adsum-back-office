@@ -38,7 +38,11 @@ export function Statistiques({ token }: { token: string }): JSX.Element {
               hint={`${data.membres_en_attente} en attente`}
             />
             <Kpi label="Événements" value={data.evenements_total} hint={`${data.presences_total} présences`} />
-            <Kpi label="Intendances" value={data.intendances_total} hint={`${data.commissions_total} commissions`} />
+            <Kpi
+              label="Intendances"
+              value={data.intendances_total}
+              hint={`${data.commissions_total} commissions · ${data.missions_total} missions`}
+            />
           </div>
 
           <div className="card-grid-2">
@@ -65,13 +69,13 @@ export function Statistiques({ token }: { token: string }): JSX.Element {
           </div>
 
           <section className="card">
-            <h2 className="card-title">Membres par commission</h2>
+            <h2 className="card-title">Membres par commission / mission</h2>
             <BarChart
               items={data.par_commission.map((r) => ({
                 label: r.commission ?? "Sans",
                 value: r.total,
               }))}
-              emptyMessage="Aucun membre rattaché à une commission pour le moment."
+              emptyMessage="Aucun membre rattaché à une commission ou mission pour le moment."
             />
           </section>
         </>

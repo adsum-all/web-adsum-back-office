@@ -9,6 +9,7 @@ import {
   getIntendances,
   getTribus,
 } from "../api.js";
+import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 
 const TYPE_MEMBRE: [string, string][] = [
@@ -196,11 +197,11 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
               ))}
             </select>
           </Field>
-          <Field label="Commission">
+          <Field label="Commission / mission">
             <select value={form.commission_id ?? ""} onChange={(e) => set("commission_id", e.target.value || undefined)}>
               <option value="">Selectionner</option>
               {(commissions.data ?? []).map((c) => (
-                <option key={c.id} value={c.id}>{c.nom}</option>
+                <option key={c.id} value={c.id}>{uniteLabel(c)}</option>
               ))}
             </select>
           </Field>

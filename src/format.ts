@@ -1,6 +1,16 @@
 // Small display helpers shared across the back office. No business logic here,
 // only presentation of values that come from the API.
 
+// Display a structural unit with its type as a prefix: "Commission SAINT
+// GABRIEL", "Mission EL GIBBOR". The type is a lowercase slug; underscores become
+// spaces and the first letter is capitalised. An empty or "commission" type on a
+// legacy row still reads naturally.
+export function uniteLabel(unite: { nom: string; type_organisation?: string | null }): string {
+  const slug = (unite.type_organisation ?? "commission").trim() || "commission";
+  const prefix = slug.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  return `${prefix} ${unite.nom}`;
+}
+
 export function fullName(prenoms: string | null, nom: string | null, fallback: string): string {
   const value = `${prenoms ?? ""} ${nom ?? ""}`.trim();
   return value.length > 0 ? value : fallback;
