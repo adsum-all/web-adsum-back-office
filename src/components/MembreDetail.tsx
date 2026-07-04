@@ -17,6 +17,7 @@ import {
   getMembreParticipationAnalytique,
   getMembrePhotoUrl,
   getTribus,
+  setPatriarche,
   supprimerMembre,
   updateMembre,
 } from "../api.js";
@@ -247,8 +248,14 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </div>
           <div>
             <dt>Patriarche de la tribu</dt>
-            <dd>{m.patriarche ?? "-"}</dd>
+            <dd>{m.patriarche ?? "Non affecté"}</dd>
           </div>
+          {m.patriarche_biblique && (
+            <div>
+              <dt>Fondement biblique</dt>
+              <dd>{m.patriarche_biblique}</dd>
+            </div>
+          )}
           <div>
             <dt>Niveau d'engagement</dt>
             <dd>{typeMembreLabel(m.type_membre)}</dd>
@@ -349,6 +356,30 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             </select>
           </label>
         </div>
+        {m.tribu_id && (() => {
+          const tribe = (tribus.data ?? []).find((t) => t.id === m.tribu_id);
+          const estPatriarche = !!tribe && tribe.patriarche_membre_id === m.id;
+          return (
+            <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 10, alignItems: "center", gap: 10 }}>
+              <button
+                type="button"
+                className={`btn btn-inline ${estPatriarche ? "btn-ghost" : "btn-primary"}`}
+                disabled={busy}
+                onClick={() =>
+                  void manage(
+                    () => setPatriarche(token, m.tribu_id as string, estPatriarche ? null : m.id),
+                    estPatriarche ? "Patriarche retiré de la tribu." : "Défini comme patriarche de la tribu.",
+                  ).then(() => tribus.reload())
+                }
+              >
+                {estPatriarche ? "Retirer comme patriarche de sa tribu" : "Définir comme patriarche de sa tribu"}
+              </button>
+              <span className="muted small">
+                Patriarche actuel de {tribe?.nom ?? "la tribu"} : {tribe?.patriarche_nom ?? "non affecté"}
+              </span>
+            </div>
+          );
+        })()}
       </section>
       </>
       )}

@@ -62,6 +62,7 @@ export interface MembreProfile {
   tribu: string | null;
   tribu_id: string | null;
   patriarche: string | null;
+  patriarche_biblique: string | null;
   coordination: string | null;
   coordinateur: string | null;
   fonction_cle?: string | null;
@@ -183,6 +184,8 @@ export interface Tribu {
   id: string;
   nom: string;
   patriarche: string | null;
+  patriarche_membre_id: string | null;
+  patriarche_nom: string | null;
 }
 
 export interface Statistiques {
@@ -952,6 +955,16 @@ export function updateTerminal(
 
 export function getTribus(token: string): Promise<Tribu[]> {
   return authedGet<Tribu[]>("/api/v1/admin/tribus", token, "Tribus indisponibles");
+}
+
+/** Assign (membreId set) or revoke (membreId null) the human patriarche of a tribe. */
+export function setPatriarche(
+  token: string,
+  tribuId: string,
+  membreId: string | null,
+  motif?: string,
+): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/tribus/${tribuId}/patriarche`, token, "PUT", { membre_id: membreId, motif }, "Attribution impossible");
 }
 
 export function getStatistiques(token: string): Promise<Statistiques> {

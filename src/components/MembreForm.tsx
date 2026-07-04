@@ -227,7 +227,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
             <select value={form.tribu_id ?? ""} onChange={(e) => set("tribu_id", e.target.value || undefined)}>
               <option value="">Selectionner</option>
               {(tribus.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>{t.nom}{t.patriarche ? ` - ${t.patriarche}` : ""}</option>
+                <option key={t.id} value={t.id}>{t.nom}</option>
               ))}
             </select>
           </Field>
