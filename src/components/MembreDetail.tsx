@@ -129,7 +129,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             className="avatar"
             src={photoUrl}
             alt={`Photo de ${name}`}
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: "cover", objectPosition: `${m.photo_focus_x ?? 50}% ${m.photo_focus_y ?? 30}%` }}
             onError={() => setPhotoUrl(null)}
           />
         ) : (
