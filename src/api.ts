@@ -1334,13 +1334,22 @@ export function supprimerMembre(token: string, id: string): Promise<void> {
 export interface ConnexionItem {
   ip: string | null;
   appareil: string | null;
-  geo: string | null;
+  pays: string | null;
+  ville: string | null;
+  region: string | null;
   cree_le: string | null;
+  fin: string | null;
+  duree_s: number | null;
   revoque: boolean;
 }
 
 export function getConnexions(token: string, id: string): Promise<ConnexionItem[]> {
   return authedGet<ConnexionItem[]>(`/api/v1/admin/membres/${id}/connexions`, token, "Connexions indisponibles");
+}
+
+/** Close the current admin session server-side (records the logout and its duration). */
+export function logoutSession(token: string): Promise<{ ok: boolean }> {
+  return authedSend("/api/v1/auth/logout", token, "POST", {}, "Déconnexion");
 }
 
 // --- Consent documents (RGPD, confidentialite, engagement, reglement) ---

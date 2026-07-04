@@ -556,19 +556,25 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           <table className="data-table">
             <thead>
               <tr>
-                <th>Date</th>
+                <th>Connexion</th>
+                <th>Déconnexion</th>
+                <th>Durée</th>
                 <th>Adresse IP</th>
+                <th>Localisation</th>
                 <th>Appareil</th>
-                <th>Etat</th>
+                <th>État</th>
               </tr>
             </thead>
             <tbody>
               {(connexions.data ?? []).slice(...pageSlice(connexionsPage, 5)).map((c, i) => (
                 <tr key={i}>
                   <td>{c.cree_le ? formatDateTime(c.cree_le) : "-"}</td>
+                  <td className="muted small">{c.fin ? formatDateTime(c.fin) : "session ouverte"}</td>
+                  <td className="muted small">{formatDuree(c.duree_s)}</td>
                   <td className="mono">{cleanIp(c.ip)}</td>
+                  <td className="muted small">{geoLabel(c.pays, c.ville)}</td>
                   <td className="muted">{deviceLabel(c.appareil)}</td>
-                  <td>{c.revoque ? "Révoquée" : "Active"}</td>
+                  <td>{c.revoque ? "Fermée" : "Active"}</td>
                 </tr>
               ))}
             </tbody>
@@ -734,6 +740,22 @@ function formatDateTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDuree(seconds: number | null): string {
+  if (seconds == null || seconds < 0) return "-";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h} h ${m} min`;
+  if (m > 0) return `${m} min ${s} s`;
+  return `${s} s`;
+}
+
+// Coarse audit location: city and country when known, country alone otherwise.
+function geoLabel(pays: string | null, ville: string | null): string {
+  if (ville && pays) return `${ville}, ${pays}`;
+  return pays || ville || "-";
 }
 
 function cleanIp(ip: string | null): string {
