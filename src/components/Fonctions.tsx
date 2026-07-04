@@ -61,35 +61,35 @@ export function Fonctions({ token }: { token: string }): JSX.Element {
         <div>
           <h1>Fonctions & titres</h1>
           <p className="muted">
-            Catalogue des fonctions de responsabilite (responsable de commission, coordinateur, intendant...) proposees aux
-            membres. Le libelle est choisi selon le genre. Le titre de consecration Berger/Bergere est distinct et se gere
+            Catalogue des fonctions de responsabilité (responsable de commission, coordinateur, intendant...) proposées aux
+            membres. Le libellé est choisi selon le genre. Le titre de consécration Berger/Bergère est distinct et se gère
             sur la fiche du membre.
           </p>
         </div>
       </header>
 
       <p className="muted small">
-        L'option VIP determine si les membres portant cette fonction apparaissent par defaut dans les calendriers
+        L'option VIP détermine si les membres portant cette fonction apparaissent par défaut dans les calendriers
         d'anniversaire des autres membres.
       </p>
 
       <form className="form-card" onSubmit={submit}>
         <div className="form-grid">
           <label>
-            <span>Cle *</span>
-            <input value={form.cle} onChange={(e) => set("cle", e.target.value)} placeholder="berger" required />
+            <span>Clé *</span>
+            <input value={form.cle} onChange={(e) => set("cle", e.target.value)} placeholder="responsable_commission" required />
           </label>
           <label>
-            <span>Libelle (homme) *</span>
-            <input value={form.libelle_h} onChange={(e) => set("libelle_h", e.target.value)} placeholder="Berger" required />
+            <span>Libellé (homme) *</span>
+            <input value={form.libelle_h} onChange={(e) => set("libelle_h", e.target.value)} placeholder="Responsable" required />
           </label>
           <label>
-            <span>Libelle (femme) *</span>
-            <input value={form.libelle_f} onChange={(e) => set("libelle_f", e.target.value)} placeholder="Bergere" required />
+            <span>Libellé (femme) *</span>
+            <input value={form.libelle_f} onChange={(e) => set("libelle_f", e.target.value)} placeholder="Responsable" required />
           </label>
           <label>
-            <span>Libelle neutre</span>
-            <input value={form.libelle_n} onChange={(e) => set("libelle_n", e.target.value)} placeholder="Berger(e)" />
+            <span>Libellé neutre</span>
+            <input value={form.libelle_n} onChange={(e) => set("libelle_n", e.target.value)} placeholder="Responsable" />
           </label>
           <label>
             <span>Ordre</span>
@@ -103,7 +103,7 @@ export function Fonctions({ token }: { token: string }): JSX.Element {
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>
-            {busy ? "Creation..." : "+ Nouvelle fonction"}
+            {busy ? "Création..." : "+ Nouvelle fonction"}
           </button>
         </div>
       </form>
@@ -114,13 +114,13 @@ export function Fonctions({ token }: { token: string }): JSX.Element {
         <table className="table">
           <thead>
             <tr>
-              <th>Cle</th>
-              <th>Libelle (H)</th>
-              <th>Libelle (F)</th>
+              <th>Clé</th>
+              <th>Libellé (H)</th>
+              <th>Libellé (F)</th>
               <th>Neutre</th>
               <th>
                 VIP
-                <InfoTip text="Si actif, les membres portant cette fonction apparaissent par defaut dans les calendriers d'anniversaire." />
+                <InfoTip text="Si actif, les membres portant cette fonction apparaissent par défaut dans les calendriers d'anniversaire." />
               </th>
               <th>Ordre</th>
               <th>Actif</th>
@@ -192,7 +192,7 @@ function FonctionRow({
       <td>{fonction.ordre}</td>
       <td>
         <span className={`badge ${fonction.actif ? "badge-ok" : "badge-mut"}`}>
-          {fonction.actif ? "Actif" : "Retire"}
+          {fonction.actif ? "Actif" : "Retiré"}
         </span>
       </td>
       <td>

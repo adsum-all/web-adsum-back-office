@@ -494,7 +494,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             type="button"
             className="btn btn-ghost btn-inline"
             disabled={busy}
-            onClick={() => void manage(() => bloquerMembre(token, id), "Compte bloque.")}
+            onClick={() => void manage(() => bloquerMembre(token, id), "Compte bloqué.")}
           >
             Bloquer le compte
           </button>
@@ -502,19 +502,19 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             type="button"
             className="btn btn-ghost btn-inline"
             disabled={busy}
-            onClick={() => void manage(() => debloquerMembre(token, id), "Compte debloque.")}
+            onClick={() => void manage(() => debloquerMembre(token, id), "Compte débloqué.")}
           >
-            Debloquer
+            Débloquer
           </button>
           {confirmDelete ? (
             <>
-              <span className="muted small">Confirmér la suppression definitive (RGPD) ?</span>
+              <span className="muted small">Confirmer la suppression définitive (RGPD) ?</span>
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
                 style={{ background: "var(--adsum-danger)" }}
                 disabled={busy}
-                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprime.", true)}
+                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé.", true)}
               >
                 Oui, supprimer et purger
               </button>

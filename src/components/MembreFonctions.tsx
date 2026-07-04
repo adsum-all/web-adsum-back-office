@@ -34,15 +34,17 @@ export function MembreFonctions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(op: () => Promise<unknown>): Promise<void> {
+  async function run(op: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
       await op();
       fonctions.reload();
       onChanged();
+      return true;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -50,10 +52,12 @@ export function MembreFonctions({
 
   async function ajouter(): Promise<void> {
     if (!cle) return;
-    await run(() => addMembreFonction(token, membreId, { fonction_cle: cle, perimetre: perimetre.trim() || undefined, principale }));
-    setCle("");
-    setPerimetre("");
-    setPrincipale(false);
+    const ok = await run(() => addMembreFonction(token, membreId, { fonction_cle: cle, perimetre: perimetre.trim() || undefined, principale }));
+    if (ok) {
+      setCle("");
+      setPerimetre("");
+      setPrincipale(false);
+    }
   }
 
   const items = fonctions.data ?? [];

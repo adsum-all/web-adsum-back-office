@@ -52,8 +52,14 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Local value of the questionnaire-window slider while it is being dragged, so
+  // the position is persisted only once, on release, not on every tick (which
+  // would flood the API and the audit log).
+  const [fenetreLocal, setFenetreLocal] = useState<number | null>(null);
+  const fenetreValue = fenetreLocal ?? fenetre.data?.heures ?? 6;
 
   function saveFenetre(heures: number): void {
+    setFenetreLocal(null);
     void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
   }
 
@@ -244,11 +250,13 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             min={1}
             max={72}
             step={1}
-            value={fenetre.data?.heures ?? 6}
-            onChange={(e) => saveFenetre(Number(e.target.value))}
+            value={fenetreValue}
+            onChange={(e) => setFenetreLocal(Number(e.target.value))}
+            onPointerUp={(e) => saveFenetre(Number(e.currentTarget.value))}
+            onKeyUp={(e) => saveFenetre(Number(e.currentTarget.value))}
             style={{ flex: 1 }}
           />
-          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetre.data?.heures ?? 6} h</span>
+          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
         </div>
       </section>
 
