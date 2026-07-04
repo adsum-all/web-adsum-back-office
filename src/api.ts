@@ -33,6 +33,7 @@ export interface MembreProfile {
   nom_pastoral?: string | null;
   nom_pastoral_affiche?: string | null;
   fonction_perimetre?: string | null;
+  fonctions?: { libelle: string; perimetre: string | null }[];
   telephone: string | null;
   groupe: string | null;
   statut: string;
@@ -367,11 +368,13 @@ function authedGet<T>(path: string, token: string, onError: string): Promise<T> 
 function authedSend<T>(
   path: string,
   token: string,
-  method: "POST" | "PATCH" | "PUT",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   body: unknown,
   onError: string,
 ): Promise<T> {
-  return request<T>(path, token, { method, body: JSON.stringify(body) }, onError);
+  const init: RequestInit = { method };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  return request<T>(path, token, init, onError);
 }
 
 export async function login(email: string, password: string): Promise<Session> {
@@ -419,6 +422,42 @@ export interface MembreGouvernance {
   appartenance: string;
   note_confidentielle: string | null;
   berger_depuis: string | null;
+}
+
+export interface MembreFonctionItem {
+  id: string;
+  fonction_cle: string;
+  libelle: string;
+  perimetre: string | null;
+  confirmee: boolean;
+  actif: boolean;
+  principale: boolean;
+  ordre: number;
+}
+
+export function getMembreFonctions(token: string, id: string): Promise<MembreFonctionItem[]> {
+  return authedGet<MembreFonctionItem[]>(`/api/v1/admin/membres/${id}/fonctions`, token, "Fonctions indisponibles");
+}
+
+export function addMembreFonction(
+  token: string,
+  id: string,
+  body: { fonction_cle: string; perimetre?: string; confirmee?: boolean; principale?: boolean },
+): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${id}/fonctions`, token, "POST", body, "Ajout impossible");
+}
+
+export function updateMembreFonction(
+  token: string,
+  id: string,
+  fid: string,
+  body: { perimetre?: string; confirmee?: boolean; actif?: boolean; principale?: boolean; ordre?: number },
+): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${id}/fonctions/${fid}`, token, "PATCH", body, "Modification impossible");
+}
+
+export function deleteMembreFonction(token: string, id: string, fid: string): Promise<void> {
+  return authedSend(`/api/v1/admin/membres/${id}/fonctions/${fid}`, token, "DELETE", undefined, "Retrait impossible");
 }
 
 /** Admin-only governance block (membership state + confidential note). Never

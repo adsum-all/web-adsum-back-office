@@ -61,8 +61,9 @@ export function Fonctions({ token }: { token: string }): JSX.Element {
         <div>
           <h1>Fonctions & titres</h1>
           <p className="muted">
-            Catalogue des titres honorifiques (Berger, Patriarche...) proposes aux membres. Le libelle est choisi selon le
-            genre.
+            Catalogue des fonctions de responsabilite (responsable de commission, coordinateur, intendant...) proposees aux
+            membres. Le libelle est choisi selon le genre. Le titre de consecration Berger/Bergere est distinct et se gere
+            sur la fiche du membre.
           </p>
         </div>
       </header>
