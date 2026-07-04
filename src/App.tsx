@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { type Session } from "./api.js";
+import { type Session, logoutSession } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
@@ -100,9 +100,10 @@ export function App(): JSX.Element {
     setSession(s);
   }, []);
   const deconnexion = useCallback(() => {
+    if (session?.token) void logoutSession(session.token).catch(() => undefined);
     saveSession(null);
     setSession(null);
-  }, []);
+  }, [session]);
 
   if (!session) {
     return <Login onAuth={onAuth} />;
