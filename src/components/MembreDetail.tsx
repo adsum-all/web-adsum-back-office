@@ -22,7 +22,9 @@ import { civilName, fonctionLabel, formatDate, fullName, initials } from "../for
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
+import { MembreConsecration } from "./MembreConsecration.js";
 import { MembreFonction } from "./MembreFonction.js";
+import { MembreGouvernance } from "./MembreGouvernance.js";
 
 const DEMANDE_STATUT: Record<string, string> = {
   ouverte: "Ouverte",
@@ -263,7 +265,9 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         </label>
       </section>
 
+      <MembreConsecration token={token} membre={m} onChanged={() => membre.reload()} />
       <MembreFonction token={token} membre={m} onChanged={() => membre.reload()} />
+      <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
 
       <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
 
