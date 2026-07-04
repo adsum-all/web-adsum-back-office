@@ -7,6 +7,7 @@ import {
   getBergers,
   getCommissions,
   getIntendances,
+  getNiveaux,
   getTribus,
 } from "../api.js";
 import { uniteLabel } from "../format.js";
@@ -63,6 +64,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const bergers = useResource(() => getBergers(token), [token]);
+  const niveaux = useResource(() => getNiveaux(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
   const [form, setForm] = useState<MembreCreateInput>({
     email: "",
@@ -233,9 +235,13 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           </Field>
           <Field label="Niveau d'engagement">
             <select value={form.type_membre ?? "membre_simple"} onChange={(e) => set("type_membre", e.target.value)}>
-              {TYPE_MEMBRE.map(([l, v]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
+              {(niveaux.data ?? []).length > 0
+                ? (niveaux.data ?? []).map((n) => (
+                    <option key={n.cle} value={n.cle}>{n.libelle}</option>
+                  ))
+                : TYPE_MEMBRE.map(([l, v]) => (
+                    <option key={v} value={v}>{l}</option>
+                  ))}
             </select>
           </Field>
           <Field label="Promotion">

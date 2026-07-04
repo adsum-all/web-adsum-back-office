@@ -10,6 +10,7 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
+import { PerimetreSelect } from "./PerimetreSelect.js";
 
 /**
  * Manage the SEVERAL functions a member can hold at once (head of a commission,
@@ -125,7 +126,7 @@ export function MembreFonctions({
         </label>
         <label>
           <span>Périmètre</span>
-          <input value={perimetre} disabled={busy} onChange={(e) => setPerimetre(e.target.value)} placeholder="Ex : Commission KERUBIM, Mission Timothé" />
+          <PerimetreSelect token={token} value={perimetre} onChange={setPerimetre} disabled={busy} />
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "end" }}>
           <input type="checkbox" checked={principale} disabled={busy} onChange={(e) => setPrincipale(e.target.checked)} />

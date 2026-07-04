@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { ApiError, type MembreProfile, type MembreUpdateInput, updateMembre } from "../api.js";
 import { InfoTip } from "./InfoTip.js";
+import { PerimetreSelect } from "./PerimetreSelect.js";
 
 /**
  * Admin panel to manage the consecration TITLE (Berger/Bergere) and the civil
@@ -110,7 +111,7 @@ export function MembreConsecration({
         </label>
         <label>
           <span>Fonction : périmètre</span>
-          <input value={perimetre} disabled={busy} onChange={(e) => setPerimetre(e.target.value)} placeholder="Ex : Commission Communication" />
+          <PerimetreSelect token={token} value={perimetre} onChange={setPerimetre} disabled={busy} />
         </label>
       </div>
 

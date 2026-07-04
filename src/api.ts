@@ -601,6 +601,33 @@ export function deleteFonction(token: string, cle: string): Promise<void> {
   return request<void>(`/api/v1/admin/fonctions/${cle}`, token, { method: "DELETE" }, "Retrait impossible");
 }
 
+export interface NiveauEngagement {
+  cle: string;
+  libelle: string;
+  ordre: number;
+  actif: boolean;
+}
+
+export function getNiveaux(token: string): Promise<NiveauEngagement[]> {
+  return authedGet<NiveauEngagement[]>("/api/v1/admin/niveaux-engagement", token, "Niveaux indisponibles");
+}
+
+export function createNiveau(token: string, input: { cle: string; libelle: string; ordre: number }): Promise<{ ok: boolean }> {
+  return authedSend("/api/v1/admin/niveaux-engagement", token, "POST", input, "Création impossible");
+}
+
+export function updateNiveau(
+  token: string,
+  cle: string,
+  input: { libelle?: string; ordre?: number; actif?: boolean },
+): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/niveaux-engagement/${cle}`, token, "PUT", input, "Mise à jour impossible");
+}
+
+export function deleteNiveau(token: string, cle: string): Promise<void> {
+  return request<void>(`/api/v1/admin/niveaux-engagement/${cle}`, token, { method: "DELETE" }, "Retrait impossible");
+}
+
 export function validerFonctionMembre(
   token: string,
   membreId: string,

@@ -707,7 +707,11 @@ const TYPE_MEMBRE_LABELS: Record<string, string> = {
 
 function typeMembreLabel(value: string | null): string {
   if (!value) return "-";
-  return TYPE_MEMBRE_LABELS[value] ?? value;
+  const known = TYPE_MEMBRE_LABELS[value];
+  if (known) return known;
+  // A custom admin-created level: prettify its key so a raw slug never shows.
+  const words = value.replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 const SITUATION_LABELS: Record<string, string> = {
