@@ -248,14 +248,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </div>
           <div>
             <dt>Patriarche de la tribu</dt>
-            <dd>{m.patriarche ?? "Non affecté"}</dd>
+            <dd>{m.patriarche ?? ""}</dd>
           </div>
-          {m.patriarche_biblique && (
-            <div>
-              <dt>Fondement biblique</dt>
-              <dd>{m.patriarche_biblique}</dd>
-            </div>
-          )}
           <div>
             <dt>Niveau d'engagement</dt>
             <dd>{typeMembreLabel(m.type_membre)}</dd>

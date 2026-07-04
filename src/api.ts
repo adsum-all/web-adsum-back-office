@@ -62,7 +62,6 @@ export interface MembreProfile {
   tribu: string | null;
   tribu_id: string | null;
   patriarche: string | null;
-  patriarche_biblique: string | null;
   coordination: string | null;
   coordinateur: string | null;
   fonction_cle?: string | null;
