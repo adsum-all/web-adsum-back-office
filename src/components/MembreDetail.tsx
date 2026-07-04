@@ -18,7 +18,7 @@ import {
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { displayName, formatDate, fullName, initials } from "../format.js";
+import { civilName, fonctionLabel, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
@@ -108,9 +108,11 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   if (membre.error || !membre.data) return <div className="page banner banner-error">{membre.error ?? "Introuvable"}</div>;
 
   const m = membre.data;
-  // Bare name for initials; the heading carries the confirmed honorific prefix.
+  // Bare name for initials; the heading is the civil name, functions/pastoral shown apart.
   const name = fullName(m.prenoms, m.nom, m.matricule);
-  const heading = displayName(m.titre, m.prenoms, m.nom, m.matricule);
+  const heading = civilName(m, m.matricule);
+  const fonction = fonctionLabel(m.titre, m.fonction_perimetre);
+  const bergerLabel = m.est_berger ? m.nom_pastoral_affiche : null;
 
   return (
     <div className="page">
@@ -120,6 +122,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             Annuaire
           </button>
           <h1>{heading}</h1>
+          {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
+          {fonction && <p className="muted" style={{ margin: "2px 0" }}>{fonction}</p>}
           <p className="mono muted">
             {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
