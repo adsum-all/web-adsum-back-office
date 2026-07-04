@@ -17,7 +17,6 @@ import {
   getMembreParticipationAnalytique,
   getMembrePhotoUrl,
   getTribus,
-  setPatriarche,
   supprimerMembre,
   updateMembre,
 } from "../api.js";
@@ -352,26 +351,13 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         </div>
         {m.tribu_id && (() => {
           const tribe = (tribus.data ?? []).find((t) => t.id === m.tribu_id);
-          const estPatriarche = !!tribe && tribe.patriarche_membre_id === m.id;
           return (
-            <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 10, alignItems: "center", gap: 10 }}>
-              <button
-                type="button"
-                className={`btn btn-inline ${estPatriarche ? "btn-ghost" : "btn-primary"}`}
-                disabled={busy}
-                onClick={() =>
-                  void manage(
-                    () => setPatriarche(token, m.tribu_id as string, estPatriarche ? null : m.id),
-                    estPatriarche ? "Patriarche retiré de la tribu." : "Défini comme patriarche de la tribu.",
-                  ).then(() => tribus.reload())
-                }
-              >
-                {estPatriarche ? "Retirer comme patriarche de sa tribu" : "Définir comme patriarche de sa tribu"}
-              </button>
-              <span className="muted small">
-                Patriarche actuel de {tribe?.nom ?? "la tribu"} : {tribe?.patriarche_nom ?? "non affecté"}
-              </span>
-            </div>
+            <p className="muted small" style={{ marginTop: 10 }}>
+              Patriarche actuel de {tribe?.nom ?? "la tribu"} :{" "}
+              <strong>{tribe?.patriarche_nom ?? ""}</strong>
+              {" - "}
+              se désigne en attribuant la fonction « Patriarche » (périmètre de la tribu) dans la section Fonctions.
+            </p>
           );
         })()}
       </section>
