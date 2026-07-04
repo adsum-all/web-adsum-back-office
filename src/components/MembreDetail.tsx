@@ -18,12 +18,12 @@ import {
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { civilName, fonctionLabel, formatDate, fullName, initials } from "../format.js";
+import { civilName, formatDate, fullName, initials } from "../format.js";
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
-import { MembreFonction } from "./MembreFonction.js";
+import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
 
 const DEMANDE_STATUT: Record<string, string> = {
@@ -113,7 +113,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   // Bare name for initials; the heading is the civil name, functions/pastoral shown apart.
   const name = fullName(m.prenoms, m.nom, m.matricule);
   const heading = civilName(m, m.matricule);
-  const fonction = fonctionLabel(m.titre, m.fonction_perimetre);
+  const fonctionsList = m.fonctions ?? [];
   const bergerLabel = m.est_berger ? m.nom_pastoral_affiche : null;
 
   return (
@@ -125,7 +125,12 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
           </button>
           <h1>{heading}</h1>
           {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
-          {fonction && <p className="muted" style={{ margin: "2px 0" }}>{fonction}</p>}
+          {fonctionsList.map((f, i) => (
+            <p key={i} className="muted" style={{ margin: "2px 0" }}>
+              {f.libelle}
+              {f.perimetre ? ` - ${f.perimetre}` : ""}
+            </p>
+          ))}
           <p className="mono muted">
             {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
@@ -266,7 +271,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       </section>
 
       <MembreConsecration token={token} membre={m} onChanged={() => membre.reload()} />
-      <MembreFonction token={token} membre={m} onChanged={() => membre.reload()} />
+      <MembreFonctions token={token} membreId={m.id} onChanged={() => membre.reload()} />
       <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
 
       <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
@@ -489,7 +494,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             type="button"
             className="btn btn-ghost btn-inline"
             disabled={busy}
-            onClick={() => void manage(() => bloquerMembre(token, id), "Compte bloque.")}
+            onClick={() => void manage(() => bloquerMembre(token, id), "Compte bloqué.")}
           >
             Bloquer le compte
           </button>
@@ -497,19 +502,19 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             type="button"
             className="btn btn-ghost btn-inline"
             disabled={busy}
-            onClick={() => void manage(() => debloquerMembre(token, id), "Compte debloque.")}
+            onClick={() => void manage(() => debloquerMembre(token, id), "Compte débloqué.")}
           >
-            Debloquer
+            Débloquer
           </button>
           {confirmDelete ? (
             <>
-              <span className="muted small">Confirmér la suppression definitive (RGPD) ?</span>
+              <span className="muted small">Confirmer la suppression définitive (RGPD) ?</span>
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
                 style={{ background: "var(--adsum-danger)" }}
                 disabled={busy}
-                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprime.", true)}
+                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé.", true)}
               >
                 Oui, supprimer et purger
               </button>

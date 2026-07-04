@@ -2,10 +2,15 @@ import { useState } from "react";
 
 import {
   ApiError,
+  type CibleType,
   type EvenementCreateInput,
   createEvenement,
+  getCommissions,
+  getCoordinations,
   getEvenements,
+  getIntendances,
   getQuestionnaireFenetre,
+  getTribus,
   setQuestionnaireFenetre,
 } from "../api.js";
 import { formatDate } from "../format.js";
@@ -21,18 +26,40 @@ const EMPTY: EvenementCreateInput = {
   mode: "presentiel",
   type_diffusion: "aucun",
   visibilite: "membres",
+  cible_type: "general",
+  cible_id: null,
+};
+
+const CIBLE_LABELS: Record<CibleType, string> = {
+  general: "Toute la communauté (général)",
+  coordination: "Coordination",
+  commission: "Commission",
+  intendance: "Intendance",
+  tribu: "Tribu",
 };
 
 export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
+  // Units available as an activity target. Loaded once; the second select only
+  // shows the list matching the chosen target kind.
+  const coordinations = useResource(() => getCoordinations(token), [token]);
+  const commissions = useResource(() => getCommissions(token), [token]);
+  const intendances = useResource(() => getIntendances(token), [token]);
+  const tribus = useResource(() => getTribus(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
   const [liens, setLiens] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Local value of the questionnaire-window slider while it is being dragged, so
+  // the position is persisted only once, on release, not on every tick (which
+  // would flood the API and the audit log).
+  const [fenetreLocal, setFenetreLocal] = useState<number | null>(null);
+  const fenetreValue = fenetreLocal ?? fenetre.data?.heures ?? 6;
 
   function saveFenetre(heures: number): void {
+    setFenetreLocal(null);
     void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
   }
 
@@ -40,12 +67,30 @@ export function Evenements({ token }: { token: string }): JSX.Element {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // Units matching the chosen target kind, for the second select.
+  const cibleOptions: { id: string; nom: string }[] =
+    form.cible_type === "coordination"
+      ? (coordinations.data ?? [])
+      : form.cible_type === "commission"
+        ? (commissions.data ?? [])
+        : form.cible_type === "intendance"
+          ? (intendances.data ?? [])
+          : form.cible_type === "tribu"
+            ? (tribus.data ?? [])
+            : [];
+
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (!form.titre.trim() || !form.debut) return;
     setBusy(true);
     setError(null);
     try {
+      const cibleType = form.cible_type ?? "general";
+      if (cibleType !== "general" && !form.cible_id) {
+        setError("Choisissez l'unité ciblée ou repassez sur « général ».");
+        setBusy(false);
+        return;
+      }
       const payload: EvenementCreateInput = {
         titre: form.titre.trim(),
         volet: form.volet,
@@ -54,6 +99,8 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         mode: form.mode,
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
+        cible_type: cibleType,
+        cible_id: cibleType === "general" ? null : form.cible_id,
       };
       if (form.fin) payload.fin = new Date(form.fin).toISOString();
       if (form.fenetre_reponse_heures) payload.fenetre_reponse_heures = Number(form.fenetre_reponse_heures);
@@ -127,10 +174,35 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Mode</span>
             <select value={form.mode ?? "presentiel"} onChange={(e) => set("mode", e.target.value)}>
               <option value="presentiel">Présentiel</option>
-              <option value="hybride">Hybride</option>
-              <option value="distanciel">Distanciel</option>
+              <option value="en_ligne">En ligne</option>
+              <option value="hybride">Hybride (présentiel + en ligne)</option>
             </select>
           </label>
+          <label>
+            <span>Destinataires</span>
+            <select
+              value={form.cible_type ?? "general"}
+              onChange={(e) => {
+                set("cible_type", e.target.value as CibleType);
+                set("cible_id", null);
+              }}
+            >
+              {(Object.keys(CIBLE_LABELS) as CibleType[]).map((k) => (
+                <option key={k} value={k}>{CIBLE_LABELS[k]}</option>
+              ))}
+            </select>
+          </label>
+          {form.cible_type && form.cible_type !== "general" && (
+            <label>
+              <span>Unité ciblée *</span>
+              <select value={form.cible_id ?? ""} onChange={(e) => set("cible_id", e.target.value || null)}>
+                <option value="">Choisir...</option>
+                {cibleOptions.map((u) => (
+                  <option key={u.id} value={u.id}>{u.nom}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             <span>Diffusion</span>
             <select
@@ -178,11 +250,13 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             min={1}
             max={72}
             step={1}
-            value={fenetre.data?.heures ?? 6}
-            onChange={(e) => saveFenetre(Number(e.target.value))}
+            value={fenetreValue}
+            onChange={(e) => setFenetreLocal(Number(e.target.value))}
+            onPointerUp={(e) => saveFenetre(Number(e.currentTarget.value))}
+            onKeyUp={(e) => saveFenetre(Number(e.currentTarget.value))}
             style={{ flex: 1 }}
           />
-          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetre.data?.heures ?? 6} h</span>
+          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
         </div>
       </section>
 
@@ -196,6 +270,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             </div>
             <div className="list-meta">
               {ev.session_ouverte && <span className="badge badge-ok">Session ouverte</span>}
+              {ev.mode && <span className="badge badge-mut">{ev.mode === "en_ligne" ? "En ligne" : ev.mode === "hybride" ? "Hybride" : "Présentiel"}</span>}
+              {ev.cible_type && ev.cible_type !== "general" && (
+                <span className="badge badge-warn">Réservé : {ev.cible_libelle ?? ev.cible_type}</span>
+              )}
               {ev.lieu && <span className="muted">{ev.lieu}</span>}
               <span className="badge badge-mut">Volet {ev.volet}</span>
               <button
