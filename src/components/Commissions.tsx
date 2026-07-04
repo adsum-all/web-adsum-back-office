@@ -57,8 +57,8 @@ export function Commissions({ token }: { token: string }): JSX.Element {
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (!nom.trim()) return;
-    if (typeChoisi === "autre" && !typeFinal) {
-      setError("Indiquez le nom du type (lettres uniquement).");
+    if (typeChoisi === "autre" && typeFinal.length < 2) {
+      setError("Indiquez un type d'au moins deux lettres (a-z).");
       return;
     }
     setBusy(true);

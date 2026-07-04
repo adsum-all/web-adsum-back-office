@@ -23,14 +23,16 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(action: () => Promise<unknown>): Promise<void> {
+  async function run(action: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
       await action();
       onChanged();
+      return true;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -47,7 +49,7 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && draft.trim()) {
-                void run(() => renameOrganisation(token, entity, id, draft.trim())).then(() => setEditing(false));
+                void run(() => renameOrganisation(token, entity, id, draft.trim())).then((ok) => ok && setEditing(false));
               }
               if (e.key === "Escape") {
                 setDraft(nom);
@@ -72,10 +74,10 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
           type="button"
           className={`pill ${publie ? "pill-on" : "pill-off"}`}
           disabled={busy}
-          title={publie ? "Visible dans les listes membres" : "Masque aux membres"}
+          title={publie ? "Visible dans les listes membres" : "Masqué aux membres"}
           onClick={() => void run(() => publishOrganisation(token, entity, id, !publie))}
         >
-          {publie ? "Publie" : "Masque"}
+          {publie ? "Publié" : "Masqué"}
         </button>
         {editing ? (
           <>
@@ -83,7 +85,7 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
               type="button"
               className="btn btn-primary btn-inline"
               disabled={busy || !draft.trim()}
-              onClick={() => void run(() => renameOrganisation(token, entity, id, draft.trim())).then(() => setEditing(false))}
+              onClick={() => void run(() => renameOrganisation(token, entity, id, draft.trim())).then((ok) => ok && setEditing(false))}
             >
               Enregistrer
             </button>
@@ -110,7 +112,7 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
               className="btn btn-inline"
               style={{ background: "var(--adsum-danger)", color: "#fff" }}
               disabled={busy}
-              onClick={() => void run(() => deleteOrganisation(token, entity, id)).then(() => setConfirmDelete(false))}
+              onClick={() => void run(() => deleteOrganisation(token, entity, id)).then((ok) => ok && setConfirmDelete(false))}
             >
               Confirmer
             </button>
