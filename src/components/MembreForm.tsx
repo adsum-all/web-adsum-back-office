@@ -119,11 +119,36 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
 
       <form className="form-card" onSubmit={submit}>
         <div className="form-grid">
-          <Field label="Nom *">
-            <input value={form.nom ?? ""} onChange={(e) => set("nom", e.target.value)} required />
+          <Field label="Nom de famille *" hint="Nom a l'etat civil. Mis en MAJUSCULES automatiquement.">
+            <input value={form.nom ?? ""} onChange={(e) => set("nom", e.target.value)} required placeholder="Ex : LABEL" />
           </Field>
-          <Field label="Prenom *">
-            <input value={form.prenoms ?? ""} onChange={(e) => set("prenoms", e.target.value)} required />
+          <Field label="Prenoms *" hint="Premier prenom puis autres. Ex : Shema Emmanuel. Casse corrigee automatiquement.">
+            <input value={form.prenoms ?? ""} onChange={(e) => set("prenoms", e.target.value)} required placeholder="Ex : Shema Emmanuel" />
+          </Field>
+          <Field label="Nom de naissance" hint="Pour une femme mariee : nom de jeune fille (facultatif).">
+            <input value={form.nom_naissance ?? ""} onChange={(e) => set("nom_naissance", e.target.value || undefined)} placeholder="Facultatif" />
+          </Field>
+          <Field label="Nom marital" hint="Nom du conjoint utilise a l'etat civil (facultatif).">
+            <input value={form.nom_marital ?? ""} onChange={(e) => set("nom_marital", e.target.value || undefined)} placeholder="Facultatif" />
+          </Field>
+          <Field label="Nom affiche" hint="Quel nom sert d'identite civile affichee.">
+            <select value={form.nom_affiche ?? ""} onChange={(e) => set("nom_affiche", e.target.value || undefined)}>
+              <option value="">Nom de famille (par defaut)</option>
+              <option value="naissance">Nom de naissance</option>
+              <option value="marital">Nom marital</option>
+            </select>
+          </Field>
+          <Field label="Berger / Bergere" hint="Cochez si la personne est Berger/Bergere. L'appellation est genree automatiquement.">
+            <select value={form.est_berger ? "1" : "0"} onChange={(e) => set("est_berger", e.target.value === "1")}>
+              <option value="0">Non</option>
+              <option value="1">Oui</option>
+            </select>
+          </Field>
+          <Field label="Nom pastoral" hint="Nom spirituel, ex : David de Jesus. Affiche 'Berger David de Jesus'.">
+            <input value={form.nom_pastoral ?? ""} onChange={(e) => set("nom_pastoral", e.target.value || undefined)} placeholder="Ex : David de Jesus" />
+          </Field>
+          <Field label="Fonction : perimetre" hint="Portee de la fonction, ex : Commission Communication.">
+            <input value={form.fonction_perimetre ?? ""} onChange={(e) => set("fonction_perimetre", e.target.value || undefined)} placeholder="Ex : Commission Communication" />
           </Field>
           <Field label="Telephone">
             <input value={form.telephone ?? ""} onChange={(e) => set("telephone", e.target.value)} placeholder="+225..." />
@@ -259,11 +284,12 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
+function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }): JSX.Element {
   return (
-    <label>
+    <label title={hint}>
       <span>{label}</span>
       {children}
+      {hint && <small style={{ color: "var(--adsum-mut, #6b7280)", fontWeight: 400, fontSize: 11 }}>{hint}</small>}
     </label>
   );
 }
