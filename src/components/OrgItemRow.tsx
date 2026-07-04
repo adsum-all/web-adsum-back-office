@@ -7,13 +7,16 @@ interface OrgItemRowProps {
   entity: OrgEntity;
   id: string;
   nom: string;
+  /** Type label shown as a badge before the name (e.g. "Commission", "Mission").
+   * Purely presentational: it is never part of the editable name. */
+  prefix?: string;
   meta?: string;
   publie: boolean;
   onChanged: () => void;
 }
 
 /** A structural-entity row with inline rename, publish toggle and safe delete. */
-export function OrgItemRow({ token, entity, id, nom, meta, publie, onChanged }: OrgItemRowProps): JSX.Element {
+export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onChanged }: OrgItemRowProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(nom);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -54,6 +57,11 @@ export function OrgItemRow({ token, entity, id, nom, meta, publie, onChanged }: 
           />
         ) : (
           <>
+            {prefix && (
+              <span className="badge badge-mut" style={{ marginRight: 8, textTransform: "uppercase", fontSize: 10, letterSpacing: 0.4 }}>
+                {prefix}
+              </span>
+            )}
             <strong>{nom}</strong>
             {meta && <span className="muted">{meta}</span>}
           </>

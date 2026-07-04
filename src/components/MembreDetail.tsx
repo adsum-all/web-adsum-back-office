@@ -18,7 +18,7 @@ import {
   supprimerMembre,
   updateMembre,
 } from "../api.js";
-import { civilName, formatDate, fullName, initials } from "../format.js";
+import { civilName, formatDate, fullName, initials, uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
@@ -260,10 +260,10 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
               if (e.target.value) void patch({ commission_id: e.target.value }, "Commission mise a jour.");
             }}
           >
-            <option value="">Changer de commission...</option>
+            <option value="">Changer de commission / mission...</option>
             {(commissions.data ?? []).map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nom}
+                {uniteLabel(c)}
               </option>
             ))}
           </select>

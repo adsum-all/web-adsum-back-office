@@ -152,6 +152,8 @@ export interface Intendance {
   coordination_id: string | null;
   coordination: string | null;
   publie: boolean;
+  parent_id: string | null;
+  parent: string | null;
 }
 
 export interface Berger {
@@ -165,6 +167,8 @@ export interface Coordination {
   nom: string;
   description: string | null;
   publie: boolean;
+  parent_id: string | null;
+  parent: string | null;
 }
 
 export interface SousCommission {
@@ -254,6 +258,7 @@ export interface Commission {
   nom: string;
   description: string | null;
   publie: boolean;
+  type_organisation: string;
 }
 
 /** URL segment for the organization management endpoints. */
@@ -279,6 +284,7 @@ export function deleteOrganisation(token: string, entity: OrgEntity, id: string)
 export interface CommissionCreateInput {
   nom: string;
   description?: string;
+  type_organisation?: string;
 }
 
 export type TypeDiffusion = "aucun" | "embed" | "externe";
@@ -846,7 +852,7 @@ export function getIntendances(token: string): Promise<Intendance[]> {
 
 export function createIntendance(
   token: string,
-  input: { nom: string; pays?: string; ville?: string; coordination_id?: string },
+  input: { nom: string; pays?: string; ville?: string; coordination_id?: string; parent_id?: string },
 ): Promise<Intendance> {
   return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Création impossible");
 }
@@ -861,7 +867,7 @@ export function getCoordinations(token: string): Promise<Coordination[]> {
 
 export function createCoordination(
   token: string,
-  input: { nom: string; description?: string },
+  input: { nom: string; description?: string; parent_id?: string },
 ): Promise<Coordination> {
   return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Création impossible");
 }
