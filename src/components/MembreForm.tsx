@@ -75,6 +75,13 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // Given names live in one field but are captured as first name + other names.
+  const prenomsParts = (form.prenoms ?? "").trim().split(/\s+/).filter(Boolean);
+  const premierPrenom = prenomsParts[0] ?? "";
+  const autresPrenoms = prenomsParts.slice(1).join(" ");
+  const setPrenoms = (premier: string, autres: string): void =>
+    set("prenoms", `${premier} ${autres}`.replace(/\s+/g, " ").trim() || undefined);
+
   function onPays(label: string): void {
     const dial = PAYS.find((p) => p.label === label)?.dial ?? "";
     setForm((f) => ({
@@ -122,8 +129,11 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           <Field label="Nom de famille *" hint="Nom a l'etat civil. Mis en MAJUSCULES automatiquement.">
             <input value={form.nom ?? ""} onChange={(e) => set("nom", e.target.value)} required placeholder="Ex : LABEL" />
           </Field>
-          <Field label="Prenoms *" hint="Premier prenom puis autres. Ex : Shema Emmanuel. Casse corrigee automatiquement.">
-            <input value={form.prenoms ?? ""} onChange={(e) => set("prenoms", e.target.value)} required placeholder="Ex : Shema Emmanuel" />
+          <Field label="Premier prenom *" hint="Prenom usuel. Casse corrigee automatiquement.">
+            <input value={premierPrenom} onChange={(e) => setPrenoms(e.target.value, autresPrenoms)} required placeholder="Ex : Shema" />
+          </Field>
+          <Field label="Autres prenoms" hint="Autres prenoms separes par des espaces (facultatif).">
+            <input value={autresPrenoms} onChange={(e) => setPrenoms(premierPrenom, e.target.value)} placeholder="Ex : Emmanuel" />
           </Field>
           <Field label="Nom de naissance" hint="Pour une femme mariee : nom de jeune fille (facultatif).">
             <input value={form.nom_naissance ?? ""} onChange={(e) => set("nom_naissance", e.target.value || undefined)} placeholder="Facultatif" />
