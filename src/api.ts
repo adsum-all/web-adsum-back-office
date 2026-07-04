@@ -298,7 +298,12 @@ export interface Evenement {
   mode?: string | null;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
+  cible_type?: CibleType;
+  cible_id?: string | null;
+  cible_libelle?: string | null;
 }
+
+export type CibleType = "general" | "coordination" | "commission" | "intendance" | "tribu";
 
 export interface EvenementCreateInput {
   titre: string;
@@ -312,6 +317,8 @@ export interface EvenementCreateInput {
   mode?: string;
   type_diffusion?: TypeDiffusion;
   visibilite?: Visibilite;
+  cible_type?: CibleType;
+  cible_id?: string | null;
   /** Response window in hours after the end; empty = admin default (6h). */
   fenetre_reponse_heures?: number;
 }
