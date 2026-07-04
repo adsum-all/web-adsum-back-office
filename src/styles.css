@@ -683,6 +683,12 @@ h3 {
   place-items: center;
   font-weight: 700;
   font-family: var(--adsum-font-display);
+  /* When used on an <img>, never distort the photo: uniform scale, crop the
+     overflow, keep the face in view (upper-centre focal point). Ignored on the
+     initials fallback. */
+  object-fit: cover;
+  object-position: 50% 30%;
+  overflow: hidden;
 }
 
 /* Buttons */
