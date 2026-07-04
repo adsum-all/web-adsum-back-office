@@ -188,6 +188,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         ))}
       </div>
 
+      <div role="tabpanel" aria-label={TABS.find((t) => t.key === tab)?.label}>
       {tab === "apercu" && (
       <>
       <section className="card">
@@ -634,6 +635,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
       </section>
       )}
+      </div>
     </div>
   );
 }

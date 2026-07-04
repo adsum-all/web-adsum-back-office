@@ -193,6 +193,7 @@ export interface Statistiques {
   evenements_total: number;
   presences_total: number;
   commissions_total: number;
+  missions_total: number;
   intendances_total: number;
   par_commission: { commission: string; total: number }[];
   par_cheminement: { cheminement: string; total: number }[];
