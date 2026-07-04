@@ -100,7 +100,10 @@ export interface MembreCreateInput {
   nom_affiche?: string;
   est_berger?: boolean;
   nom_pastoral?: string;
+  berger_depuis?: string;
   fonction_perimetre?: string;
+  appartenance?: string;
+  note_confidentielle?: string;
 }
 
 export interface MembreUpdateInput {
@@ -134,7 +137,10 @@ export interface MembreUpdateInput {
   nom_affiche?: string;
   est_berger?: boolean;
   nom_pastoral?: string;
+  berger_depuis?: string;
   fonction_perimetre?: string;
+  appartenance?: string;
+  note_confidentielle?: string;
 }
 
 export interface Intendance {
@@ -407,6 +413,18 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
 
 export function getMembre(token: string, id: string): Promise<MembreProfile> {
   return authedGet<MembreProfile>(`/api/v1/admin/membres/${id}`, token, "Membre indisponible");
+}
+
+export interface MembreGouvernance {
+  appartenance: string;
+  note_confidentielle: string | null;
+  berger_depuis: string | null;
+}
+
+/** Admin-only governance block (membership state + confidential note). Never
+ * part of the member-facing profile. */
+export function getMembreGouvernance(token: string, id: string): Promise<MembreGouvernance> {
+  return authedGet<MembreGouvernance>(`/api/v1/admin/membres/${id}/gouvernance`, token, "Gouvernance indisponible");
 }
 
 export function createMembre(token: string, input: MembreCreateInput): Promise<MembreProfile> {

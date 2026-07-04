@@ -42,8 +42,8 @@ export function MembreFonction({
       <h2 className="card-title">
         Fonction honorifique
         <InfoTip
-          title="Titre honorifique"
-          text="Le titre (par exemple Berger) n'apparait publiquement qu'une fois la fonction confirmee par un administrateur."
+          title="Fonction honorifique"
+          text="Fonction de responsabilité (Responsable, Coordinateur, Modérateur...), distincte du titre de consécration Berger/Bergère géré ci-dessus. Elle n'apparaît publiquement qu'une fois confirmée par un administrateur."
         />
       </h2>
 
