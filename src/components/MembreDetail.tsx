@@ -27,6 +27,7 @@ import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
 import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
+import { Pager, pageSlice } from "./Pager.js";
 
 const DEMANDE_STATUT: Record<string, string> = {
   ouverte: "Ouverte",
@@ -72,8 +73,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("apercu");
-  // Security connections can be numerous: show them five at a time.
-  const [connexionsShown, setConnexionsShown] = useState(5);
+  // Security connections can be numerous: page through them five at a time.
+  const [connexionsPage, setConnexionsPage] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -551,24 +552,18 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
               </tr>
             </thead>
             <tbody>
-              {(connexions.data ?? []).slice(0, connexionsShown).map((c, i) => (
+              {(connexions.data ?? []).slice(...pageSlice(connexionsPage, 5)).map((c, i) => (
                 <tr key={i}>
                   <td>{c.cree_le ? formatDateTime(c.cree_le) : "-"}</td>
                   <td className="mono">{cleanIp(c.ip)}</td>
                   <td className="muted">{deviceLabel(c.appareil)}</td>
-                  <td>{c.revoque ? "Revoquée" : "Active"}</td>
+                  <td>{c.revoque ? "Révoquée" : "Active"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-        {(connexions.data ?? []).length > connexionsShown && (
-          <div className="form-actions" style={{ justifyContent: "center", marginTop: 8 }}>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => setConnexionsShown((n) => n + 5)}>
-              Voir 5 de plus ({connexionsShown} / {(connexions.data ?? []).length})
-            </button>
-          </div>
-        )}
+        <Pager total={(connexions.data ?? []).length} page={connexionsPage} pageSize={5} onPage={setConnexionsPage} />
       </section>
       )}
 
