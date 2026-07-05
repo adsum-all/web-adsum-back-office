@@ -434,16 +434,26 @@ function authedSend<T>(
 }
 
 export async function login(email: string, password: string): Promise<Session> {
-  const res = await fetch(`${BASE}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+  }
   if (!res.ok) {
-    throw new ApiError(
-      res.status === 401 ? "Identifiants invalides" : "Service indisponible",
-      res.status,
-    );
+    let message: string;
+    if (res.status === 401) {
+      message = "Identifiants invalides";
+    } else if (res.status === 429) {
+      message = "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.";
+    } else {
+      message = "Service momentanément indisponible. Réessayez dans un instant.";
+    }
+    throw new ApiError(message, res.status);
   }
   const data = (await res.json()) as { access_token: string; role?: Role };
   return { token: data.access_token, role: data.role ?? "" };
