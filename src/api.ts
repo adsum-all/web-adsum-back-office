@@ -999,11 +999,15 @@ export interface GroupeAcces {
   actif: boolean;
 }
 
-export interface GroupeMembre {
-  id: string;
+export interface Appartenance {
+  appartenance_id: string;
+  groupe_id: string;
   cle: string;
   libelle: string;
   role_accorde: string;
+  portee_type: string;
+  portee_id: string | null;
+  portee_libelle: string | null;
   ajoute_le: string | null;
   ajoute_par_nom: string | null;
 }
@@ -1011,11 +1015,27 @@ export interface GroupeMembre {
 export interface MembreGroupes {
   membre_id: string;
   effective_role: string;
-  groupes: GroupeMembre[];
+  groupes: Appartenance[];
+}
+
+export interface UniteOrg {
+  id: string;
+  nom: string;
+}
+
+export interface PerimetresDisponibles {
+  coordination: UniteOrg[];
+  intendance: UniteOrg[];
+  commission: UniteOrg[];
+  tribu: UniteOrg[];
 }
 
 export function getGroupes(token: string): Promise<GroupeAcces[]> {
   return authedGet<GroupeAcces[]>("/api/v1/admin/groupes", token, "Groupes indisponibles");
+}
+
+export function getPerimetresDisponibles(token: string): Promise<PerimetresDisponibles> {
+  return authedGet<PerimetresDisponibles>("/api/v1/admin/perimetres-disponibles", token, "Périmètres indisponibles");
 }
 
 export function getMembreGroupes(token: string, membreId: string): Promise<MembreGroupes> {
@@ -1025,17 +1045,17 @@ export function getMembreGroupes(token: string, membreId: string): Promise<Membr
 export function ajouterMembreGroupe(
   token: string,
   membreId: string,
-  groupeId: string,
+  input: { groupe_id: string; portee_type: string; portee_id: string | null },
 ): Promise<{ membre_id: string; effective_role: string; mot_de_passe_temporaire: string | null }> {
-  return authedSend(`/api/v1/admin/membres/${membreId}/groupes`, token, "POST", { groupe_id: groupeId }, "Ajout au groupe impossible");
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes`, token, "POST", input, "Ajout au groupe impossible");
 }
 
 export function retirerMembreGroupe(
   token: string,
   membreId: string,
-  groupeId: string,
+  appartenanceId: string,
 ): Promise<{ membre_id: string; effective_role: string }> {
-  return authedSend(`/api/v1/admin/membres/${membreId}/groupes/${groupeId}`, token, "DELETE", undefined, "Retrait du groupe impossible");
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes/${appartenanceId}`, token, "DELETE", undefined, "Retrait du groupe impossible");
 }
 
 export function getComptage(token: string, evenementId: string): Promise<ComptageResume> {

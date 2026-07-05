@@ -5,11 +5,14 @@ import {
   type GroupeAcces,
   type MembreGroupes,
   type MembreProfile,
+  type PerimetresDisponibles,
+  type UniteOrg,
   type Utilisateur,
   ajouterMembreGroupe,
   getGroupes,
   getMembreGroupes,
   getMembres,
+  getPerimetresDisponibles,
   getUtilisateurs,
   retirerMembreGroupe,
   updateUtilisateur,
@@ -25,8 +28,24 @@ const ROLE_LABELS: Record<string, string> = {
   membre: "Membre (aucun accès plateforme)",
 };
 
+// Roles that only make sense globally: their groups cannot be scoped to a unit.
+const GLOBAL_ONLY_ROLES = new Set(["super_admin", "admin"]);
+
+const PORTEE_LABELS: Record<string, string> = {
+  global: "Global (toute la base)",
+  coordination: "Coordination",
+  intendance: "Intendance",
+  commission: "Commission / mission",
+  tribu: "Tribu",
+};
+
 function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role;
+}
+
+function porteeLabel(type: string, libelle: string | null): string {
+  if (type === "global") return "Global";
+  return `${PORTEE_LABELS[type] ?? type}${libelle ? ` : ${libelle}` : ""}`;
 }
 
 interface CibleMembre {
@@ -277,19 +296,27 @@ function EditeurGroupes({
   onChanged: () => void;
 }): JSX.Element {
   const [catalogue, setCatalogue] = useState<GroupeAcces[]>([]);
+  const [perimetres, setPerimetres] = useState<PerimetresDisponibles | null>(null);
   const [etat, setEtat] = useState<MembreGroupes | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [motDePasse, setMotDePasse] = useState<string | null>(null);
 
+  // Formulaire d'ajout
+  const [groupeId, setGroupeId] = useState("");
+  const [porteeType, setPorteeType] = useState("global");
+  const [porteeId, setPorteeId] = useState("");
+
   const charger = useCallback(async () => {
     setErreur(null);
     try {
-      const [cat, membreGroupes] = await Promise.all([
+      const [cat, per, membreGroupes] = await Promise.all([
         getGroupes(token),
+        getPerimetresDisponibles(token),
         getMembreGroupes(token, membre.id),
       ]);
       setCatalogue(cat);
+      setPerimetres(per);
       setEtat(membreGroupes);
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Erreur réseau");
@@ -300,18 +327,32 @@ function EditeurGroupes({
     void charger();
   }, [charger]);
 
-  const membreDans = (groupeId: string): boolean => (etat?.groupes ?? []).some((g) => g.id === groupeId);
+  const groupeChoisi = catalogue.find((g) => g.id === groupeId);
+  const scopable = groupeChoisi ? !GLOBAL_ONLY_ROLES.has(groupeChoisi.role_accorde) : false;
+  const unites: UniteOrg[] =
+    perimetres && porteeType !== "global" ? (perimetres[porteeType as keyof PerimetresDisponibles] ?? []) : [];
 
-  async function basculer(groupe: GroupeAcces): Promise<void> {
-    setBusy(groupe.id);
+  async function ajouter(): Promise<void> {
+    if (!groupeId) {
+      setErreur("Choisissez un groupe.");
+      return;
+    }
+    if (scopable && porteeType !== "global" && !porteeId) {
+      setErreur("Choisissez l'unité du périmètre.");
+      return;
+    }
+    setBusy("add");
     setErreur(null);
     try {
-      if (membreDans(groupe.id)) {
-        await retirerMembreGroupe(token, membre.id, groupe.id);
-      } else {
-        const res = await ajouterMembreGroupe(token, membre.id, groupe.id);
-        if (res.mot_de_passe_temporaire) setMotDePasse(res.mot_de_passe_temporaire);
-      }
+      const res = await ajouterMembreGroupe(token, membre.id, {
+        groupe_id: groupeId,
+        portee_type: scopable ? porteeType : "global",
+        portee_id: scopable && porteeType !== "global" ? porteeId : null,
+      });
+      if (res.mot_de_passe_temporaire) setMotDePasse(res.mot_de_passe_temporaire);
+      setGroupeId("");
+      setPorteeType("global");
+      setPorteeId("");
       await charger();
       onChanged();
     } catch (err) {
@@ -321,68 +362,127 @@ function EditeurGroupes({
     }
   }
 
+  async function retirer(appartenanceId: string): Promise<void> {
+    setBusy(appartenanceId);
+    setErreur(null);
+    try {
+      await retirerMembreGroupe(token, membre.id, appartenanceId);
+      await charger();
+      onChanged();
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : "Erreur réseau");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const appartenances = etat?.groupes ?? [];
+
   return (
     <section className="form-card editor-panel">
       <div className="page-head">
-        <h2 className="section-title">Groupes de {membre.nom}</h2>
+        <h2 className="section-title">Accès de {membre.nom}</h2>
         <button type="button" className="link" onClick={onClose}>Fermer</button>
       </div>
       {erreur && <p className="banner banner-error">{erreur}</p>}
       <p className="muted small">
-        Rôle effectif actuel : <strong>{roleLabel(etat?.effective_role ?? "membre")}</strong>
+        Rôle global effectif : <strong>{roleLabel(etat?.effective_role ?? "membre")}</strong>. Un accès scopé
+        (coordination, intendance, commission, tribu) ne donne pas le back-office global : il ouvre le pilotage
+        borné à cette unité uniquement.
       </p>
       {motDePasse && (
         <p className="banner banner-ok">
           Compte d&apos;accès créé. Mot de passe temporaire à transmettre une seule fois : <strong>{motDePasse}</strong>
         </p>
       )}
+
       <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
               <th>Groupe</th>
-              <th>Accès</th>
+              <th>Périmètre</th>
               <th>Accordé</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {catalogue.map((g) => {
-              const actif = membreDans(g.id);
-              const detail = (etat?.groupes ?? []).find((x) => x.id === g.id);
-              return (
-                <tr key={g.id}>
-                  <td>
-                    <div className="event-main">
-                      <strong>{g.libelle}</strong>
-                      <span className="muted small">{roleLabel(g.role_accorde)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${actif ? "badge-ok" : "badge-warn"}`}>
-                      {actif ? "membre du groupe" : "hors du groupe"}
-                    </span>
-                  </td>
-                  <td className="muted small">
-                    {actif && detail?.ajoute_le
-                      ? `${detail.ajoute_par_nom ?? "?"}, le ${new Date(detail.ajoute_le).toLocaleDateString("fr-FR")}`
-                      : "-"}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className={actif ? "btn btn-ghost btn-inline" : "btn btn-primary btn-inline"}
-                      disabled={busy === g.id}
-                      onClick={() => void basculer(g)}
-                    >
-                      {busy === g.id ? "..." : actif ? "Retirer" : "Ajouter"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {appartenances.length === 0 && (
+              <tr>
+                <td colSpan={4} className="muted">Aucun accès. Ce membre n&apos;a que son espace membre.</td>
+              </tr>
+            )}
+            {appartenances.map((a) => (
+              <tr key={a.appartenance_id}>
+                <td>
+                  <div className="event-main">
+                    <strong>{a.libelle}</strong>
+                    <span className="muted small">{roleLabel(a.role_accorde)}</span>
+                  </div>
+                </td>
+                <td>
+                  <span className={`badge ${a.portee_type === "global" ? "badge-ok" : "badge-warn"}`}>
+                    {porteeLabel(a.portee_type, a.portee_libelle)}
+                  </span>
+                </td>
+                <td className="muted small">
+                  {a.ajoute_le ? `${a.ajoute_par_nom ?? "?"}, le ${new Date(a.ajoute_le).toLocaleDateString("fr-FR")}` : "-"}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-inline"
+                    disabled={busy === a.appartenance_id}
+                    onClick={() => void retirer(a.appartenance_id)}
+                  >
+                    {busy === a.appartenance_id ? "..." : "Retirer"}
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
+      </div>
+
+      <h3 className="section-title" style={{ marginTop: "1rem" }}>Accorder un accès</h3>
+      <div className="form-grid">
+        <label>
+          <span>Groupe</span>
+          <select value={groupeId} onChange={(e) => { setGroupeId(e.target.value); setPorteeType("global"); setPorteeId(""); }}>
+            <option value="">Choisir un groupe...</option>
+            {catalogue.map((g) => (
+              <option key={g.id} value={g.id}>{g.libelle} ({roleLabel(g.role_accorde)})</option>
+            ))}
+          </select>
+        </label>
+        {scopable && (
+          <label>
+            <span>Périmètre</span>
+            <select value={porteeType} onChange={(e) => { setPorteeType(e.target.value); setPorteeId(""); }}>
+              <option value="global">Global (toute la base)</option>
+              <option value="coordination">Coordination</option>
+              <option value="intendance">Intendance</option>
+              <option value="commission">Commission / mission</option>
+              <option value="tribu">Tribu</option>
+            </select>
+          </label>
+        )}
+        {scopable && porteeType !== "global" && (
+          <label>
+            <span>Unité</span>
+            <select value={porteeId} onChange={(e) => setPorteeId(e.target.value)}>
+              <option value="">Choisir...</option>
+              {unites.map((u) => (
+                <option key={u.id} value={u.id}>{u.nom}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <div className="form-actions">
+        <button type="button" className="btn btn-primary btn-inline" disabled={busy === "add" || !groupeId} onClick={() => void ajouter()}>
+          {busy === "add" ? "Ajout..." : "+ Accorder"}
+        </button>
       </div>
     </section>
   );
