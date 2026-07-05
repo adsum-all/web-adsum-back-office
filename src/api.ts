@@ -186,26 +186,29 @@ export interface Coordination {
   responsable_titre: string | null;
 }
 
+// Optional fields accept null so an edit can explicitly CLEAR a value (e.g.
+// detach a parent). Sending undefined omits the field (leaves it unchanged);
+// sending null sets it to empty on the server.
 export interface CoordinationInput {
   nom?: string;
-  description?: string;
-  pays_code?: string;
-  continent?: string;
-  ville?: string;
+  description?: string | null;
+  pays_code?: string | null;
+  continent?: string | null;
+  ville?: string | null;
   statut?: string;
-  parent_id?: string;
+  parent_id?: string | null;
 }
 
 export interface IntendanceInput {
   nom?: string;
-  description?: string;
-  pays_code?: string;
-  pays?: string;
-  continent?: string;
-  ville?: string;
+  description?: string | null;
+  pays_code?: string | null;
+  pays?: string | null;
+  continent?: string | null;
+  ville?: string | null;
   statut?: string;
-  coordination_id?: string;
-  parent_id?: string;
+  coordination_id?: string | null;
+  parent_id?: string | null;
 }
 
 export interface SousCommission {

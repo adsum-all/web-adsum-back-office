@@ -14,6 +14,7 @@ import {
 import { PAYS as PAYS_REF } from "../countries.js";
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
+import { PaysCombo } from "./PaysCombo.js";
 
 const TYPE_MEMBRE: [string, string][] = [
   ["Membre simple", "membre_simple"],
@@ -87,11 +88,15 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
   const setPrenoms = (premier: string, autres: string): void =>
     set("prenoms", `${premier} ${autres}`.replace(/\s+/g, " ").trim() || undefined);
 
-  function onPays(label: string): void {
-    const dial = PAYS.find((p) => p.label === label)?.dial ?? "";
+  // Current country ISO code derived from the stored display name, for the combo.
+  const paysCode = PAYS_REF.find((p) => p.nom === form.pays)?.code ?? "";
+
+  function onPaysCode(code: string): void {
+    const c = PAYS_REF.find((p) => p.code === code);
+    const dial = c?.indicatif ?? "";
     setForm((f) => ({
       ...f,
-      pays: label || undefined,
+      pays: c?.nom || undefined,
       telephone: !f.telephone || PAYS.some((p) => f.telephone === `${p.dial} `) ? `${dial} ` : f.telephone,
     }));
   }
@@ -183,12 +188,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
             <input type="date" value={form.date_naissance ?? ""} onChange={(e) => set("date_naissance", e.target.value || undefined)} />
           </Field>
           <Field label="Pays">
-            <select value={form.pays ?? ""} onChange={(e) => onPays(e.target.value)}>
-              <option value="">Selectionner</option>
-              {PAYS.map((p) => (
-                <option key={p.label} value={p.label}>{p.label}</option>
-              ))}
-            </select>
+            <PaysCombo value={paysCode} onChange={onPaysCode} placeholder="Pays (tapez pour filtrer)" />
           </Field>
           <Field label="Ville">
             <input value={form.ville ?? ""} onChange={(e) => set("ville", e.target.value)} />

@@ -13,9 +13,10 @@ import {
   updateCoordination,
   updateIntendance,
 } from "../api.js";
-import { CONTINENTS, PAYS, nomPays } from "../countries.js";
+import { CONTINENTS, nomPays } from "../countries.js";
 import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
+import { PaysCombo } from "./PaysCombo.js";
 
 /**
  * Coordinations and intendances: two independent structures of the same level.
@@ -116,12 +117,7 @@ export function Organisation({ token }: { token: string }): JSX.Element {
         />
         <div className="toolbar" style={{ marginTop: 8 }}>
           <input className="search" placeholder="Rechercher une intendance" value={qIntend} onChange={(e) => setQIntend(e.target.value)} />
-          <select className="search" value={filtrePays} onChange={(e) => setFiltrePays(e.target.value)}>
-            <option value="">Tous les pays</option>
-            {PAYS.map((p) => (
-              <option key={p.code} value={p.code}>{p.nom}</option>
-            ))}
-          </select>
+          <PaysCombo value={filtrePays} onChange={setFiltrePays} placeholder="Filtrer par pays" />
         </div>
         <ul className="list">
           {intendsVisibles.map((i) =>
@@ -156,9 +152,16 @@ export function Organisation({ token }: { token: string }): JSX.Element {
   );
 }
 
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
 function match(nom: string, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || nom.toLowerCase().includes(q);
+  const q = norm(query.trim());
+  return !q || norm(nom).includes(q);
 }
 
 function coordMeta(c: Coordination): string | undefined {
@@ -190,16 +193,6 @@ function intendMeta(i: Intendance): string | undefined {
   );
 }
 
-function PaysSelect({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
-  return (
-    <select className="search" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Pays">
-      <option value="">Pays (facultatif)</option>
-      {PAYS.map((p) => (
-        <option key={p.code} value={p.code}>{p.nom}</option>
-      ))}
-    </select>
-  );
-}
 
 function ContinentSelect({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
   return (
@@ -243,12 +236,14 @@ function CoordinationForm({
         if (!nom.trim()) return;
         onSubmit({
           nom: nom.trim(),
-          description: description.trim() || undefined,
-          pays_code: paysCode || undefined,
-          continent: continent || undefined,
-          ville: ville.trim() || undefined,
+          // Send null (not undefined) so an edit can clear a value; detaching a
+          // parent must actually remove the link.
+          description: description.trim() || null,
+          pays_code: paysCode || null,
+          continent: continent || null,
+          ville: ville.trim() || null,
           statut,
-          parent_id: lie ? parentId || undefined : undefined,
+          parent_id: lie && parentId ? parentId : null,
         });
         if (!initial) {
           setNom("");
@@ -264,7 +259,7 @@ function CoordinationForm({
     >
       <input className="search" placeholder="Nom de la coordination" value={nom} onChange={(e) => setNom(e.target.value)} />
       <input className="search" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <PaysSelect value={paysCode} onChange={setPaysCode} />
+      <PaysCombo value={paysCode} onChange={setPaysCode} />
       <ContinentSelect value={continent} onChange={setContinent} />
       <input className="search" placeholder="Ville (facultatif)" value={ville} onChange={(e) => setVille(e.target.value)} />
       <select className="search" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Statut">
@@ -325,14 +320,16 @@ function IntendanceForm({
         if (!nom.trim()) return;
         onSubmit({
           nom: nom.trim(),
-          description: description.trim() || undefined,
-          pays_code: paysCode || undefined,
-          pays: nomPays(paysCode) ?? undefined,
-          continent: continent || undefined,
-          ville: ville.trim() || undefined,
+          // Send null (not undefined) so an edit can clear a value; detaching
+          // the coordination or the parent intendance must remove the link.
+          description: description.trim() || null,
+          pays_code: paysCode || null,
+          pays: paysCode ? nomPays(paysCode) : null,
+          continent: continent || null,
+          ville: ville.trim() || null,
           statut,
-          coordination_id: lie ? coordinationId || undefined : undefined,
-          parent_id: lie ? parentId || undefined : undefined,
+          coordination_id: lie && coordinationId ? coordinationId : null,
+          parent_id: lie && parentId ? parentId : null,
         });
         if (!initial) {
           setNom("");
@@ -349,7 +346,7 @@ function IntendanceForm({
     >
       <input className="search" placeholder="Nom de l'intendance" value={nom} onChange={(e) => setNom(e.target.value)} />
       <input className="search" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <PaysSelect value={paysCode} onChange={setPaysCode} />
+      <PaysCombo value={paysCode} onChange={setPaysCode} />
       <ContinentSelect value={continent} onChange={setContinent} />
       <input className="search" placeholder="Ville (facultatif)" value={ville} onChange={(e) => setVille(e.target.value)} />
       <select className="search" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Statut">
