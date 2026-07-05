@@ -2,13 +2,6 @@ import { useState } from "react";
 
 import { ApiError, type BulkResult, bulkCreateUtilisateurs } from "../api.js";
 
-const ROLES: [string, string][] = [
-  ["direction", "Accès membre (direction)"],
-  ["controleur", "Contrôleur"],
-  ["gestionnaire", "Gestionnaire (berger)"],
-  ["admin", "Administrateur"],
-];
-
 function tempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   let out = "";
@@ -30,7 +23,6 @@ function parseEmails(raw: string): string[] {
 
 export function ComptesMasse({ token }: { token: string }): JSX.Element {
   const [raw, setRaw] = useState("");
-  const [role, setRole] = useState("direction");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BulkResult | null>(null);
@@ -47,7 +39,7 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
     setBusy(true);
     setError(null);
     setResult(null);
-    const comptes = emails.map((email) => ({ email, password: tempPassword(), role }));
+    const comptes = emails.map((email) => ({ email, password: tempPassword() }));
     try {
       const res = await bulkCreateUtilisateurs(token, comptes);
       setResult(res);
@@ -66,7 +58,9 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
         <div>
           <h1>Création de comptes en masse</h1>
           <p className="muted">
-            L'admin crée les comptes d'accès (pas les profils). Une ligne = une personne, email unique.
+            Chaque compte est créé comme simple membre. L&apos;accès au back-office, à la direction ou au
+            pilotage s&apos;accorde ensuite depuis "Accès &amp; groupes", en ajoutant la personne à un groupe.
+            Une ligne = une personne, email unique.
           </p>
         </div>
       </header>
@@ -83,14 +77,6 @@ export function ComptesMasse({ token }: { token: string }): JSX.Element {
           />
         </label>
         <div className="row">
-          <label>
-            <span>Rôle attribué</span>
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              {ROLES.map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </label>
           <span className="muted small">{emails.length} email(s) valide(s) détecté(s)</span>
         </div>
         {error && <p className="banner banner-error">{error}</p>}

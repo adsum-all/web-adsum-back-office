@@ -62,7 +62,7 @@ const NAV: { id: Section; label: string; group: string }[] = [
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS" },
   { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS" },
-  { id: "utilisateurs", label: "Utilisateurs & rôles", group: "SYSTÈME" },
+  { id: "utilisateurs", label: "Accès & groupes", group: "SYSTÈME" },
   { id: "comptes-masse", label: "Créer comptes (masse)", group: "SYSTÈME" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME" },
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME" },

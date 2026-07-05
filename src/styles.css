@@ -1145,3 +1145,31 @@ h3 {
   color: #fff;
   font-weight: 600;
 }
+
+/* Accès & groupes (RBAC) */
+.section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.form-inline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+.form-inline input[type="search"] {
+  flex: 1 1 16rem;
+}
+.row-actions {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+.editor-panel {
+  border: 1px solid var(--accent, #2563eb);
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
+}

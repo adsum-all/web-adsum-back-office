@@ -963,7 +963,7 @@ export interface BulkResult {
 
 export function bulkCreateUtilisateurs(
   token: string,
-  comptes: { email: string; password: string; role: string }[],
+  comptes: { email: string; password: string }[],
 ): Promise<BulkResult> {
   return authedSend<BulkResult>("/api/v1/admin/utilisateurs/lot", token, "POST", { comptes }, "Création impossible");
 }
@@ -985,6 +985,57 @@ export function updateUtilisateur(
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise à jour impossible");
+}
+
+// --- Groupes d'accès (RBAC) : l'accès plateforme est un droit accordé, jamais l'identité du membre. ---
+
+export interface GroupeAcces {
+  id: string;
+  cle: string;
+  libelle: string;
+  description: string | null;
+  role_accorde: string;
+  systeme: boolean;
+  actif: boolean;
+}
+
+export interface GroupeMembre {
+  id: string;
+  cle: string;
+  libelle: string;
+  role_accorde: string;
+  ajoute_le: string | null;
+  ajoute_par_nom: string | null;
+}
+
+export interface MembreGroupes {
+  membre_id: string;
+  effective_role: string;
+  groupes: GroupeMembre[];
+}
+
+export function getGroupes(token: string): Promise<GroupeAcces[]> {
+  return authedGet<GroupeAcces[]>("/api/v1/admin/groupes", token, "Groupes indisponibles");
+}
+
+export function getMembreGroupes(token: string, membreId: string): Promise<MembreGroupes> {
+  return authedGet<MembreGroupes>(`/api/v1/admin/membres/${membreId}/groupes`, token, "Groupes du membre indisponibles");
+}
+
+export function ajouterMembreGroupe(
+  token: string,
+  membreId: string,
+  groupeId: string,
+): Promise<{ membre_id: string; effective_role: string; mot_de_passe_temporaire: string | null }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes`, token, "POST", { groupe_id: groupeId }, "Ajout au groupe impossible");
+}
+
+export function retirerMembreGroupe(
+  token: string,
+  membreId: string,
+  groupeId: string,
+): Promise<{ membre_id: string; effective_role: string }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes/${groupeId}`, token, "DELETE", undefined, "Retrait du groupe impossible");
 }
 
 export function getComptage(token: string, evenementId: string): Promise<ComptageResume> {
