@@ -11,6 +11,7 @@ import {
   getAdminDemandes,
   getCommissions,
   getConnexions,
+  getCoordinations,
   getDossierInscription,
   getIntendances,
   getMembre,
@@ -61,6 +62,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
+  const coordinations = useResource(() => getCoordinations(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
@@ -337,13 +339,32 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
               value=""
               disabled={busy}
               onChange={(e) => {
-                if (e.target.value) void patch({ intendance_id: e.target.value }, "Intendance mise à jour.");
+                // A member is in an intendance OR a coordination: setting one
+                // clears the other.
+                if (e.target.value) void patch({ intendance_id: e.target.value, coordination_id: null }, "Intendance mise à jour.");
               }}
             >
               <option value="">Changer...</option>
               {(intendances.data ?? []).map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Coordination (actuelle : {m.coordination ?? "aucune"})</span>
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) void patch({ coordination_id: e.target.value, intendance_id: null }, "Coordination mise à jour.");
+              }}
+            >
+              <option value="">Changer...</option>
+              {(coordinations.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
                 </option>
               ))}
             </select>

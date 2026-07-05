@@ -6,10 +6,12 @@ import {
   createMembre,
   getBergers,
   getCommissions,
+  getCoordinations,
   getIntendances,
   getNiveaux,
   getTribus,
 } from "../api.js";
+import { PAYS as PAYS_REF } from "../countries.js";
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 
@@ -42,11 +44,10 @@ interface MembreFormProps {
   onCancel: () => void;
 }
 
-const PAYS = [
-  { label: "Cote d'Ivoire", dial: "+225" },
-  { label: "France", dial: "+33" },
-  { label: "Canada", dial: "+1" },
-];
+// Country reference shared with the registration form: the full ISO list rather
+// than a hardcoded handful. Value stored is the French display name (membre.pays
+// is free text); the dialling code prefills the phone field.
+const PAYS = PAYS_REF.map((p) => ({ label: p.nom, dial: p.indicatif }));
 const GENRES: [string, string][] = [["Homme", "homme"], ["Femme", "femme"], ["Autre", "autre"]];
 const CHEMINEMENTS: [string, string][] = [
   ["Nouveau", "nouveau"],
@@ -63,6 +64,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.Element {
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
+  const coordinations = useResource(() => getCoordinations(token), [token]);
   const bergers = useResource(() => getBergers(token), [token]);
   const niveaux = useResource(() => getNiveaux(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -192,10 +194,30 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
             <input value={form.ville ?? ""} onChange={(e) => set("ville", e.target.value)} />
           </Field>
           <Field label="Intendance">
-            <select value={form.intendance_id ?? ""} onChange={(e) => set("intendance_id", e.target.value || undefined)}>
-              <option value="">Selectionner</option>
+            <select
+              value={form.intendance_id ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, intendance_id: e.target.value || undefined, coordination_id: undefined }))
+              }
+            >
+              <option value="">Aucune</option>
               {(intendances.data ?? []).map((i) => (
                 <option key={i.id} value={i.id}>{i.nom}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Coordination">
+            {/* A member belongs to a coordination OR an intendance, never both:
+                choosing one clears the other. */}
+            <select
+              value={form.coordination_id ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, coordination_id: e.target.value || undefined, intendance_id: undefined }))
+              }
+            >
+              <option value="">Aucune</option>
+              {(coordinations.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>{c.nom}</option>
               ))}
             </select>
           </Field>

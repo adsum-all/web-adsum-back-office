@@ -82,7 +82,8 @@ export interface MembreCreateInput {
   date_naissance?: string;
   pays?: string;
   ville?: string;
-  intendance_id?: string;
+  intendance_id?: string | null;
+  coordination_id?: string | null;
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
@@ -119,7 +120,8 @@ export interface MembreUpdateInput {
   date_naissance?: string;
   pays?: string;
   ville?: string;
-  intendance_id?: string;
+  intendance_id?: string | null;
+  coordination_id?: string | null;
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
@@ -147,13 +149,19 @@ export interface MembreUpdateInput {
 export interface Intendance {
   id: string;
   nom: string;
+  description: string | null;
+  pays_code: string | null;
   pays: string | null;
+  continent: string | null;
   ville: string | null;
+  statut: string;
   coordination_id: string | null;
   coordination: string | null;
   publie: boolean;
   parent_id: string | null;
   parent: string | null;
+  responsable: string | null;
+  responsable_titre: string | null;
 }
 
 export interface Berger {
@@ -166,9 +174,38 @@ export interface Coordination {
   id: string;
   nom: string;
   description: string | null;
+  pays_code: string | null;
+  pays: string | null;
+  continent: string | null;
+  ville: string | null;
+  statut: string;
   publie: boolean;
   parent_id: string | null;
   parent: string | null;
+  responsable: string | null;
+  responsable_titre: string | null;
+}
+
+export interface CoordinationInput {
+  nom?: string;
+  description?: string;
+  pays_code?: string;
+  continent?: string;
+  ville?: string;
+  statut?: string;
+  parent_id?: string;
+}
+
+export interface IntendanceInput {
+  nom?: string;
+  description?: string;
+  pays_code?: string;
+  pays?: string;
+  continent?: string;
+  ville?: string;
+  statut?: string;
+  coordination_id?: string;
+  parent_id?: string;
 }
 
 export interface SousCommission {
@@ -880,11 +917,12 @@ export function getIntendances(token: string): Promise<Intendance[]> {
   return authedGet<Intendance[]>("/api/v1/admin/intendances", token, "Intendances indisponibles");
 }
 
-export function createIntendance(
-  token: string,
-  input: { nom: string; pays?: string; ville?: string; coordination_id?: string; parent_id?: string },
-): Promise<Intendance> {
+export function createIntendance(token: string, input: IntendanceInput & { nom: string }): Promise<Intendance> {
   return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Création impossible");
+}
+
+export function updateIntendance(token: string, id: string, input: IntendanceInput): Promise<Intendance> {
+  return authedSend<Intendance>(`/api/v1/admin/intendances/${id}`, token, "PUT", input, "Mise à jour impossible");
 }
 
 export function getBergers(token: string): Promise<Berger[]> {
@@ -895,11 +933,12 @@ export function getCoordinations(token: string): Promise<Coordination[]> {
   return authedGet<Coordination[]>("/api/v1/admin/coordinations", token, "Coordinations indisponibles");
 }
 
-export function createCoordination(
-  token: string,
-  input: { nom: string; description?: string; parent_id?: string },
-): Promise<Coordination> {
+export function createCoordination(token: string, input: CoordinationInput & { nom: string }): Promise<Coordination> {
   return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Création impossible");
+}
+
+export function updateCoordination(token: string, id: string, input: CoordinationInput): Promise<Coordination> {
+  return authedSend<Coordination>(`/api/v1/admin/coordinations/${id}`, token, "PUT", input, "Mise à jour impossible");
 }
 
 export function getSousCommissions(token: string): Promise<SousCommission[]> {

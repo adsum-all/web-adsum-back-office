@@ -12,11 +12,14 @@ interface OrgItemRowProps {
   prefix?: string;
   meta?: string;
   publie: boolean;
+  /** When provided, a "Modifier" button opens the full edit form (all fields),
+   * distinct from the inline quick rename. */
+  onEdit?: () => void;
   onChanged: () => void;
 }
 
 /** A structural-entity row with inline rename, publish toggle and safe delete. */
-export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onChanged }: OrgItemRowProps): JSX.Element {
+export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onEdit, onChanged }: OrgItemRowProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(nom);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -101,9 +104,16 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, onCha
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setEditing(true)}>
-            Renommer
-          </button>
+          <>
+            {onEdit && (
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={onEdit}>
+                Modifier
+              </button>
+            )}
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setEditing(true)}>
+              Renommer
+            </button>
+          </>
         )}
         {confirmDelete ? (
           <>
