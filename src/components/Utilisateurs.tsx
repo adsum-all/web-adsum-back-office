@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  type AccesEffectif,
   ApiError,
+  type CatalogueRole,
   type GroupeAcces,
   type MembreGroupes,
   type MembreProfile,
@@ -9,6 +11,8 @@ import {
   type UniteOrg,
   type Utilisateur,
   ajouterMembreGroupe,
+  getAccesEffectif,
+  getCatalogueAcces,
   getGroupes,
   getMembreGroupes,
   getMembres,
@@ -46,6 +50,22 @@ function roleLabel(role: string): string {
 function porteeLabel(type: string, libelle: string | null): string {
   if (type === "global") return "Global";
   return `${PORTEE_LABELS[type] ?? type}${libelle ? ` : ${libelle}` : ""}`;
+}
+
+const RISQUE_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
+  faible: { bg: "#e6f6ee", fg: "#1f9d6b", label: "risque faible" },
+  moyen: { bg: "#fff5e6", fg: "#b8791b", label: "risque moyen" },
+  eleve: { bg: "#fdeef0", fg: "#c0394a", label: "risque élevé" },
+  critique: { bg: "#fbe9ea", fg: "#a01925", label: "risque critique" },
+};
+
+function RisqueBadge({ risque }: { risque: string }): JSX.Element {
+  const s = RISQUE_STYLE[risque] ?? RISQUE_STYLE.moyen;
+  return (
+    <span style={{ background: s.bg, color: s.fg, borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>
+      {s.label}
+    </span>
+  );
 }
 
 interface CibleMembre {
@@ -298,6 +318,8 @@ function EditeurGroupes({
   const [catalogue, setCatalogue] = useState<GroupeAcces[]>([]);
   const [perimetres, setPerimetres] = useState<PerimetresDisponibles | null>(null);
   const [etat, setEtat] = useState<MembreGroupes | null>(null);
+  const [roleCatalogue, setRoleCatalogue] = useState<CatalogueRole[]>([]);
+  const [effectif, setEffectif] = useState<AccesEffectif | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [motDePasse, setMotDePasse] = useState<string | null>(null);
@@ -310,18 +332,26 @@ function EditeurGroupes({
   const charger = useCallback(async () => {
     setErreur(null);
     try {
-      const [cat, per, membreGroupes] = await Promise.all([
+      const [cat, per, membreGroupes, roles, eff] = await Promise.all([
         getGroupes(token),
         getPerimetresDisponibles(token),
         getMembreGroupes(token, membre.id),
+        getCatalogueAcces(token),
+        getAccesEffectif(token, membre.id),
       ]);
       setCatalogue(cat);
       setPerimetres(per);
       setEtat(membreGroupes);
+      setRoleCatalogue(roles.roles);
+      setEffectif(eff);
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Erreur réseau");
     }
   }, [token, membre.id]);
+
+  function risqueDeGroupe(g: GroupeAcces): string {
+    return roleCatalogue.find((r) => r.role === g.role_accorde)?.risque ?? "moyen";
+  }
 
   useEffect(() => {
     void charger();
@@ -444,6 +474,42 @@ function EditeurGroupes({
         </table>
       </div>
 
+      {effectif && (
+        <section style={{ marginTop: "1rem" }}>
+          <h3 className="section-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Revue d&apos;accès effectif <RisqueBadge risque={effectif.risque_global} />
+          </h3>
+          {effectif.avertissements.map((w) => (
+            <p key={w} style={{ marginTop: 6, background: "#fff5e6", color: "#8a5a12", border: "1px solid #f0d9a8", borderRadius: 10, padding: "10px 12px", fontSize: 13 }}>
+              {w}
+            </p>
+          ))}
+          {effectif.acces.length === 0 && (
+            <p className="muted small">Aucun accès plateforme. Cette personne ne voit que son espace membre.</p>
+          )}
+          {effectif.acces.map((a, i) => (
+            <details key={`${a.role}-${a.portee_type}-${i}`} className="form-card" style={{ marginTop: 8, padding: "0.6rem 0.9rem" }}>
+              <summary style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <strong>{a.role_libelle}</strong>
+                <span className={`badge ${a.portee_type === "global" ? "badge-ok" : "badge-warn"}`}>{a.portee_texte}</span>
+                <RisqueBadge risque={a.risque} />
+                <span className="muted small">({a.capabilities.length} droits)</span>
+              </summary>
+              <ul className="list" style={{ marginTop: 8 }}>
+                {a.capabilities.map((c) => (
+                  <li key={c.cle} style={{ padding: "4px 0" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <strong>{c.libelle}</strong> <RisqueBadge risque={c.risque} />
+                    </span>
+                    <div className="muted small">{c.description}</div>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </section>
+      )}
+
       <h3 className="section-title" style={{ marginTop: "1rem" }}>Accorder un accès</h3>
       <div className="form-grid">
         <label>
@@ -479,6 +545,15 @@ function EditeurGroupes({
           </label>
         )}
       </div>
+      {groupeChoisi && (
+        <p style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+          <span className="muted small">Ce groupe accorde le rôle {roleLabel(groupeChoisi.role_accorde)}</span>
+          <RisqueBadge risque={risqueDeGroupe(groupeChoisi)} />
+          {!scopable && <span className="muted small">, uniquement en global.</span>}
+          {scopable && porteeType === "global" && <span className="muted small">, ici en GLOBAL (toute la base).</span>}
+          {scopable && porteeType !== "global" && <span className="muted small">, borné à un périmètre (hermétique).</span>}
+        </p>
+      )}
       <div className="form-actions">
         <button type="button" className="btn btn-primary btn-inline" disabled={busy === "add" || !groupeId} onClick={() => void ajouter()}>
           {busy === "add" ? "Ajout..." : "+ Accorder"}

@@ -1038,6 +1038,47 @@ export function getPerimetresDisponibles(token: string): Promise<PerimetresDispo
   return authedGet<PerimetresDisponibles>("/api/v1/admin/perimetres-disponibles", token, "Périmètres indisponibles");
 }
 
+export interface Capability {
+  cle: string;
+  libelle: string;
+  description: string;
+  risque: string;
+  portee: string;
+}
+
+export interface CatalogueRole {
+  role: string;
+  libelle: string;
+  risque: string;
+  capabilities: Capability[];
+}
+
+export interface AccesEffectifItem {
+  role: string;
+  role_libelle: string;
+  risque: string;
+  portee_type: string;
+  portee_libelle: string | null;
+  portee_texte: string;
+  capabilities: Capability[];
+}
+
+export interface AccesEffectif {
+  membre_id: string;
+  role_global_effectif: string;
+  risque_global: string;
+  acces: AccesEffectifItem[];
+  avertissements: string[];
+}
+
+export function getCatalogueAcces(token: string): Promise<{ roles: CatalogueRole[] }> {
+  return authedGet<{ roles: CatalogueRole[] }>("/api/v1/admin/catalogue-acces", token, "Catalogue indisponible");
+}
+
+export function getAccesEffectif(token: string, membreId: string): Promise<AccesEffectif> {
+  return authedGet<AccesEffectif>(`/api/v1/admin/membres/${membreId}/acces-effectif`, token, "Accès effectif indisponible");
+}
+
 export function getMembreGroupes(token: string, membreId: string): Promise<MembreGroupes> {
   return authedGet<MembreGroupes>(`/api/v1/admin/membres/${membreId}/groupes`, token, "Groupes du membre indisponibles");
 }
