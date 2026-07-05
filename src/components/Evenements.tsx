@@ -28,6 +28,7 @@ const EMPTY: EvenementCreateInput = {
   visibilite: "membres",
   cible_type: "general",
   cible_id: null,
+  fuseau_horaire: "Africa/Abidjan",
 };
 
 const CIBLE_LABELS: Record<CibleType, string> = {
@@ -37,6 +38,50 @@ const CIBLE_LABELS: Record<CibleType, string> = {
   intendance: "Intendance",
   tribu: "Tribu",
 };
+
+// Reference time zones offered at creation. Default is the base's home GMT zone;
+// pick the activity's own zone when it takes place elsewhere.
+const FUSEAUX: [string, string][] = [
+  ["Africa/Abidjan", "Côte d'Ivoire (GMT)"],
+  ["Europe/Paris", "France"],
+  ["Europe/Brussels", "Belgique"],
+  ["Africa/Dakar", "Sénégal"],
+  ["Africa/Cotonou", "Bénin"],
+  ["Africa/Lome", "Togo"],
+  ["Africa/Ouagadougou", "Burkina Faso"],
+  ["Africa/Niamey", "Niger"],
+  ["Africa/Bamako", "Mali"],
+  ["Africa/Douala", "Cameroun"],
+  ["Africa/Lagos", "Nigéria"],
+  ["Africa/Kinshasa", "RD Congo"],
+  ["America/New_York", "États-Unis (Est)"],
+  ["America/Toronto", "Canada (Est)"],
+  ["Europe/London", "Royaume-Uni"],
+];
+
+/** Offset (ms) of an IANA zone at a given UTC instant, via Intl. */
+function offsetMs(zone: string, utcMs: number): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: zone, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const p: Record<string, string> = {};
+  for (const part of dtf.formatToParts(new Date(utcMs))) p[part.type] = part.value;
+  const asIfUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return asIfUtc - utcMs;
+}
+
+/** Interpret a naive "YYYY-MM-DDTHH:mm" as local to `zone`, return the UTC ISO instant. */
+function zonedToUtc(local: string, zone: string): string {
+  const [d, t] = local.split("T");
+  const [y, mo, da] = d.split("-").map(Number);
+  const [h, mi] = t.split(":").map(Number);
+  const guess = Date.UTC(y, mo - 1, da, h, mi);
+  // Two passes handle the DST boundary correctly.
+  let off = offsetMs(zone, guess);
+  off = offsetMs(zone, guess - off);
+  return new Date(guess - off).toISOString();
+}
 
 export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
@@ -91,18 +136,22 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         setBusy(false);
         return;
       }
+      const zone = form.fuseau_horaire ?? "Africa/Abidjan";
       const payload: EvenementCreateInput = {
         titre: form.titre.trim(),
         volet: form.volet,
-        debut: new Date(form.debut).toISOString(),
+        // The typed time is interpreted in the activity's chosen zone, then stored
+        // as an absolute UTC instant so every member sees it in their own time.
+        debut: zonedToUtc(form.debut, zone),
         type: form.type,
         mode: form.mode,
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
         cible_type: cibleType,
         cible_id: cibleType === "general" ? null : form.cible_id,
+        fuseau_horaire: zone,
       };
-      if (form.fin) payload.fin = new Date(form.fin).toISOString();
+      if (form.fin) payload.fin = zonedToUtc(form.fin, zone);
       if (form.fenetre_reponse_heures) payload.fenetre_reponse_heures = Number(form.fenetre_reponse_heures);
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
       const cleanLiens = liens.map((l) => l.trim()).filter((l) => l.length > 0);
@@ -137,7 +186,19 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <input value={form.titre} onChange={(e) => set("titre", e.target.value)} required />
           </label>
           <label>
-            <span>Début *</span>
+            <span>Fuseau horaire de l&apos;activité *</span>
+            <select value={form.fuseau_horaire ?? "Africa/Abidjan"} onChange={(e) => set("fuseau_horaire", e.target.value)}>
+              {FUSEAUX.map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+            <span className="muted small" style={{ fontWeight: 400 }}>
+              Par défaut GMT (Côte d&apos;Ivoire). Si l&apos;activité a lieu ailleurs (ex. France), choisissez son fuseau :
+              les heures seront saisies dans ce fuseau, et chaque membre les verra à sa propre heure.
+            </span>
+          </label>
+          <label>
+            <span>Début * (heure du fuseau ci-dessus)</span>
             <input type="datetime-local" value={form.debut} onChange={(e) => set("debut", e.target.value)} required />
           </label>
           <label>

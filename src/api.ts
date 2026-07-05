@@ -370,6 +370,8 @@ export interface EvenementCreateInput {
   cible_id?: string | null;
   /** Response window in hours after the end; empty = admin default (6h). */
   fenetre_reponse_heures?: number;
+  /** IANA zone the start/end were entered in (default Africa/Abidjan = GMT). */
+  fuseau_horaire?: string;
 }
 
 export interface MembreListQuery {
