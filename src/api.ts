@@ -1355,6 +1355,7 @@ export interface EngagementInvitation {
 export interface EngagementDashboardData {
   total: number;
   par_canal: Record<string, number>;
+  par_pays: Record<string, number>;
   en_attente: number;
   converti: number;
 }

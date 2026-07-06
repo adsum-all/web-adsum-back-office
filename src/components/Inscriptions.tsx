@@ -46,7 +46,9 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
 
       {tab === "creer" && <CreerCompteMembre token={token} onCreated={() => compteurs.reload()} />}
       {tab === "masse" && <CreerComptesMasse token={token} onCreated={() => compteurs.reload()} />}
-      {LIST_TABS.some((t) => t.id === tab) && <RevueInscriptions token={token} filtre={tab as InscriptionFiltre} />}
+      {/* key={tab} remounts the queue on every tab change, so a dossier opened in one
+          stage never stays open when moving to another stage (no cross-tab confusion). */}
+      {LIST_TABS.some((t) => t.id === tab) && <RevueInscriptions key={tab} token={token} filtre={tab as InscriptionFiltre} />}
     </div>
   );
 }

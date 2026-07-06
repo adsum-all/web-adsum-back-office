@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 
 import { getEngagementDashboard, getEvenements } from "../api.js";
 import { useResource } from "../useResource.js";
+import { EngagementCharts } from "./EngagementCharts.js";
 import { EngagementImport } from "./EngagementImport.js";
 import { EngagementListe } from "./EngagementListe.js";
 import { EngagementSaisie } from "./EngagementSaisie.js";
@@ -37,18 +38,7 @@ function DashboardTab({ token, tick }: { token: string; tick: number }): JSX.Ele
           </div>
         ))}
       </div>
-      <h3 className="section-title" style={{ marginTop: 16 }}>Par canal de collecte</h3>
-      <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>Canal</th><th>Nombre</th></tr></thead>
-          <tbody>
-            {Object.entries(data?.par_canal ?? {}).length === 0 && <tr><td colSpan={2} className="muted">Aucune donnée.</td></tr>}
-            {Object.entries(data?.par_canal ?? {}).map(([canal, n]) => (
-              <tr key={canal}><td>{canal}</td><td>{n}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {data && <EngagementCharts data={data} />}
     </div>
   );
 }
