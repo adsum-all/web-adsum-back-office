@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 
-import { getEngagementDashboard } from "../api.js";
+import { getEngagementDashboard, getEvenements } from "../api.js";
 import { useResource } from "../useResource.js";
 import { EngagementImport } from "./EngagementImport.js";
 import { EngagementListe } from "./EngagementListe.js";
@@ -53,27 +53,42 @@ function DashboardTab({ token, tick }: { token: string; tick: number }): JSX.Ele
   );
 }
 
-function QrTab(): JSX.Element {
+function QrTab({ token }: { token: string }): JSX.Element {
+  const evenements = useResource(() => getEvenements(token), [token]);
   const [eventId, setEventId] = useState("");
   const ref = useRef<HTMLCanvasElement>(null);
   const url = `${PUBLIC_BASE}/?engage=${encodeURIComponent(eventId.trim())}`;
+  const choisi = (evenements.data ?? []).find((e) => e.id === eventId);
   useEffect(() => {
     if (ref.current) void QRCode.toCanvas(ref.current, url, { width: 240, margin: 1 });
   }, [url]);
+
+  function dateEv(iso: string): string {
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
   return (
     <section className="form-card">
       <h2 className="section-title">QR « Je m&apos;engage »</h2>
       <p className="muted small" style={{ marginTop: 0 }}>
         Affichez ce QR lors d&apos;un événement public : en le scannant, une personne ouvre le formulaire
-        d&apos;engagement. Distinct du QR de comptage. L&apos;identifiant d&apos;activité est optionnel.
+        d&apos;engagement. Il est distinct du QR de comptage. Rattachez-le à une activité pour savoir à quel
+        événement chaque invitation correspond.
       </p>
-      <label className="form-field" style={{ maxWidth: 420 }}>
-        <span>Identifiant d&apos;activité (optionnel)</span>
-        <input value={eventId} onChange={(e) => setEventId(e.target.value)} placeholder="Coller l'id de l'activité (facultatif)" />
+      <label className="form-field" style={{ maxWidth: 480 }}>
+        <span>Activité rattachée</span>
+        <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
+          <option value="">Aucune activité (QR général)</option>
+          {(evenements.data ?? []).map((e) => (
+            <option key={e.id} value={e.id}>{e.titre} ({dateEv(e.debut)}{e.lieu ? `, ${e.lieu}` : ""})</option>
+          ))}
+        </select>
       </label>
-      <div style={{ marginTop: 12, textAlign: "center" }}>
-        <canvas ref={ref} />
-        <p className="mono muted small" style={{ wordBreak: "break-all" }}>{url}</p>
+      {evenements.error && <p className="banner banner-error">{evenements.error}</p>}
+      <div style={{ marginTop: 14, textAlign: "center" }}>
+        {choisi && <p className="muted small">Invitations rattachées à : <strong>{choisi.titre}</strong></p>}
+        <canvas ref={ref} style={{ borderRadius: 12, border: "1px solid var(--adsum-line)", background: "#fff", padding: 8 }} />
+        <p className="mono muted small" style={{ wordBreak: "break-all", marginTop: 6 }}>{url}</p>
       </div>
     </section>
   );
@@ -107,7 +122,7 @@ export function EngagementAdmin({ token }: { token: string }): JSX.Element {
       {tab === "invitations" && <EngagementListe token={token} onConverted={refresh} />}
       {tab === "saisie" && <EngagementSaisie token={token} onAdded={refresh} />}
       {tab === "import" && <EngagementImport token={token} onImported={refresh} />}
-      {tab === "qr" && <QrTab />}
+      {tab === "qr" && <QrTab token={token} />}
     </div>
   );
 }
