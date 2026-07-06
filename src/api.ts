@@ -1308,12 +1308,29 @@ export interface InscriptionItem {
   nom: string;
   email: string;
   statut: string;
+  statut_libelle?: string;
   soumis_le: string | null;
+  decision_le?: string | null;
   nb_documents: number;
 }
 
-export function getInscriptions(token: string): Promise<InscriptionItem[]> {
-  return authedGet<InscriptionItem[]>("/api/v1/admin/inscriptions", token, "Inscriptions indisponibles");
+export type InscriptionFiltre = "en_cours" | "recus" | "a_valider" | "validees" | "refusees" | "toutes";
+
+export interface InscriptionCompteurs {
+  en_cours: number;
+  recus: number;
+  a_valider: number;
+  validees: number;
+  refusees: number;
+  toutes: number;
+}
+
+export function getInscriptions(token: string, filtre: InscriptionFiltre = "a_valider"): Promise<InscriptionItem[]> {
+  return authedGet<InscriptionItem[]>(`/api/v1/admin/inscriptions?filtre=${filtre}`, token, "Inscriptions indisponibles");
+}
+
+export function getInscriptionCompteurs(token: string): Promise<InscriptionCompteurs> {
+  return authedGet<InscriptionCompteurs>("/api/v1/admin/inscriptions/compteurs", token, "Compteurs indisponibles");
 }
 
 export function decisionInscription(
@@ -1435,6 +1452,20 @@ export function creerCompteMembre(
   input: { email: string; prenoms?: string; nom?: string },
 ): Promise<{ membre_id: string; matricule: string }> {
   return authedSend("/api/v1/admin/inscriptions/membre", token, "POST", input, "Création impossible");
+}
+
+export interface MembresLotResult {
+  crees: number;
+  details_crees: { email: string; matricule: string }[];
+  doublons: string[];
+  erreurs: { email: string; raison: string }[];
+}
+
+export function creerMembresLot(
+  token: string,
+  membres: { email: string; prenoms?: string; nom?: string }[],
+): Promise<MembresLotResult> {
+  return authedSend<MembresLotResult>("/api/v1/admin/inscriptions/membres-lot", token, "POST", { membres }, "Création en masse impossible");
 }
 
 export function relancerMdpTemporaire(token: string, membreId: string): Promise<{ ok: boolean }> {

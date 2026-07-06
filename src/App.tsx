@@ -4,7 +4,6 @@ import { type Session, getMyPermissions, logoutSession } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
-import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { DemandesAdmin } from "./components/DemandesAdmin.js";
 import { Doublons } from "./components/Doublons.js";
@@ -42,7 +41,6 @@ type Section =
   | "comptage"
   | "utilisateurs"
   | "permissions"
-  | "comptes-masse"
   | "terminaux"
   | "integrations"
   | "consentements"
@@ -70,7 +68,6 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS", perm: "comptage.superviser" },
   { id: "utilisateurs", label: "Accès & groupes", group: "SYSTÈME", perm: "acces.administrer" },
   { id: "permissions", label: "Matrice des permissions", group: "SYSTÈME", perm: "acces.administrer" },
-  { id: "comptes-masse", label: "Créer comptes (masse)", group: "SYSTÈME", perm: "comptes.systeme" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME", perm: "terminaux.consulter" },
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
@@ -231,7 +228,6 @@ export function App(): JSX.Element {
           {activeId === "comptage" && <ComptageVoletB token={session.token} />}
           {activeId === "utilisateurs" && <Utilisateurs token={session.token} />}
           {activeId === "permissions" && <MatricePermissions token={session.token} />}
-          {activeId === "comptes-masse" && <ComptesMasse token={session.token} />}
           {activeId === "terminaux" && <Terminaux token={session.token} />}
           {activeId === "integrations" && <Integrations token={session.token} />}
           {activeId === "consentements" && <Consentements token={session.token} />}
