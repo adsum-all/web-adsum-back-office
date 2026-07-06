@@ -26,6 +26,7 @@ import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
+import { MembreCorrectionIdentite } from "./MembreCorrectionIdentite.js";
 import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
 import { Pager, pageSlice } from "./Pager.js";
@@ -606,6 +607,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       )}
 
       {tab === "avance" && (
+      <>
+      <MembreCorrectionIdentite token={token} membre={m} onChanged={() => membre.reload()} />
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
         <div className="toolbar">
@@ -667,6 +670,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         </div>
         <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
       </section>
+      </>
       )}
       </div>
     </div>
