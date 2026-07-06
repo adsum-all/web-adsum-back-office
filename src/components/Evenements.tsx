@@ -67,15 +67,16 @@ function offsetMs(zone: string, utcMs: number): number {
   });
   const p: Record<string, string> = {};
   for (const part of dtf.formatToParts(new Date(utcMs))) p[part.type] = part.value;
-  const asIfUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  const n = (k: string): number => Number(p[k] ?? 0);
+  const asIfUtc = Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
   return asIfUtc - utcMs;
 }
 
 /** Interpret a naive "YYYY-MM-DDTHH:mm" as local to `zone`, return the UTC ISO instant. */
 function zonedToUtc(local: string, zone: string): string {
-  const [d, t] = local.split("T");
-  const [y, mo, da] = d.split("-").map(Number);
-  const [h, mi] = t.split(":").map(Number);
+  const [d = "", t = ""] = local.split("T");
+  const [y = 0, mo = 1, da = 1] = d.split("-").map(Number);
+  const [h = 0, mi = 0] = t.split(":").map(Number);
   const guess = Date.UTC(y, mo - 1, da, h, mi);
   // Two passes handle the DST boundary correctly.
   let off = offsetMs(zone, guess);

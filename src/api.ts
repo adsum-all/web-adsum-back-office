@@ -10,6 +10,44 @@ export type Role = "admin" | "super_admin" | string;
 export interface Session {
   token: string;
   role: Role;
+  // Effective permissions of the account, used to mask the menu. Optional so a
+  // session persisted before this field existed is re-hydrated, never rejected.
+  permissions?: string[];
+}
+
+export interface MyPermissions {
+  role: Role;
+  permissions: string[];
+  acces_back_office: boolean;
+}
+
+export interface PermissionItem {
+  cle: string;
+  domaine: string;
+  libelle: string;
+  risque: string;
+  portee: string;
+}
+
+export interface RolePermissions {
+  role: Role;
+  permissions: string[];
+}
+
+export interface GroupePermissions {
+  id: string;
+  cle: string;
+  libelle: string;
+  description: string | null;
+  actif: boolean;
+  permissions: string[];
+}
+
+export interface CataloguePermissions {
+  permissions: PermissionItem[];
+  domaines: string[];
+  roles: RolePermissions[];
+  groupes_specialises: GroupePermissions[];
 }
 
 export interface Me {
@@ -463,6 +501,18 @@ export async function login(email: string, password: string): Promise<Session> {
 
 export function getMe(token: string): Promise<Me> {
   return authedGet<Me>("/api/v1/auth/me", token, "Session indisponible");
+}
+
+export function getMyPermissions(token: string): Promise<MyPermissions> {
+  return authedGet<MyPermissions>("/api/v1/membres/me/permissions", token, "Permissions indisponibles");
+}
+
+export function getCataloguePermissions(token: string): Promise<CataloguePermissions> {
+  return authedGet<CataloguePermissions>(
+    "/api/v1/admin/catalogue-permissions",
+    token,
+    "Matrice des permissions indisponible",
+  );
 }
 
 function buildQuery(query: MembreListQuery): string {
