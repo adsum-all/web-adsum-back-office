@@ -513,7 +513,9 @@ h3 {
 .table-wrap {
   border: 1px solid var(--adsum-line);
   border-radius: var(--adsum-radius-lg);
-  overflow: hidden;
+  /* Wide tables scroll horizontally on narrow screens instead of being clipped. */
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--adsum-panel);
   box-shadow: var(--adsum-shadow-sm);
 }
