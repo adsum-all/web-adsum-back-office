@@ -6,6 +6,7 @@ import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { DemandesAdmin } from "./components/DemandesAdmin.js";
+import { EngagementAdmin } from "./components/EngagementAdmin.js";
 import { Doublons } from "./components/Doublons.js";
 import { Fonctions } from "./components/Fonctions.js";
 import { Niveaux } from "./components/Niveaux.js";
@@ -29,6 +30,7 @@ type Section =
   | "statistiques"
   | "participation"
   | "inscriptions"
+  | "engagement"
   | "demandes"
   | "membres"
   | "doublons"
@@ -56,6 +58,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "statistiques", label: "Statistiques", group: "PILOTAGE", perm: "statistiques.consulter" },
   { id: "participation", label: "Participation & assiduité", group: "PILOTAGE", perm: "participation.consulter" },
   { id: "inscriptions", label: "Inscriptions à valider", group: "MEMBRES", perm: "inscriptions.gerer" },
+  { id: "engagement", label: "Engagement (invitations)", group: "MEMBRES", perm: "inscriptions.gerer" },
   { id: "demandes", label: "Demandes des membres", group: "MEMBRES", perm: "demandes.superviser" },
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES", perm: "membres.consulter" },
   { id: "doublons", label: "Détection de doublons", group: "MEMBRES", perm: "doublons.consulter" },
@@ -216,6 +219,7 @@ export function App(): JSX.Element {
           {activeId === "statistiques" && <Statistiques token={session.token} />}
           {activeId === "participation" && <ParticipationStats token={session.token} />}
           {activeId === "inscriptions" && <Inscriptions token={session.token} />}
+          {activeId === "engagement" && <EngagementAdmin token={session.token} />}
           {activeId === "demandes" && <DemandesAdmin token={session.token} />}
           {activeId === "membres" && <Membres token={session.token} />}
           {activeId === "doublons" && <Doublons token={session.token} />}

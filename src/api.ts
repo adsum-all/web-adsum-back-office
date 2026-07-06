@@ -1333,6 +1333,86 @@ export function getInscriptionCompteurs(token: string): Promise<InscriptionCompt
   return authedGet<InscriptionCompteurs>("/api/v1/admin/inscriptions/compteurs", token, "Compteurs indisponibles");
 }
 
+// --- Engagement (public intake) ---
+export interface EngagementInvitation {
+  id: string;
+  email: string;
+  prenoms: string | null;
+  nom: string | null;
+  telephone: string | null;
+  pays_indicatif: string | null;
+  pays_code: string | null;
+  source: string;
+  statut: string;
+  membre_id: string | null;
+  remerciement_envoye: boolean;
+  cree_le: string | null;
+  converti_le: string | null;
+}
+
+export interface EngagementDashboardData {
+  total: number;
+  par_canal: Record<string, number>;
+  en_attente: number;
+  converti: number;
+}
+
+export interface EngagementConvertResult {
+  convertis: number;
+  details: { id: string; matricule: string }[];
+  ignores: string[];
+  erreurs: { id: string; raison: string }[];
+}
+
+export interface EngagementImportResult {
+  crees: number;
+  doublons: string[];
+  erreurs: { email: string; raison: string }[];
+}
+
+export function getEngagementInvitations(token: string, statut = "en_attente"): Promise<EngagementInvitation[]> {
+  return authedGet<EngagementInvitation[]>(`/api/v1/admin/engagement/invitations?statut=${statut}`, token, "Invitations indisponibles");
+}
+
+export function getEngagementDashboard(token: string): Promise<EngagementDashboardData> {
+  return authedGet<EngagementDashboardData>("/api/v1/admin/engagement/dashboard", token, "Indicateurs indisponibles");
+}
+
+export function createEngagementManuel(
+  token: string,
+  input: { email: string; prenoms?: string | null; nom?: string | null; telephone?: string | null; pays_indicatif?: string | null; pays_code?: string | null },
+): Promise<{ id: string }> {
+  return authedSend("/api/v1/admin/engagement/invitations", token, "POST", input, "Ajout impossible");
+}
+
+export function convertirEngagement(token: string, ids: string[]): Promise<EngagementConvertResult> {
+  return authedSend<EngagementConvertResult>("/api/v1/admin/engagement/convertir", token, "POST", { ids }, "Conversion impossible");
+}
+
+export async function importEngagement(token: string, file: File): Promise<EngagementImportResult> {
+  const form = new FormData();
+  form.append("fichier", file);
+  const res = await fetch(`${BASE}/api/v1/admin/engagement/import`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).detail ?? "Import impossible", res.status);
+  return (await res.json()) as EngagementImportResult;
+}
+
+export async function downloadEngagementTemplate(token: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/admin/engagement/template.xlsx`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new ApiError("Modèle indisponible", res.status);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "modele-engagements.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function decisionInscription(
   token: string,
   membreId: string,
