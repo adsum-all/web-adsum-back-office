@@ -1057,8 +1057,27 @@ export interface GroupeAcces {
   libelle: string;
   description: string | null;
   role_accorde: string;
+  mode: string;
+  permissions: string[];
+  membres_count: number;
   systeme: boolean;
   actif: boolean;
+}
+
+export interface CreateGroupeInput {
+  cle: string;
+  libelle: string;
+  description?: string | null;
+  mode: "role" | "permissions";
+  role_accorde?: string | null;
+  permissions?: string[];
+}
+
+export interface UpdateGroupeInput {
+  libelle?: string;
+  description?: string | null;
+  actif?: boolean;
+  permissions?: string[];
 }
 
 export interface Appartenance {
@@ -1092,8 +1111,21 @@ export interface PerimetresDisponibles {
   tribu: UniteOrg[];
 }
 
-export function getGroupes(token: string): Promise<GroupeAcces[]> {
-  return authedGet<GroupeAcces[]>("/api/v1/admin/groupes", token, "Groupes indisponibles");
+export function getGroupes(token: string, inclureInactifs = false): Promise<GroupeAcces[]> {
+  const q = inclureInactifs ? "?inclure_inactifs=true" : "";
+  return authedGet<GroupeAcces[]>(`/api/v1/admin/groupes${q}`, token, "Groupes indisponibles");
+}
+
+export function createGroupe(token: string, input: CreateGroupeInput): Promise<GroupeAcces> {
+  return authedSend<GroupeAcces>("/api/v1/admin/groupes", token, "POST", input, "Création du groupe impossible");
+}
+
+export function updateGroupe(token: string, groupeId: string, input: UpdateGroupeInput): Promise<GroupeAcces> {
+  return authedSend<GroupeAcces>(`/api/v1/admin/groupes/${groupeId}`, token, "PATCH", input, "Modification du groupe impossible");
+}
+
+export function deleteGroupe(token: string, groupeId: string): Promise<{ supprime: boolean; id: string }> {
+  return authedSend(`/api/v1/admin/groupes/${groupeId}`, token, "DELETE", undefined, "Suppression du groupe impossible");
 }
 
 export function getPerimetresDisponibles(token: string): Promise<PerimetresDisponibles> {
