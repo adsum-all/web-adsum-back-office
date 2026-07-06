@@ -950,6 +950,30 @@ h3 {
     flex-wrap: wrap;
     align-items: center;
   }
+  /* The menu becomes a compact horizontally-scrollable strip instead of a tall
+     wrapping block, so it never pushes the content far down on a phone. */
+  .sidebar nav {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .sidebar .nav-group {
+    display: flex;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+  .sidebar .nav-group-title {
+    display: none;
+  }
+  .sidebar .nav-item {
+    white-space: nowrap;
+  }
+  .sidebar-foot {
+    width: 100%;
+  }
   .form-grid,
   .detail-grid,
   .card-grid-2 {
@@ -957,6 +981,16 @@ h3 {
   }
   .bar-row {
     grid-template-columns: 110px 1fr 40px;
+  }
+  /* Cohort rows: let the label and count shrink and wrap instead of overflowing. */
+  .cohorte-row {
+    flex-wrap: wrap;
+  }
+  .cohorte-label,
+  .cohorte-count {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
 
