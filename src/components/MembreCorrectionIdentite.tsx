@@ -5,6 +5,7 @@ import { ApiError, type MembreProfile, type MembreUpdateInput, updateMembre } fr
 const CHAMPS: { key: keyof MembreUpdateInput; label: string; from: keyof MembreProfile }[] = [
   { key: "nom", label: "Nom de famille", from: "nom" },
   { key: "prenoms", label: "Prénom(s)", from: "prenoms" },
+  { key: "code_membre", label: "Code membre", from: "code_membre" },
   { key: "telephone", label: "Téléphone", from: "telephone" },
   { key: "ville", label: "Ville", from: "ville" },
   { key: "pays", label: "Pays", from: "pays" },
@@ -69,7 +70,7 @@ export function MembreCorrectionIdentite({
             <input
               value={vals[c.key] ?? ""}
               onChange={(e) => setVals((prev) => ({ ...prev, [c.key]: e.target.value }))}
-              style={c.key === "nom" ? { textTransform: "uppercase" } : undefined}
+              style={c.key === "nom" || c.key === "code_membre" ? { textTransform: "uppercase" } : undefined}
             />
           </label>
         ))}

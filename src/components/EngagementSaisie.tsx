@@ -11,7 +11,7 @@ export function EngagementSaisie({ token, onAdded }: { token: string; onAdded?: 
   const [email, setEmail] = useState("");
   const [prenoms, setPrenoms] = useState("");
   const [nom, setNom] = useState("");
-  const [indicatif, setIndicatif] = useState("+225");
+  const [indicatif, setIndicatif] = useState("");
   const [telephone, setTelephone] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

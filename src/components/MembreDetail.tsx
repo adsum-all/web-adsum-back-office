@@ -154,7 +154,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             </p>
           ))}
           <p className="mono muted">
-            {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
+            {m.matricule}{m.code_membre ? ` . Code membre ${m.code_membre}` : ""} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
         </div>
         {photoUrl ? (

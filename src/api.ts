@@ -60,6 +60,7 @@ export interface Me {
 export interface MembreProfile {
   id: string;
   matricule: string;
+  code_membre?: string | null;
   email: string;
   nom: string | null;
   prenoms: string | null;
@@ -149,6 +150,7 @@ export interface MembreCreateInput {
 export interface MembreUpdateInput {
   nom?: string;
   prenoms?: string;
+  code_membre?: string;
   telephone?: string;
   commission_id?: string;
   groupe?: string;
