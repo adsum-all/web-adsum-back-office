@@ -59,8 +59,10 @@ const RISQUE_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
   critique: { bg: "#fbe9ea", fg: "#a01925", label: "risque critique" },
 };
 
+const RISQUE_FALLBACK = { bg: "#fff5e6", fg: "#b8791b", label: "risque moyen" };
+
 function RisqueBadge({ risque }: { risque: string }): JSX.Element {
-  const s = RISQUE_STYLE[risque] ?? RISQUE_STYLE.moyen;
+  const s = RISQUE_STYLE[risque] ?? RISQUE_FALLBACK;
   return (
     <span style={{ background: s.bg, color: s.fg, borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>
       {s.label}
