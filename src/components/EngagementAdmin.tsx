@@ -1,0 +1,118 @@
+import { useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
+
+import { getEngagementDashboard, getEvenements } from "../api.js";
+import { useResource } from "../useResource.js";
+import { EngagementCharts } from "./EngagementCharts.js";
+import { EngagementImport } from "./EngagementImport.js";
+import { EngagementListe } from "./EngagementListe.js";
+import { EngagementSaisie } from "./EngagementSaisie.js";
+import { Tabs } from "./Tabs.js";
+
+const PUBLIC_BASE = "https://adsum-public.pages.dev";
+
+const TABS = [
+  { id: "dashboard", label: "Tableau de bord" },
+  { id: "invitations", label: "Invitations" },
+  { id: "saisie", label: "Saisie manuelle" },
+  { id: "import", label: "Import Excel" },
+  { id: "qr", label: "QR d'engagement" },
+];
+
+function DashboardTab({ token, tick }: { token: string; tick: number }): JSX.Element {
+  const d = useResource(() => getEngagementDashboard(token), [token, tick]);
+  const data = d.data;
+  const cartes = [
+    { label: "Total", value: data?.total ?? 0 },
+    { label: "En attente", value: data?.en_attente ?? 0 },
+    { label: "Convertis en membres", value: data?.converti ?? 0 },
+  ];
+  return (
+    <div>
+      {d.error && <p className="banner banner-error">{d.error}</p>}
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
+        {cartes.map((c) => (
+          <div key={c.label} className="form-card" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 30, fontWeight: 700, color: "#2a4fad" }}>{c.value}</div>
+            <div className="muted small">{c.label}</div>
+          </div>
+        ))}
+      </div>
+      {data && <EngagementCharts data={data} />}
+    </div>
+  );
+}
+
+function QrTab({ token }: { token: string }): JSX.Element {
+  const evenements = useResource(() => getEvenements(token), [token]);
+  const [eventId, setEventId] = useState("");
+  const ref = useRef<HTMLCanvasElement>(null);
+  const url = `${PUBLIC_BASE}/?engage=${encodeURIComponent(eventId.trim())}`;
+  const choisi = (evenements.data ?? []).find((e) => e.id === eventId);
+  useEffect(() => {
+    if (ref.current) void QRCode.toCanvas(ref.current, url, { width: 240, margin: 1 });
+  }, [url]);
+
+  function dateEv(iso: string): string {
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  return (
+    <section className="form-card">
+      <h2 className="section-title">QR « Je m&apos;engage »</h2>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Affichez ce QR lors d&apos;un événement public : en le scannant, une personne ouvre le formulaire
+        d&apos;engagement. Il est distinct du QR de comptage. Rattachez-le à une activité pour savoir à quel
+        événement chaque invitation correspond.
+      </p>
+      <label className="form-field" style={{ maxWidth: 480 }}>
+        <span>Activité rattachée</span>
+        <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
+          <option value="">Aucune activité (QR général)</option>
+          {(evenements.data ?? []).map((e) => (
+            <option key={e.id} value={e.id}>{e.titre} ({dateEv(e.debut)}{e.lieu ? `, ${e.lieu}` : ""})</option>
+          ))}
+        </select>
+      </label>
+      {evenements.error && <p className="banner banner-error">{evenements.error}</p>}
+      <div style={{ marginTop: 14, textAlign: "center" }}>
+        {choisi && <p className="muted small">Invitations rattachées à : <strong>{choisi.titre}</strong></p>}
+        <canvas ref={ref} style={{ borderRadius: 12, border: "1px solid var(--adsum-line)", background: "#fff", padding: 8 }} />
+        <p className="mono muted small" style={{ wordBreak: "break-all", marginTop: 6 }}>{url}</p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * "Engagement" page: capture and process people who express interest at public
+ * events. Tabs follow the workflow: dashboard indicators, pending invitations with
+ * bulk conversion, manual quick-entry, Excel import, and the engagement QR to show.
+ */
+export function EngagementAdmin({ token }: { token: string }): JSX.Element {
+  const [tab, setTab] = useState("dashboard");
+  const [tick, setTick] = useState(0);
+  const refresh = (): void => setTick((t) => t + 1);
+
+  return (
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>Engagement</h1>
+          <p className="muted">
+            Les personnes qui expriment leur souhait de s&apos;engager lors d&apos;un événement public. Distinctes des
+            membres : une équipe les convertit ensuite en comptes membres.
+          </p>
+        </div>
+      </header>
+
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+
+      {tab === "dashboard" && <DashboardTab token={token} tick={tick} />}
+      {tab === "invitations" && <EngagementListe token={token} onConverted={refresh} />}
+      {tab === "saisie" && <EngagementSaisie token={token} onAdded={refresh} />}
+      {tab === "import" && <EngagementImport token={token} onImported={refresh} />}
+      {tab === "qr" && <QrTab token={token} />}
+    </div>
+  );
+}

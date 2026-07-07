@@ -1,32 +1,59 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ApiError,
   type Coordination,
+  type CoordinationInput,
   type Intendance,
+  type IntendanceInput,
   createCoordination,
   createIntendance,
   getCoordinations,
   getIntendances,
+  updateCoordination,
+  updateIntendance,
 } from "../api.js";
+import { CONTINENTS, nomPays } from "../countries.js";
 import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
+import { PaysCombo } from "./PaysCombo.js";
 
 /**
  * Coordinations and intendances: two independent structures of the same level.
- * Neither requires the other. A parent link (coordination over coordination,
- * intendance over intendance, or an intendance attached to a coordination) is
- * offered only behind an explicit toggle, never imposed by default.
+ * Neither requires the other. Each carries a real descriptive and geographic
+ * identity (description, country, continent, city, status), not just a name. A
+ * parent link (coordination over coordination, intendance over intendance, or an
+ * intendance attached to a coordination) is offered only behind an explicit
+ * toggle, never imposed by default.
  */
 export function Organisation({ token }: { token: string }): JSX.Element {
   const coordinations = useResource(() => getCoordinations(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const [error, setError] = useState<string | null>(null);
+  const [editCoord, setEditCoord] = useState<string | null>(null);
+  const [editIntend, setEditIntend] = useState<string | null>(null);
+  const [qCoord, setQCoord] = useState("");
+  const [qIntend, setQIntend] = useState("");
+  const [filtrePays, setFiltrePays] = useState("");
 
-  function guard<T>(p: Promise<T>, reload: () => void): void {
+  function guard<T>(p: Promise<T>, reload: () => void, done?: () => void): void {
     setError(null);
-    p.then(reload).catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Erreur réseau"));
+    p.then(() => {
+      reload();
+      done?.();
+    }).catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Erreur réseau"));
   }
+
+  const coords = coordinations.data ?? [];
+  const coordsVisibles = useMemo(
+    () => coords.filter((c) => match(c.nom, qCoord)),
+    [coords, qCoord],
+  );
+  const intends = intendances.data ?? [];
+  const intendsVisibles = useMemo(
+    () => intends.filter((i) => match(i.nom, qIntend) && (!filtrePays || i.pays_code === filtrePays)),
+    [intends, qIntend, filtrePays],
+  );
 
   return (
     <div className="page">
@@ -44,84 +71,201 @@ export function Organisation({ token }: { token: string }): JSX.Element {
       <section className="card">
         <h2 className="card-title">Coordinations</h2>
         <CoordinationForm
-          coordinations={coordinations.data ?? []}
-          onSubmit={(input) => guard(createCoordination(token, input), coordinations.reload)}
+          coordinations={coords}
+          submitLabel="+ Ajouter"
+          onSubmit={(input) => guard(createCoordination(token, { ...input, nom: input.nom ?? "" }), coordinations.reload)}
         />
+        <div className="toolbar" style={{ marginTop: 8 }}>
+          <input className="search" placeholder="Rechercher une coordination" value={qCoord} onChange={(e) => setQCoord(e.target.value)} />
+        </div>
         <ul className="list">
-          {(coordinations.data ?? []).map((c) => (
-            <OrgItemRow
-              key={c.id}
-              token={token}
-              entity="coordinations"
-              id={c.id}
-              nom={c.nom}
-              meta={[c.description ?? "", c.parent ? `dans ${c.parent}` : ""].filter(Boolean).join(" · ") || undefined}
-              publie={c.publie}
-              onChanged={coordinations.reload}
-            />
-          ))}
+          {coordsVisibles.map((c) =>
+            editCoord === c.id ? (
+              <li key={c.id} className="list-item">
+                <CoordinationForm
+                  coordinations={coords.filter((x) => x.id !== c.id)}
+                  initial={c}
+                  submitLabel="Enregistrer"
+                  onCancel={() => setEditCoord(null)}
+                  onSubmit={(input) => guard(updateCoordination(token, c.id, input), coordinations.reload, () => setEditCoord(null))}
+                />
+              </li>
+            ) : (
+              <OrgItemRow
+                key={c.id}
+                token={token}
+                entity="coordinations"
+                id={c.id}
+                nom={c.nom}
+                meta={coordMeta(c)}
+                publie={c.publie}
+                onEdit={() => setEditCoord(c.id)}
+                onChanged={coordinations.reload}
+              />
+            ),
+          )}
         </ul>
       </section>
 
       <section className="card">
         <h2 className="card-title">Intendances</h2>
         <IntendanceForm
-          coordinations={coordinations.data ?? []}
-          intendances={intendances.data ?? []}
-          onSubmit={(input) => guard(createIntendance(token, input), intendances.reload)}
+          coordinations={coords}
+          intendances={intends}
+          submitLabel="+ Ajouter"
+          onSubmit={(input) => guard(createIntendance(token, { ...input, nom: input.nom ?? "" }), intendances.reload)}
         />
+        <div className="toolbar" style={{ marginTop: 8 }}>
+          <input className="search" placeholder="Rechercher une intendance" value={qIntend} onChange={(e) => setQIntend(e.target.value)} />
+          <PaysCombo value={filtrePays} onChange={setFiltrePays} placeholder="Filtrer par pays" />
+        </div>
         <ul className="list">
-          {(intendances.data ?? []).map((i) => (
-            <OrgItemRow
-              key={i.id}
-              token={token}
-              entity="intendances"
-              id={i.id}
-              nom={i.nom}
-              meta={
-                [
-                  [i.ville, i.pays].filter(Boolean).join(", "),
-                  i.coordination ? `Coordination ${i.coordination}` : "",
-                  i.parent ? `dans ${i.parent}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ") || undefined
-              }
-              publie={i.publie}
-              onChanged={intendances.reload}
-            />
-          ))}
+          {intendsVisibles.map((i) =>
+            editIntend === i.id ? (
+              <li key={i.id} className="list-item">
+                <IntendanceForm
+                  coordinations={coords}
+                  intendances={intends.filter((x) => x.id !== i.id)}
+                  initial={i}
+                  submitLabel="Enregistrer"
+                  onCancel={() => setEditIntend(null)}
+                  onSubmit={(input) => guard(updateIntendance(token, i.id, input), intendances.reload, () => setEditIntend(null))}
+                />
+              </li>
+            ) : (
+              <OrgItemRow
+                key={i.id}
+                token={token}
+                entity="intendances"
+                id={i.id}
+                nom={i.nom}
+                meta={intendMeta(i)}
+                publie={i.publie}
+                onEdit={() => setEditIntend(i.id)}
+                onChanged={intendances.reload}
+              />
+            ),
+          )}
         </ul>
       </section>
     </div>
   );
 }
 
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+function match(nom: string, query: string): boolean {
+  const q = norm(query.trim());
+  return !q || norm(nom).includes(q);
+}
+
+function coordMeta(c: Coordination): string | undefined {
+  return (
+    [
+      c.description ?? "",
+      [c.ville, nomPays(c.pays_code) ?? c.pays, c.continent].filter(Boolean).join(", "),
+      c.responsable ? `${c.responsable_titre ?? "Coordinateur"} : ${c.responsable}` : "",
+      c.parent ? `dans ${c.parent}` : "",
+      c.statut === "archive" ? "archivé" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined
+  );
+}
+
+function intendMeta(i: Intendance): string | undefined {
+  return (
+    [
+      i.description ?? "",
+      [i.ville, nomPays(i.pays_code) ?? i.pays, i.continent].filter(Boolean).join(", "),
+      i.responsable ? `${i.responsable_titre ?? "Intendant"} : ${i.responsable}` : "",
+      i.coordination ? `Coordination ${i.coordination}` : "",
+      i.parent ? `dans ${i.parent}` : "",
+      i.statut === "archive" ? "archivé" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined
+  );
+}
+
+
+function ContinentSelect({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
+  return (
+    <select className="search" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Continent">
+      <option value="">Continent (facultatif)</option>
+      {CONTINENTS.map((c) => (
+        <option key={c} value={c}>{c}</option>
+      ))}
+    </select>
+  );
+}
+
 function CoordinationForm({
   coordinations,
   onSubmit,
+  initial,
+  submitLabel,
+  onCancel,
 }: {
   coordinations: Coordination[];
-  onSubmit: (input: { nom: string; parent_id?: string }) => void;
+  onSubmit: (input: CoordinationInput) => void;
+  initial?: Coordination;
+  submitLabel: string;
+  onCancel?: () => void;
 }): JSX.Element {
-  const [nom, setNom] = useState("");
-  const [lie, setLie] = useState(false);
-  const [parentId, setParentId] = useState("");
+  const [nom, setNom] = useState(initial?.nom ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [paysCode, setPaysCode] = useState(initial?.pays_code ?? "");
+  const [continent, setContinent] = useState(initial?.continent ?? "");
+  const [ville, setVille] = useState(initial?.ville ?? "");
+  const [statut, setStatut] = useState(initial?.statut ?? "actif");
+  const [lie, setLie] = useState(Boolean(initial?.parent_id));
+  const [parentId, setParentId] = useState(initial?.parent_id ?? "");
 
   return (
     <form
       className="toolbar"
-      style={{ flexWrap: "wrap", alignItems: "center" }}
+      style={{ flexWrap: "wrap", alignItems: "center", gap: 8 }}
       onSubmit={(e) => {
         e.preventDefault();
         if (!nom.trim()) return;
-        onSubmit({ nom: nom.trim(), parent_id: lie ? parentId || undefined : undefined });
-        setNom("");
-        setLie(false);
-        setParentId("");
+        onSubmit({
+          nom: nom.trim(),
+          // Send null (not undefined) so an edit can clear a value; detaching a
+          // parent must actually remove the link.
+          description: description.trim() || null,
+          pays_code: paysCode || null,
+          continent: continent || null,
+          ville: ville.trim() || null,
+          statut,
+          parent_id: lie && parentId ? parentId : null,
+        });
+        if (!initial) {
+          setNom("");
+          setDescription("");
+          setPaysCode("");
+          setContinent("");
+          setVille("");
+          setStatut("actif");
+          setLie(false);
+          setParentId("");
+        }
       }}
     >
       <input className="search" placeholder="Nom de la coordination" value={nom} onChange={(e) => setNom(e.target.value)} />
+      <input className="search" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <PaysCombo value={paysCode} onChange={setPaysCode} />
+      <ContinentSelect value={continent} onChange={setContinent} />
+      <input className="search" placeholder="Ville (facultatif)" value={ville} onChange={(e) => setVille(e.target.value)} />
+      <select className="search" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Statut">
+        <option value="actif">Actif</option>
+        <option value="archive">Archivé</option>
+      </select>
       <label className="check" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <input type="checkbox" checked={lie} onChange={(e) => setLie(e.target.checked)} />
         Rattacher à une coordination parente
@@ -134,7 +278,10 @@ function CoordinationForm({
           ))}
         </select>
       )}
-      <button type="submit" className="btn btn-primary btn-inline">+ Ajouter</button>
+      <button type="submit" className="btn btn-primary btn-inline">{submitLabel}</button>
+      {onCancel && (
+        <button type="button" className="btn btn-inline" onClick={onCancel}>Annuler</button>
+      )}
     </form>
   );
 }
@@ -143,46 +290,72 @@ function IntendanceForm({
   coordinations,
   intendances,
   onSubmit,
+  initial,
+  submitLabel,
+  onCancel,
 }: {
   coordinations: Coordination[];
   intendances: Intendance[];
-  onSubmit: (input: { nom: string; pays?: string; ville?: string; coordination_id?: string; parent_id?: string }) => void;
+  onSubmit: (input: IntendanceInput) => void;
+  initial?: Intendance;
+  submitLabel: string;
+  onCancel?: () => void;
 }): JSX.Element {
-  const [nom, setNom] = useState("");
-  const [pays, setPays] = useState("");
-  const [ville, setVille] = useState("");
-  const [lie, setLie] = useState(false);
-  const [coordinationId, setCoordinationId] = useState("");
-  const [parentId, setParentId] = useState("");
+  const [nom, setNom] = useState(initial?.nom ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [paysCode, setPaysCode] = useState(initial?.pays_code ?? "");
+  const [continent, setContinent] = useState(initial?.continent ?? "");
+  const [ville, setVille] = useState(initial?.ville ?? "");
+  const [statut, setStatut] = useState(initial?.statut ?? "actif");
+  const [lie, setLie] = useState(Boolean(initial?.coordination_id || initial?.parent_id));
+  const [coordinationId, setCoordinationId] = useState(initial?.coordination_id ?? "");
+  const [parentId, setParentId] = useState(initial?.parent_id ?? "");
 
   return (
     <form
       className="toolbar"
-      style={{ flexWrap: "wrap", alignItems: "center" }}
+      style={{ flexWrap: "wrap", alignItems: "center", gap: 8 }}
       onSubmit={(e) => {
         e.preventDefault();
         if (!nom.trim()) return;
         onSubmit({
           nom: nom.trim(),
-          pays: pays.trim() || undefined,
-          ville: ville.trim() || undefined,
-          coordination_id: lie ? coordinationId || undefined : undefined,
-          parent_id: lie ? parentId || undefined : undefined,
+          // Send null (not undefined) so an edit can clear a value; detaching
+          // the coordination or the parent intendance must remove the link.
+          description: description.trim() || null,
+          pays_code: paysCode || null,
+          pays: paysCode ? nomPays(paysCode) : null,
+          continent: continent || null,
+          ville: ville.trim() || null,
+          statut,
+          coordination_id: lie && coordinationId ? coordinationId : null,
+          parent_id: lie && parentId ? parentId : null,
         });
-        setNom("");
-        setPays("");
-        setVille("");
-        setLie(false);
-        setCoordinationId("");
-        setParentId("");
+        if (!initial) {
+          setNom("");
+          setDescription("");
+          setPaysCode("");
+          setContinent("");
+          setVille("");
+          setStatut("actif");
+          setLie(false);
+          setCoordinationId("");
+          setParentId("");
+        }
       }}
     >
       <input className="search" placeholder="Nom de l'intendance" value={nom} onChange={(e) => setNom(e.target.value)} />
-      <input className="search" placeholder="Pays" value={pays} onChange={(e) => setPays(e.target.value)} />
-      <input className="search" placeholder="Ville" value={ville} onChange={(e) => setVille(e.target.value)} />
+      <input className="search" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <PaysCombo value={paysCode} onChange={setPaysCode} />
+      <ContinentSelect value={continent} onChange={setContinent} />
+      <input className="search" placeholder="Ville (facultatif)" value={ville} onChange={(e) => setVille(e.target.value)} />
+      <select className="search" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Statut">
+        <option value="actif">Actif</option>
+        <option value="archive">Archivé</option>
+      </select>
       <label className="check" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <input type="checkbox" checked={lie} onChange={(e) => setLie(e.target.checked)} />
-        Rattacher à une structure parente (facultatif)
+        Rattacher à une structure (facultatif)
       </label>
       {lie && (
         <>
@@ -200,7 +373,10 @@ function IntendanceForm({
           </select>
         </>
       )}
-      <button type="submit" className="btn btn-primary btn-inline">+ Ajouter</button>
+      <button type="submit" className="btn btn-primary btn-inline">{submitLabel}</button>
+      {onCancel && (
+        <button type="button" className="btn btn-inline" onClick={onCancel}>Annuler</button>
+      )}
     </form>
   );
 }

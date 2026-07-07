@@ -3,6 +3,7 @@ import { useState } from "react";
 import { getMembres } from "../api.js";
 import { civilName } from "../format.js";
 import { useResource } from "../useResource.js";
+import { AnnuairePanel } from "./AnnuairePanel.js";
 import { MembreDetail } from "./MembreDetail.js";
 import { MembreForm } from "./MembreForm.js";
 
@@ -12,6 +13,9 @@ export function Membres({ token }: { token: string }): JSX.Element {
   const [view, setView] = useState<View>({ kind: "list" });
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
+  // The directory drawer lives at the container level so it stays mounted (and keeps
+  // its search, filters and scroll) while the detail below reloads on a profile switch.
+  const [annuaireOpen, setAnnuaireOpen] = useState(false);
   const membres = useResource(() => getMembres(token, { q: query || undefined, limit: 200 }), [token, query]);
 
   if (view.kind === "create") {
@@ -29,14 +33,25 @@ export function Membres({ token }: { token: string }): JSX.Element {
 
   if (view.kind === "detail") {
     return (
-      <MembreDetail
-        token={token}
-        id={view.id}
-        onBack={() => {
-          setView({ kind: "list" });
-          membres.reload();
-        }}
-      />
+      <>
+        <MembreDetail
+          token={token}
+          id={view.id}
+          onBack={() => {
+            setAnnuaireOpen(false);
+            setView({ kind: "list" });
+            membres.reload();
+          }}
+          onOpenAnnuaire={() => setAnnuaireOpen(true)}
+        />
+        <AnnuairePanel
+          token={token}
+          currentId={view.id}
+          open={annuaireOpen}
+          onClose={() => setAnnuaireOpen(false)}
+          onSelect={(nid) => setView({ kind: "detail", id: nid })}
+        />
+      </>
     );
   }
 

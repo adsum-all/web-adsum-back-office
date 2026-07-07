@@ -1,0 +1,242 @@
+// Country reference for the international membership: French country names and
+// E.164 dialling codes. Used by the registration form for a searchable country
+// selector and an independent phone dialling-code selector (a member may live in
+// one country and use a number from another). Sorted alphabetically by name.
+
+export interface Pays {
+  code: string; // ISO 3166-1 alpha-2
+  nom: string; // French name
+  indicatif: string; // E.164 dialling code, e.g. "+33"
+}
+
+const RAW: Pays[] = [
+  { code: "AF", nom: "Afghanistan", indicatif: "+93" },
+  { code: "ZA", nom: "Afrique du Sud", indicatif: "+27" },
+  { code: "AL", nom: "Albanie", indicatif: "+355" },
+  { code: "DZ", nom: "Algérie", indicatif: "+213" },
+  { code: "DE", nom: "Allemagne", indicatif: "+49" },
+  { code: "AD", nom: "Andorre", indicatif: "+376" },
+  { code: "AO", nom: "Angola", indicatif: "+244" },
+  { code: "AG", nom: "Antigua-et-Barbuda", indicatif: "+1268" },
+  { code: "SA", nom: "Arabie saoudite", indicatif: "+966" },
+  { code: "AR", nom: "Argentine", indicatif: "+54" },
+  { code: "AM", nom: "Arménie", indicatif: "+374" },
+  { code: "AU", nom: "Australie", indicatif: "+61" },
+  { code: "AT", nom: "Autriche", indicatif: "+43" },
+  { code: "AZ", nom: "Azerbaïdjan", indicatif: "+994" },
+  { code: "BS", nom: "Bahamas", indicatif: "+1242" },
+  { code: "BH", nom: "Bahreïn", indicatif: "+973" },
+  { code: "BD", nom: "Bangladesh", indicatif: "+880" },
+  { code: "BB", nom: "Barbade", indicatif: "+1246" },
+  { code: "BE", nom: "Belgique", indicatif: "+32" },
+  { code: "BZ", nom: "Belize", indicatif: "+501" },
+  { code: "BJ", nom: "Bénin", indicatif: "+229" },
+  { code: "BT", nom: "Bhoutan", indicatif: "+975" },
+  { code: "BY", nom: "Biélorussie", indicatif: "+375" },
+  { code: "MM", nom: "Birmanie (Myanmar)", indicatif: "+95" },
+  { code: "BO", nom: "Bolivie", indicatif: "+591" },
+  { code: "BA", nom: "Bosnie-Herzégovine", indicatif: "+387" },
+  { code: "BW", nom: "Botswana", indicatif: "+267" },
+  { code: "BR", nom: "Brésil", indicatif: "+55" },
+  { code: "BN", nom: "Brunei", indicatif: "+673" },
+  { code: "BG", nom: "Bulgarie", indicatif: "+359" },
+  { code: "BF", nom: "Burkina Faso", indicatif: "+226" },
+  { code: "BI", nom: "Burundi", indicatif: "+257" },
+  { code: "KH", nom: "Cambodge", indicatif: "+855" },
+  { code: "CM", nom: "Cameroun", indicatif: "+237" },
+  { code: "CA", nom: "Canada", indicatif: "+1" },
+  { code: "CV", nom: "Cap-Vert", indicatif: "+238" },
+  { code: "CL", nom: "Chili", indicatif: "+56" },
+  { code: "CN", nom: "Chine", indicatif: "+86" },
+  { code: "CY", nom: "Chypre", indicatif: "+357" },
+  { code: "CO", nom: "Colombie", indicatif: "+57" },
+  { code: "KM", nom: "Comores", indicatif: "+269" },
+  { code: "CG", nom: "Congo-Brazzaville", indicatif: "+242" },
+  { code: "CD", nom: "Congo-Kinshasa (RDC)", indicatif: "+243" },
+  { code: "KR", nom: "Corée du Sud", indicatif: "+82" },
+  { code: "KP", nom: "Corée du Nord", indicatif: "+850" },
+  { code: "CR", nom: "Costa Rica", indicatif: "+506" },
+  { code: "CI", nom: "Côte d'Ivoire", indicatif: "+225" },
+  { code: "HR", nom: "Croatie", indicatif: "+385" },
+  { code: "CU", nom: "Cuba", indicatif: "+53" },
+  { code: "DK", nom: "Danemark", indicatif: "+45" },
+  { code: "DJ", nom: "Djibouti", indicatif: "+253" },
+  { code: "DM", nom: "Dominique", indicatif: "+1767" },
+  { code: "EG", nom: "Égypte", indicatif: "+20" },
+  { code: "AE", nom: "Émirats arabes unis", indicatif: "+971" },
+  { code: "EC", nom: "Équateur", indicatif: "+593" },
+  { code: "ER", nom: "Érythrée", indicatif: "+291" },
+  { code: "ES", nom: "Espagne", indicatif: "+34" },
+  { code: "EE", nom: "Estonie", indicatif: "+372" },
+  { code: "SZ", nom: "Eswatini", indicatif: "+268" },
+  { code: "US", nom: "États-Unis", indicatif: "+1" },
+  { code: "ET", nom: "Éthiopie", indicatif: "+251" },
+  { code: "FJ", nom: "Fidji", indicatif: "+679" },
+  { code: "FI", nom: "Finlande", indicatif: "+358" },
+  { code: "FR", nom: "France", indicatif: "+33" },
+  { code: "GA", nom: "Gabon", indicatif: "+241" },
+  { code: "GM", nom: "Gambie", indicatif: "+220" },
+  { code: "GE", nom: "Géorgie", indicatif: "+995" },
+  { code: "GH", nom: "Ghana", indicatif: "+233" },
+  { code: "GR", nom: "Grèce", indicatif: "+30" },
+  { code: "GD", nom: "Grenade", indicatif: "+1473" },
+  { code: "GT", nom: "Guatemala", indicatif: "+502" },
+  { code: "GN", nom: "Guinée", indicatif: "+224" },
+  { code: "GW", nom: "Guinée-Bissau", indicatif: "+245" },
+  { code: "GQ", nom: "Guinée équatoriale", indicatif: "+240" },
+  { code: "GY", nom: "Guyana", indicatif: "+592" },
+  { code: "HT", nom: "Haïti", indicatif: "+509" },
+  { code: "HN", nom: "Honduras", indicatif: "+504" },
+  { code: "HU", nom: "Hongrie", indicatif: "+36" },
+  { code: "IN", nom: "Inde", indicatif: "+91" },
+  { code: "ID", nom: "Indonésie", indicatif: "+62" },
+  { code: "IQ", nom: "Irak", indicatif: "+964" },
+  { code: "IR", nom: "Iran", indicatif: "+98" },
+  { code: "IE", nom: "Irlande", indicatif: "+353" },
+  { code: "IS", nom: "Islande", indicatif: "+354" },
+  { code: "IL", nom: "Israël", indicatif: "+972" },
+  { code: "IT", nom: "Italie", indicatif: "+39" },
+  { code: "JM", nom: "Jamaïque", indicatif: "+1876" },
+  { code: "JP", nom: "Japon", indicatif: "+81" },
+  { code: "JO", nom: "Jordanie", indicatif: "+962" },
+  { code: "KZ", nom: "Kazakhstan", indicatif: "+7" },
+  { code: "KE", nom: "Kenya", indicatif: "+254" },
+  { code: "KG", nom: "Kirghizistan", indicatif: "+996" },
+  { code: "KI", nom: "Kiribati", indicatif: "+686" },
+  { code: "KW", nom: "Koweït", indicatif: "+965" },
+  { code: "LA", nom: "Laos", indicatif: "+856" },
+  { code: "LS", nom: "Lesotho", indicatif: "+266" },
+  { code: "LV", nom: "Lettonie", indicatif: "+371" },
+  { code: "LB", nom: "Liban", indicatif: "+961" },
+  { code: "LR", nom: "Libéria", indicatif: "+231" },
+  { code: "LY", nom: "Libye", indicatif: "+218" },
+  { code: "LI", nom: "Liechtenstein", indicatif: "+423" },
+  { code: "LT", nom: "Lituanie", indicatif: "+370" },
+  { code: "LU", nom: "Luxembourg", indicatif: "+352" },
+  { code: "MK", nom: "Macédoine du Nord", indicatif: "+389" },
+  { code: "MG", nom: "Madagascar", indicatif: "+261" },
+  { code: "MY", nom: "Malaisie", indicatif: "+60" },
+  { code: "MW", nom: "Malawi", indicatif: "+265" },
+  { code: "MV", nom: "Maldives", indicatif: "+960" },
+  { code: "ML", nom: "Mali", indicatif: "+223" },
+  { code: "MT", nom: "Malte", indicatif: "+356" },
+  { code: "MA", nom: "Maroc", indicatif: "+212" },
+  { code: "MH", nom: "Îles Marshall", indicatif: "+692" },
+  { code: "MU", nom: "Maurice", indicatif: "+230" },
+  { code: "MR", nom: "Mauritanie", indicatif: "+222" },
+  { code: "MX", nom: "Mexique", indicatif: "+52" },
+  { code: "FM", nom: "Micronésie", indicatif: "+691" },
+  { code: "MD", nom: "Moldavie", indicatif: "+373" },
+  { code: "MC", nom: "Monaco", indicatif: "+377" },
+  { code: "MN", nom: "Mongolie", indicatif: "+976" },
+  { code: "ME", nom: "Monténégro", indicatif: "+382" },
+  { code: "MZ", nom: "Mozambique", indicatif: "+258" },
+  { code: "NA", nom: "Namibie", indicatif: "+264" },
+  { code: "NR", nom: "Nauru", indicatif: "+674" },
+  { code: "NP", nom: "Népal", indicatif: "+977" },
+  { code: "NI", nom: "Nicaragua", indicatif: "+505" },
+  { code: "NE", nom: "Niger", indicatif: "+227" },
+  { code: "NG", nom: "Nigéria", indicatif: "+234" },
+  { code: "NO", nom: "Norvège", indicatif: "+47" },
+  { code: "NZ", nom: "Nouvelle-Zélande", indicatif: "+64" },
+  { code: "OM", nom: "Oman", indicatif: "+968" },
+  { code: "UG", nom: "Ouganda", indicatif: "+256" },
+  { code: "UZ", nom: "Ouzbékistan", indicatif: "+998" },
+  { code: "PK", nom: "Pakistan", indicatif: "+92" },
+  { code: "PW", nom: "Palaos", indicatif: "+680" },
+  { code: "PS", nom: "Palestine", indicatif: "+970" },
+  { code: "PA", nom: "Panama", indicatif: "+507" },
+  { code: "PG", nom: "Papouasie-Nouvelle-Guinée", indicatif: "+675" },
+  { code: "PY", nom: "Paraguay", indicatif: "+595" },
+  { code: "NL", nom: "Pays-Bas", indicatif: "+31" },
+  { code: "PE", nom: "Pérou", indicatif: "+51" },
+  { code: "PH", nom: "Philippines", indicatif: "+63" },
+  { code: "PL", nom: "Pologne", indicatif: "+48" },
+  { code: "PT", nom: "Portugal", indicatif: "+351" },
+  { code: "QA", nom: "Qatar", indicatif: "+974" },
+  { code: "CF", nom: "République centrafricaine", indicatif: "+236" },
+  { code: "DO", nom: "République dominicaine", indicatif: "+1809" },
+  { code: "CZ", nom: "République tchèque", indicatif: "+420" },
+  { code: "RO", nom: "Roumanie", indicatif: "+40" },
+  { code: "GB", nom: "Royaume-Uni", indicatif: "+44" },
+  { code: "RU", nom: "Russie", indicatif: "+7" },
+  { code: "RW", nom: "Rwanda", indicatif: "+250" },
+  { code: "KN", nom: "Saint-Christophe-et-Niévès", indicatif: "+1869" },
+  { code: "SM", nom: "Saint-Marin", indicatif: "+378" },
+  { code: "VC", nom: "Saint-Vincent-et-les-Grenadines", indicatif: "+1784" },
+  { code: "LC", nom: "Sainte-Lucie", indicatif: "+1758" },
+  { code: "SB", nom: "Îles Salomon", indicatif: "+677" },
+  { code: "SV", nom: "Salvador", indicatif: "+503" },
+  { code: "WS", nom: "Samoa", indicatif: "+685" },
+  { code: "ST", nom: "Sao Tomé-et-Principe", indicatif: "+239" },
+  { code: "SN", nom: "Sénégal", indicatif: "+221" },
+  { code: "RS", nom: "Serbie", indicatif: "+381" },
+  { code: "SC", nom: "Seychelles", indicatif: "+248" },
+  { code: "SL", nom: "Sierra Leone", indicatif: "+232" },
+  { code: "SG", nom: "Singapour", indicatif: "+65" },
+  { code: "SK", nom: "Slovaquie", indicatif: "+421" },
+  { code: "SI", nom: "Slovénie", indicatif: "+386" },
+  { code: "SO", nom: "Somalie", indicatif: "+252" },
+  { code: "SD", nom: "Soudan", indicatif: "+249" },
+  { code: "SS", nom: "Soudan du Sud", indicatif: "+211" },
+  { code: "LK", nom: "Sri Lanka", indicatif: "+94" },
+  { code: "SE", nom: "Suède", indicatif: "+46" },
+  { code: "CH", nom: "Suisse", indicatif: "+41" },
+  { code: "SR", nom: "Suriname", indicatif: "+597" },
+  { code: "SY", nom: "Syrie", indicatif: "+963" },
+  { code: "TJ", nom: "Tadjikistan", indicatif: "+992" },
+  { code: "TZ", nom: "Tanzanie", indicatif: "+255" },
+  { code: "TD", nom: "Tchad", indicatif: "+235" },
+  { code: "TH", nom: "Thaïlande", indicatif: "+66" },
+  { code: "TL", nom: "Timor oriental", indicatif: "+670" },
+  { code: "TG", nom: "Togo", indicatif: "+228" },
+  { code: "TO", nom: "Tonga", indicatif: "+676" },
+  { code: "TT", nom: "Trinité-et-Tobago", indicatif: "+1868" },
+  { code: "TN", nom: "Tunisie", indicatif: "+216" },
+  { code: "TM", nom: "Turkménistan", indicatif: "+993" },
+  { code: "TR", nom: "Turquie", indicatif: "+90" },
+  { code: "TV", nom: "Tuvalu", indicatif: "+688" },
+  { code: "UA", nom: "Ukraine", indicatif: "+380" },
+  { code: "UY", nom: "Uruguay", indicatif: "+598" },
+  { code: "VU", nom: "Vanuatu", indicatif: "+678" },
+  { code: "VA", nom: "Vatican", indicatif: "+379" },
+  { code: "VE", nom: "Venezuela", indicatif: "+58" },
+  { code: "VN", nom: "Viêt Nam", indicatif: "+84" },
+  { code: "YE", nom: "Yémen", indicatif: "+967" },
+  { code: "ZM", nom: "Zambie", indicatif: "+260" },
+  { code: "ZW", nom: "Zimbabwe", indicatif: "+263" },
+];
+
+/** All countries sorted alphabetically by French name (locale-aware). */
+export const PAYS: Pays[] = [...RAW].sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+
+/** Continents, as a reference list for the structure location. Chosen explicitly
+ * by the administrator (a full country-to-continent mapping is deliberately not
+ * hardcoded here), so the value stays reliable without a heavy lookup table. */
+export const CONTINENTS = ["Afrique", "Amérique", "Asie", "Europe", "Océanie", "Antarctique"] as const;
+
+/** French display name for an ISO 3166-1 alpha-2 country code, or the code itself. */
+export function nomPays(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const found = PAYS.find((p) => p.code === code);
+  return found ? found.nom : code;
+}
+
+/** Filter countries by a case/accent-insensitive query on the name or dialling code. */
+export function filtrerPays(query: string): Pays[] {
+  const q = normalize(query);
+  if (!q) return PAYS;
+  return PAYS.filter((p) => normalize(p.nom).includes(q) || p.indicatif.includes(q));
+}
+
+export function indicatifPour(nomPays: string): string | null {
+  const found = PAYS.find((p) => p.nom === nomPays);
+  return found ? found.indicatif : null;
+}
+
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}

@@ -6,12 +6,15 @@ import {
   createMembre,
   getBergers,
   getCommissions,
+  getCoordinations,
   getIntendances,
   getNiveaux,
   getTribus,
 } from "../api.js";
+import { PAYS as PAYS_REF } from "../countries.js";
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
+import { PaysCombo } from "./PaysCombo.js";
 
 const TYPE_MEMBRE: [string, string][] = [
   ["Membre simple", "membre_simple"],
@@ -42,11 +45,10 @@ interface MembreFormProps {
   onCancel: () => void;
 }
 
-const PAYS = [
-  { label: "Cote d'Ivoire", dial: "+225" },
-  { label: "France", dial: "+33" },
-  { label: "Canada", dial: "+1" },
-];
+// Country reference shared with the registration form: the full ISO list rather
+// than a hardcoded handful. Value stored is the French display name (membre.pays
+// is free text); the dialling code prefills the phone field.
+const PAYS = PAYS_REF.map((p) => ({ label: p.nom, dial: p.indicatif }));
 const GENRES: [string, string][] = [["Homme", "homme"], ["Femme", "femme"], ["Autre", "autre"]];
 const CHEMINEMENTS: [string, string][] = [
   ["Nouveau", "nouveau"],
@@ -63,6 +65,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.Element {
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
+  const coordinations = useResource(() => getCoordinations(token), [token]);
   const bergers = useResource(() => getBergers(token), [token]);
   const niveaux = useResource(() => getNiveaux(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -85,11 +88,15 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
   const setPrenoms = (premier: string, autres: string): void =>
     set("prenoms", `${premier} ${autres}`.replace(/\s+/g, " ").trim() || undefined);
 
-  function onPays(label: string): void {
-    const dial = PAYS.find((p) => p.label === label)?.dial ?? "";
+  // Current country ISO code derived from the stored display name, for the combo.
+  const paysCode = PAYS_REF.find((p) => p.nom === form.pays)?.code ?? "";
+
+  function onPaysCode(code: string): void {
+    const c = PAYS_REF.find((p) => p.code === code);
+    const dial = c?.indicatif ?? "";
     setForm((f) => ({
       ...f,
-      pays: label || undefined,
+      pays: c?.nom || undefined,
       telephone: !f.telephone || PAYS.some((p) => f.telephone === `${p.dial} `) ? `${dial} ` : f.telephone,
     }));
   }
@@ -181,25 +188,30 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
             <input type="date" value={form.date_naissance ?? ""} onChange={(e) => set("date_naissance", e.target.value || undefined)} />
           </Field>
           <Field label="Pays">
-            <select value={form.pays ?? ""} onChange={(e) => onPays(e.target.value)}>
-              <option value="">Selectionner</option>
-              {PAYS.map((p) => (
-                <option key={p.label} value={p.label}>{p.label}</option>
-              ))}
-            </select>
+            <PaysCombo value={paysCode} onChange={onPaysCode} placeholder="Pays (tapez pour filtrer)" />
           </Field>
           <Field label="Ville">
             <input value={form.ville ?? ""} onChange={(e) => set("ville", e.target.value)} />
           </Field>
           <Field label="Intendance">
+            {/* A member usually belongs to an intendance OR a coordination, but in
+                rare cases to both, so the two axes are independent (no exclusion). */}
             <select value={form.intendance_id ?? ""} onChange={(e) => set("intendance_id", e.target.value || undefined)}>
-              <option value="">Selectionner</option>
+              <option value="">Aucune</option>
               {(intendances.data ?? []).map((i) => (
                 <option key={i.id} value={i.id}>{i.nom}</option>
               ))}
             </select>
           </Field>
-          <Field label="Commission / mission">
+          <Field label="Coordination">
+            <select value={form.coordination_id ?? ""} onChange={(e) => set("coordination_id", e.target.value || undefined)}>
+              <option value="">Aucune</option>
+              {(coordinations.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>{c.nom}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Commission / Mission">
             <select value={form.commission_id ?? ""} onChange={(e) => set("commission_id", e.target.value || undefined)}>
               <option value="">Selectionner</option>
               {(commissions.data ?? []).map((c) => (

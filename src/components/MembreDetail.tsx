@@ -11,6 +11,7 @@ import {
   getAdminDemandes,
   getCommissions,
   getConnexions,
+  getCoordinations,
   getDossierInscription,
   getIntendances,
   getMembre,
@@ -25,6 +26,7 @@ import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
+import { MembreCorrectionIdentite } from "./MembreCorrectionIdentite.js";
 import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
 import { Pager, pageSlice } from "./Pager.js";
@@ -43,6 +45,7 @@ interface MembreDetailProps {
   token: string;
   id: string;
   onBack: () => void;
+  onOpenAnnuaire?: () => void;
 }
 
 type TabKey = "apercu" | "consecration" | "participation" | "demandes" | "securite" | "avance";
@@ -56,11 +59,12 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "avance", label: "Gestion avancée" },
 ];
 
-export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Element {
+export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
+  const coordinations = useResource(() => getCoordinations(token), [token]);
   const connexions = useResource(() => getConnexions(token, id), [token, id]);
   const dossier = useResource(() => getDossierInscription(token, id), [token, id]);
   const demandes = useResource(() => getAdminDemandes(token, { membre_id: id }), [token, id]);
@@ -75,6 +79,18 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [tab, setTab] = useState<TabKey>("apercu");
   // Security connections can be numerous: page through them five at a time.
   const [connexionsPage, setConnexionsPage] = useState(0);
+
+  // When the open member changes (e.g. picked in the directory side panel while this
+  // component stays mounted), reset the per-member view state so nothing leaks from
+  // the previous profile.
+  useEffect(() => {
+    setTab("apercu");
+    setDemandeOuverte(null);
+    setConnexionsPage(0);
+    setError(null);
+    setNote(null);
+    setConfirmDelete(false);
+  }, [id]);
 
   useEffect(() => {
     let active = true;
@@ -139,9 +155,16 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
     <div className="page">
       <header className="page-head">
         <div>
-          <button type="button" className="link" onClick={onBack}>
-            Annuaire
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" className="link" onClick={onBack}>
+              Annuaire
+            </button>
+            {onOpenAnnuaire && (
+              <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
+                Parcourir l&apos;annuaire
+              </button>
+            )}
+          </div>
           <h1>{heading}</h1>
           {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
           {fonctionsList.map((f, i) => (
@@ -151,7 +174,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
             </p>
           ))}
           <p className="mono muted">
-            {m.matricule} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
+            {m.matricule}{m.code_membre ? ` . Code membre ${m.code_membre}` : ""} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
           </p>
         </div>
         {photoUrl ? (
@@ -195,6 +218,14 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       <section className="card">
         <h2 className="card-title">Informations générales</h2>
         <dl className="detail-grid">
+          <div>
+            <dt>Matricule ADSUM</dt>
+            <dd className="mono">{m.matricule}</dd>
+          </div>
+          <div>
+            <dt>Code membre</dt>
+            <dd className="mono">{m.code_membre ?? "-"}</dd>
+          </div>
           <div>
             <dt>Telephone</dt>
             <dd>{m.telephone ?? "-"}</dd>
@@ -337,13 +368,32 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
               value=""
               disabled={busy}
               onChange={(e) => {
-                if (e.target.value) void patch({ intendance_id: e.target.value }, "Intendance mise à jour.");
+                // A member is in an intendance OR a coordination: setting one
+                // clears the other.
+                if (e.target.value) void patch({ intendance_id: e.target.value, coordination_id: null }, "Intendance mise à jour.");
               }}
             >
               <option value="">Changer...</option>
               {(intendances.data ?? []).map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Coordination (actuelle : {m.coordination ?? "aucune"})</span>
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) void patch({ coordination_id: e.target.value, intendance_id: null }, "Coordination mise à jour.");
+              }}
+            >
+              <option value="">Changer...</option>
+              {(coordinations.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
                 </option>
               ))}
             </select>
@@ -585,6 +635,8 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       )}
 
       {tab === "avance" && (
+      <>
+      <MembreCorrectionIdentite token={token} membre={m} onChanged={() => membre.reload()} />
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
         <div className="toolbar">
@@ -646,6 +698,7 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
         </div>
         <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
       </section>
+      </>
       )}
       </div>
     </div>

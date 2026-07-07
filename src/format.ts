@@ -75,3 +75,51 @@ export function formatDate(value: string | null): string {
     timeStyle: "short",
   }).format(date);
 }
+
+/** Short local time "HH:mm" of an ISO instant, in the admin's own zone. */
+export function formatTime(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+// --- Calendar grid helpers (month view) -----------------------------------
+
+export interface CalendarCell {
+  date: Date;
+  day: number;
+  inMonth: boolean;
+  key: string;
+}
+
+const MONTH_NAMES_FR = [
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+];
+
+/** Local calendar key "YYYY-MM-DD" of a date, in the admin's own zone. */
+export function dayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** 6x7 grid of days covering the month, Monday-first, including padding days. */
+export function monthGrid(year: number, month: number): CalendarCell[] {
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // Monday-first
+  const start = new Date(year, month, 1 - offset);
+  const cells: CalendarCell[] = [];
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    cells.push({ date, day: date.getDate(), inMonth: date.getMonth() === month, key: dayKey(date) });
+  }
+  return cells;
+}
+
+/** Human month label, e.g. "juillet 2026". */
+export function monthLabel(year: number, month: number): string {
+  return `${MONTH_NAMES_FR[month]} ${year}`;
+}

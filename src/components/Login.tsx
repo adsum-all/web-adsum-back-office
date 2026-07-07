@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { ApiError, type Session, login } from "../api.js";
+import { ApiError, type Session, getMyPermissions, login } from "../api.js";
+import { PasswordInput } from "./PasswordInput.js";
 
 interface LoginProps {
   onAuth: (session: Session) => void;
@@ -18,11 +19,15 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
     setError(null);
     try {
       const session = await login(email, password);
-      if (session.role !== "admin" && session.role !== "super_admin") {
-        setError("Accès réservé aux administrateurs.");
+      // Access is gated by permissions, not by a hard-coded role: any account that
+      // holds at least one back-office permission (a role or a specialized group)
+      // is admitted. The server still enforces every action per endpoint.
+      const perms = await getMyPermissions(session.token);
+      if (!perms.acces_back_office) {
+        setError("Ce compte n'a aucun accès au back-office.");
         return;
       }
-      onAuth(session);
+      onAuth({ ...session, permissions: perms.permissions });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
@@ -48,8 +53,7 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
         </label>
         <label>
           <span>Mot de passe</span>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

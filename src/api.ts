@@ -10,6 +10,44 @@ export type Role = "admin" | "super_admin" | string;
 export interface Session {
   token: string;
   role: Role;
+  // Effective permissions of the account, used to mask the menu. Optional so a
+  // session persisted before this field existed is re-hydrated, never rejected.
+  permissions?: string[];
+}
+
+export interface MyPermissions {
+  role: Role;
+  permissions: string[];
+  acces_back_office: boolean;
+}
+
+export interface PermissionItem {
+  cle: string;
+  domaine: string;
+  libelle: string;
+  risque: string;
+  portee: string;
+}
+
+export interface RolePermissions {
+  role: Role;
+  permissions: string[];
+}
+
+export interface GroupePermissions {
+  id: string;
+  cle: string;
+  libelle: string;
+  description: string | null;
+  actif: boolean;
+  permissions: string[];
+}
+
+export interface CataloguePermissions {
+  permissions: PermissionItem[];
+  domaines: string[];
+  roles: RolePermissions[];
+  groupes_specialises: GroupePermissions[];
 }
 
 export interface Me {
@@ -22,6 +60,7 @@ export interface Me {
 export interface MembreProfile {
   id: string;
   matricule: string;
+  code_membre?: string | null;
   email: string;
   nom: string | null;
   prenoms: string | null;
@@ -82,7 +121,8 @@ export interface MembreCreateInput {
   date_naissance?: string;
   pays?: string;
   ville?: string;
-  intendance_id?: string;
+  intendance_id?: string | null;
+  coordination_id?: string | null;
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
@@ -110,6 +150,7 @@ export interface MembreCreateInput {
 export interface MembreUpdateInput {
   nom?: string;
   prenoms?: string;
+  code_membre?: string;
   telephone?: string;
   commission_id?: string;
   groupe?: string;
@@ -119,7 +160,8 @@ export interface MembreUpdateInput {
   date_naissance?: string;
   pays?: string;
   ville?: string;
-  intendance_id?: string;
+  intendance_id?: string | null;
+  coordination_id?: string | null;
   berger_referent_id?: string;
   date_entree?: string;
   cheminement_pastoral?: string;
@@ -147,13 +189,19 @@ export interface MembreUpdateInput {
 export interface Intendance {
   id: string;
   nom: string;
+  description: string | null;
+  pays_code: string | null;
   pays: string | null;
+  continent: string | null;
   ville: string | null;
+  statut: string;
   coordination_id: string | null;
   coordination: string | null;
   publie: boolean;
   parent_id: string | null;
   parent: string | null;
+  responsable: string | null;
+  responsable_titre: string | null;
 }
 
 export interface Berger {
@@ -166,9 +214,41 @@ export interface Coordination {
   id: string;
   nom: string;
   description: string | null;
+  pays_code: string | null;
+  pays: string | null;
+  continent: string | null;
+  ville: string | null;
+  statut: string;
   publie: boolean;
   parent_id: string | null;
   parent: string | null;
+  responsable: string | null;
+  responsable_titre: string | null;
+}
+
+// Optional fields accept null so an edit can explicitly CLEAR a value (e.g.
+// detach a parent). Sending undefined omits the field (leaves it unchanged);
+// sending null sets it to empty on the server.
+export interface CoordinationInput {
+  nom?: string;
+  description?: string | null;
+  pays_code?: string | null;
+  continent?: string | null;
+  ville?: string | null;
+  statut?: string;
+  parent_id?: string | null;
+}
+
+export interface IntendanceInput {
+  nom?: string;
+  description?: string | null;
+  pays_code?: string | null;
+  pays?: string | null;
+  continent?: string | null;
+  ville?: string | null;
+  statut?: string;
+  coordination_id?: string | null;
+  parent_id?: string | null;
 }
 
 export interface SousCommission {
@@ -310,9 +390,46 @@ export interface Evenement {
   cible_type?: CibleType;
   cible_id?: string | null;
   cible_libelle?: string | null;
+  cible_genre?: string | null;
+  cible_age_min?: number | null;
+  cible_age_max?: number | null;
+  cible_emails?: string[];
+  tags?: { id: string; cle: string; libelle: string }[];
+  annule?: boolean;
+  annule_motif?: string | null;
+  fuseau_horaire?: string;
+  serie_id?: string | null;
+  /** Per-activity response-window override in hours; null = global default. */
+  fenetre_reponse_heures?: number | null;
 }
 
-export type CibleType = "general" | "coordination" | "commission" | "intendance" | "tribu";
+export interface TagItem {
+  id: string;
+  cle: string;
+  libelle: string;
+  famille?: string | null;
+  description?: string | null;
+}
+
+export function getTags(token: string): Promise<TagItem[]> {
+  return authedGet<TagItem[]>("/api/v1/tags", token, "Étiquettes indisponibles");
+}
+
+export function taguerActivite(token: string, id: string, tagIds: string[]): Promise<{ ok: boolean; tags: number }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/tags`, token, "PUT", { tag_ids: tagIds }, "Étiquetage impossible");
+}
+
+export type CibleType =
+  | "general"
+  | "coordination"
+  | "commission"
+  | "intendance"
+  | "tribu"
+  | "bergers"
+  | "responsables"
+  | "liste";
+/** Scope of a series operation: the clicked date only, or every date of the series. */
+export type PorteeSerie = "cette_occurrence" | "toute_la_serie";
 
 export interface EvenementCreateInput {
   titre: string;
@@ -328,14 +445,32 @@ export interface EvenementCreateInput {
   visibilite?: Visibilite;
   cible_type?: CibleType;
   cible_id?: string | null;
+  /** Refinements that combine (AND) with the target type. */
+  cible_genre?: "homme" | "femme" | null;
+  cible_age_min?: number | null;
+  cible_age_max?: number | null;
+  /** Ad-hoc audience for cible_type = 'liste'. */
+  cible_emails?: string[];
   /** Response window in hours after the end; empty = admin default (6h). */
   fenetre_reponse_heures?: number;
+  /** IANA zone the start/end were entered in (default Africa/Abidjan = GMT). */
+  fuseau_horaire?: string;
+  /** Extra occurrences (beyond debut/fin) turning the activity into a series.
+   * `mode` overrides the base mode for that date (intermittent variable mode). */
+  occurrences?: { debut: string; fin?: string; mode?: string }[];
+  /** Recurrence rule, recorded for display (freq, interval, count). */
+  recurrence?: { freq: string; interval: number; count: number } | null;
 }
 
 export interface MembreListQuery {
   limit?: number;
   offset?: number;
   q?: string;
+  pays?: string;
+  commission_id?: string;
+  intendance_id?: string;
+  coordination_id?: string;
+  tribu_id?: string;
 }
 
 export class ApiError extends Error {
@@ -394,16 +529,26 @@ function authedSend<T>(
 }
 
 export async function login(email: string, password: string): Promise<Session> {
-  const res = await fetch(`${BASE}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+  }
   if (!res.ok) {
-    throw new ApiError(
-      res.status === 401 ? "Identifiants invalides" : "Service indisponible",
-      res.status,
-    );
+    let message: string;
+    if (res.status === 401) {
+      message = "Identifiants invalides";
+    } else if (res.status === 429) {
+      message = "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.";
+    } else {
+      message = "Service momentanément indisponible. Réessayez dans un instant.";
+    }
+    throw new ApiError(message, res.status);
   }
   const data = (await res.json()) as { access_token: string; role?: Role };
   return { token: data.access_token, role: data.role ?? "" };
@@ -413,11 +558,28 @@ export function getMe(token: string): Promise<Me> {
   return authedGet<Me>("/api/v1/auth/me", token, "Session indisponible");
 }
 
+export function getMyPermissions(token: string): Promise<MyPermissions> {
+  return authedGet<MyPermissions>("/api/v1/membres/me/permissions", token, "Permissions indisponibles");
+}
+
+export function getCataloguePermissions(token: string): Promise<CataloguePermissions> {
+  return authedGet<CataloguePermissions>(
+    "/api/v1/admin/catalogue-permissions",
+    token,
+    "Matrice des permissions indisponible",
+  );
+}
+
 function buildQuery(query: MembreListQuery): string {
   const params = new URLSearchParams();
   if (query.limit !== undefined) params.set("limit", String(query.limit));
   if (query.offset !== undefined) params.set("offset", String(query.offset));
   if (query.q) params.set("q", query.q);
+  if (query.pays) params.set("pays", query.pays);
+  if (query.commission_id) params.set("commission_id", query.commission_id);
+  if (query.intendance_id) params.set("intendance_id", query.intendance_id);
+  if (query.coordination_id) params.set("coordination_id", query.coordination_id);
+  if (query.tribu_id) params.set("tribu_id", query.tribu_id);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -428,6 +590,10 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
     token,
     "Membres indisponibles",
   );
+}
+
+export function getAnnuairePays(token: string): Promise<string[]> {
+  return authedGet<string[]>("/api/v1/admin/annuaire/pays", token, "Pays indisponibles");
 }
 
 export function getMembre(token: string, id: string): Promise<MembreProfile> {
@@ -552,6 +718,44 @@ export function testDiffusionEvenement(token: string, id: string): Promise<{ ok:
   return authedSend(`/api/v1/admin/evenements/${id}/test-diffusion`, token, "POST", {}, "Test impossible");
 }
 
+function porteeQuery(portee?: PorteeSerie): string {
+  return portee === "toute_la_serie" ? "?portee=toute_la_serie" : "";
+}
+
+export function updateEvenement(token: string, id: string, input: EvenementCreateInput, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}${porteeQuery(portee)}`, token, "PUT", input, "Modification impossible");
+}
+
+/** Append dates to an activity's series (additive: never deletes an occurrence).
+ * Each date is an absolute UTC instant; the server copies the master's details,
+ * skips dates already scheduled, and caps the series length. */
+export function ajouterOccurrences(
+  token: string,
+  id: string,
+  occurrences: { debut: string; fin?: string; mode?: string }[],
+): Promise<{ ajoutees: number; total: number }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/occurrences`, token, "POST", { occurrences }, "Ajout des dates impossible");
+}
+
+export function annulerEvenement(token: string, id: string, motif?: string, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}/annuler${porteeQuery(portee)}`, token, "POST", { motif: motif ?? null }, "Annulation impossible");
+}
+
+export function reactiverEvenement(token: string, id: string, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}/reactiver${porteeQuery(portee)}`, token, "POST", {}, "Réactivation impossible");
+}
+
+export function supprimerEvenement(token: string, id: string, portee?: PorteeSerie): Promise<{ supprimees: number; conservees: number }> {
+  return authedSend<{ supprimees: number; conservees: number }>(`/api/v1/admin/evenements/${id}${porteeQuery(portee)}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export function envoyerSondagePointage(
+  token: string,
+  id: string,
+): Promise<{ cibles: number; envoyes: number; canaux: string[]; sans_canal: number; lien: string }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/sondage`, token, "POST", {}, "Envoi du sondage impossible");
+}
+
 export interface FonctionHonorifique {
   cle: string;
   libelle_h: string;
@@ -666,15 +870,31 @@ export function getQuestionnaireAdmin(token: string, eventId: string): Promise<Q
   return authedGet<QuestionnaireAdmin | null>(`/api/v1/admin/evenements/${eventId}/questionnaire`, token, "Questionnaire indisponible");
 }
 
-export interface ReponseQuestionnaire {
-  membre_nom: string;
-  matricule: string;
-  reponses: Record<string, string>;
-  soumis_le: string | null;
+/** One question's ANONYMOUS aggregate. Ratings come as a mean + 1..5 distribution;
+ * free/choice answers as an author-less list. Never any member identity. */
+export interface QuestionnaireQuestionAgregat {
+  id: string;
+  libelle: string;
+  type: string;
+  reponses?: number;
+  moyenne?: number | null;
+  distribution?: Record<string, number>;
+  valeurs?: string[];
 }
 
-export function getReponsesQuestionnaire(token: string, eventId: string): Promise<ReponseQuestionnaire[]> {
-  return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Réponses indisponibles");
+/** Anonymous aggregate of an activity's questionnaire. Below `seuil` responses,
+ * `seuil_atteint` is false and no content is exposed (small-cohort protection). */
+export interface QuestionnaireAgregat {
+  total: number;
+  seuil: number;
+  seuil_atteint: boolean;
+  anonyme: true;
+  titre?: string;
+  questions: QuestionnaireQuestionAgregat[];
+}
+
+export function getReponsesQuestionnaire(token: string, eventId: string): Promise<QuestionnaireAgregat> {
+  return authedGet<QuestionnaireAgregat>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Réponses indisponibles");
 }
 
 export interface IntegrationGuide {
@@ -691,6 +911,8 @@ export interface IntegrationItem {
   renseigne: boolean;
   maj_le: string | null;
   guide: IntegrationGuide;
+  /** Suggested values (quick-picks), used for signatures. */
+  suggestions?: string[];
 }
 
 export interface CanalStatut {
@@ -880,11 +1102,12 @@ export function getIntendances(token: string): Promise<Intendance[]> {
   return authedGet<Intendance[]>("/api/v1/admin/intendances", token, "Intendances indisponibles");
 }
 
-export function createIntendance(
-  token: string,
-  input: { nom: string; pays?: string; ville?: string; coordination_id?: string; parent_id?: string },
-): Promise<Intendance> {
+export function createIntendance(token: string, input: IntendanceInput & { nom: string }): Promise<Intendance> {
   return authedSend<Intendance>("/api/v1/admin/intendances", token, "POST", input, "Création impossible");
+}
+
+export function updateIntendance(token: string, id: string, input: IntendanceInput): Promise<Intendance> {
+  return authedSend<Intendance>(`/api/v1/admin/intendances/${id}`, token, "PUT", input, "Mise à jour impossible");
 }
 
 export function getBergers(token: string): Promise<Berger[]> {
@@ -895,11 +1118,12 @@ export function getCoordinations(token: string): Promise<Coordination[]> {
   return authedGet<Coordination[]>("/api/v1/admin/coordinations", token, "Coordinations indisponibles");
 }
 
-export function createCoordination(
-  token: string,
-  input: { nom: string; description?: string; parent_id?: string },
-): Promise<Coordination> {
+export function createCoordination(token: string, input: CoordinationInput & { nom: string }): Promise<Coordination> {
   return authedSend<Coordination>("/api/v1/admin/coordinations", token, "POST", input, "Création impossible");
+}
+
+export function updateCoordination(token: string, id: string, input: CoordinationInput): Promise<Coordination> {
+  return authedSend<Coordination>(`/api/v1/admin/coordinations/${id}`, token, "PUT", input, "Mise à jour impossible");
 }
 
 export function getSousCommissions(token: string): Promise<SousCommission[]> {
@@ -921,7 +1145,7 @@ export interface BulkResult {
 
 export function bulkCreateUtilisateurs(
   token: string,
-  comptes: { email: string; password: string; role: string }[],
+  comptes: { email: string; password: string }[],
 ): Promise<BulkResult> {
   return authedSend<BulkResult>("/api/v1/admin/utilisateurs/lot", token, "POST", { comptes }, "Création impossible");
 }
@@ -943,6 +1167,150 @@ export function updateUtilisateur(
   input: { role?: string; actif?: boolean },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>(`/api/v1/admin/utilisateurs/${id}`, token, "PATCH", input, "Mise à jour impossible");
+}
+
+// --- Groupes d'accès (RBAC) : l'accès plateforme est un droit accordé, jamais l'identité du membre. ---
+
+export interface GroupeAcces {
+  id: string;
+  cle: string;
+  libelle: string;
+  description: string | null;
+  role_accorde: string;
+  mode: string;
+  permissions: string[];
+  membres_count: number;
+  systeme: boolean;
+  actif: boolean;
+}
+
+export interface CreateGroupeInput {
+  cle: string;
+  libelle: string;
+  description?: string | null;
+  mode: "role" | "permissions";
+  role_accorde?: string | null;
+  permissions?: string[];
+}
+
+export interface UpdateGroupeInput {
+  libelle?: string;
+  description?: string | null;
+  actif?: boolean;
+  permissions?: string[];
+}
+
+export interface Appartenance {
+  appartenance_id: string;
+  groupe_id: string;
+  cle: string;
+  libelle: string;
+  role_accorde: string;
+  portee_type: string;
+  portee_id: string | null;
+  portee_libelle: string | null;
+  ajoute_le: string | null;
+  ajoute_par_nom: string | null;
+}
+
+export interface MembreGroupes {
+  membre_id: string;
+  effective_role: string;
+  groupes: Appartenance[];
+}
+
+export interface UniteOrg {
+  id: string;
+  nom: string;
+}
+
+export interface PerimetresDisponibles {
+  coordination: UniteOrg[];
+  intendance: UniteOrg[];
+  commission: UniteOrg[];
+  tribu: UniteOrg[];
+}
+
+export function getGroupes(token: string, inclureInactifs = false): Promise<GroupeAcces[]> {
+  const q = inclureInactifs ? "?inclure_inactifs=true" : "";
+  return authedGet<GroupeAcces[]>(`/api/v1/admin/groupes${q}`, token, "Groupes indisponibles");
+}
+
+export function createGroupe(token: string, input: CreateGroupeInput): Promise<GroupeAcces> {
+  return authedSend<GroupeAcces>("/api/v1/admin/groupes", token, "POST", input, "Création du groupe impossible");
+}
+
+export function updateGroupe(token: string, groupeId: string, input: UpdateGroupeInput): Promise<GroupeAcces> {
+  return authedSend<GroupeAcces>(`/api/v1/admin/groupes/${groupeId}`, token, "PATCH", input, "Modification du groupe impossible");
+}
+
+export function deleteGroupe(token: string, groupeId: string): Promise<{ supprime: boolean; id: string }> {
+  return authedSend(`/api/v1/admin/groupes/${groupeId}`, token, "DELETE", undefined, "Suppression du groupe impossible");
+}
+
+export function getPerimetresDisponibles(token: string): Promise<PerimetresDisponibles> {
+  return authedGet<PerimetresDisponibles>("/api/v1/admin/perimetres-disponibles", token, "Périmètres indisponibles");
+}
+
+export interface Capability {
+  cle: string;
+  libelle: string;
+  description: string;
+  risque: string;
+  portee: string;
+}
+
+export interface CatalogueRole {
+  role: string;
+  libelle: string;
+  risque: string;
+  capabilities: Capability[];
+}
+
+export interface AccesEffectifItem {
+  role: string;
+  role_libelle: string;
+  risque: string;
+  portee_type: string;
+  portee_libelle: string | null;
+  portee_texte: string;
+  capabilities: Capability[];
+}
+
+export interface AccesEffectif {
+  membre_id: string;
+  role_global_effectif: string;
+  risque_global: string;
+  acces: AccesEffectifItem[];
+  avertissements: string[];
+}
+
+export function getCatalogueAcces(token: string): Promise<{ roles: CatalogueRole[] }> {
+  return authedGet<{ roles: CatalogueRole[] }>("/api/v1/admin/catalogue-acces", token, "Catalogue indisponible");
+}
+
+export function getAccesEffectif(token: string, membreId: string): Promise<AccesEffectif> {
+  return authedGet<AccesEffectif>(`/api/v1/admin/membres/${membreId}/acces-effectif`, token, "Accès effectif indisponible");
+}
+
+export function getMembreGroupes(token: string, membreId: string): Promise<MembreGroupes> {
+  return authedGet<MembreGroupes>(`/api/v1/admin/membres/${membreId}/groupes`, token, "Groupes du membre indisponibles");
+}
+
+export function ajouterMembreGroupe(
+  token: string,
+  membreId: string,
+  input: { groupe_id: string; portee_type: string; portee_id: string | null },
+): Promise<{ membre_id: string; effective_role: string; mot_de_passe_temporaire: string | null }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes`, token, "POST", input, "Ajout au groupe impossible");
+}
+
+export function retirerMembreGroupe(
+  token: string,
+  membreId: string,
+  appartenanceId: string,
+): Promise<{ membre_id: string; effective_role: string }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/groupes/${appartenanceId}`, token, "DELETE", undefined, "Retrait du groupe impossible");
 }
 
 export function getComptage(token: string, evenementId: string): Promise<ComptageResume> {
@@ -1060,12 +1428,110 @@ export interface InscriptionItem {
   nom: string;
   email: string;
   statut: string;
+  statut_libelle?: string;
   soumis_le: string | null;
+  decision_le?: string | null;
   nb_documents: number;
 }
 
-export function getInscriptions(token: string): Promise<InscriptionItem[]> {
-  return authedGet<InscriptionItem[]>("/api/v1/admin/inscriptions", token, "Inscriptions indisponibles");
+export type InscriptionFiltre = "en_cours" | "recus" | "a_valider" | "validees" | "refusees" | "toutes";
+
+export interface InscriptionCompteurs {
+  en_cours: number;
+  recus: number;
+  a_valider: number;
+  validees: number;
+  refusees: number;
+  toutes: number;
+}
+
+export function getInscriptions(token: string, filtre: InscriptionFiltre = "a_valider"): Promise<InscriptionItem[]> {
+  return authedGet<InscriptionItem[]>(`/api/v1/admin/inscriptions?filtre=${filtre}`, token, "Inscriptions indisponibles");
+}
+
+export function getInscriptionCompteurs(token: string): Promise<InscriptionCompteurs> {
+  return authedGet<InscriptionCompteurs>("/api/v1/admin/inscriptions/compteurs", token, "Compteurs indisponibles");
+}
+
+// --- Engagement (public intake) ---
+export interface EngagementInvitation {
+  id: string;
+  email: string;
+  prenoms: string | null;
+  nom: string | null;
+  telephone: string | null;
+  pays_indicatif: string | null;
+  pays_code: string | null;
+  source: string;
+  statut: string;
+  membre_id: string | null;
+  remerciement_envoye: boolean;
+  cree_le: string | null;
+  converti_le: string | null;
+}
+
+export interface EngagementDashboardData {
+  total: number;
+  par_canal: Record<string, number>;
+  par_pays: Record<string, number>;
+  en_attente: number;
+  converti: number;
+}
+
+export interface EngagementConvertResult {
+  convertis: number;
+  details: { id: string; matricule: string }[];
+  ignores: string[];
+  erreurs: { id: string; raison: string }[];
+}
+
+export interface EngagementImportResult {
+  crees: number;
+  doublons: string[];
+  erreurs: { email: string; raison: string }[];
+}
+
+export function getEngagementInvitations(token: string, statut = "en_attente"): Promise<EngagementInvitation[]> {
+  return authedGet<EngagementInvitation[]>(`/api/v1/admin/engagement/invitations?statut=${statut}`, token, "Invitations indisponibles");
+}
+
+export function getEngagementDashboard(token: string): Promise<EngagementDashboardData> {
+  return authedGet<EngagementDashboardData>("/api/v1/admin/engagement/dashboard", token, "Indicateurs indisponibles");
+}
+
+export function createEngagementManuel(
+  token: string,
+  input: { email: string; prenoms?: string | null; nom?: string | null; telephone?: string | null; pays_indicatif?: string | null; pays_code?: string | null },
+): Promise<{ id: string }> {
+  return authedSend("/api/v1/admin/engagement/invitations", token, "POST", input, "Ajout impossible");
+}
+
+export function convertirEngagement(token: string, ids: string[]): Promise<EngagementConvertResult> {
+  return authedSend<EngagementConvertResult>("/api/v1/admin/engagement/convertir", token, "POST", { ids }, "Conversion impossible");
+}
+
+export async function importEngagement(token: string, file: File): Promise<EngagementImportResult> {
+  const form = new FormData();
+  form.append("fichier", file);
+  const res = await fetch(`${BASE}/api/v1/admin/engagement/import`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).detail ?? "Import impossible", res.status);
+  return (await res.json()) as EngagementImportResult;
+}
+
+export async function downloadEngagementTemplate(token: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/admin/engagement/template.xlsx`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new ApiError("Modèle indisponible", res.status);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "modele-engagements.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function decisionInscription(
@@ -1187,6 +1653,20 @@ export function creerCompteMembre(
   input: { email: string; prenoms?: string; nom?: string },
 ): Promise<{ membre_id: string; matricule: string }> {
   return authedSend("/api/v1/admin/inscriptions/membre", token, "POST", input, "Création impossible");
+}
+
+export interface MembresLotResult {
+  crees: number;
+  details_crees: { email: string; matricule: string }[];
+  doublons: string[];
+  erreurs: { email: string; raison: string }[];
+}
+
+export function creerMembresLot(
+  token: string,
+  membres: { email: string; prenoms?: string; nom?: string }[],
+): Promise<MembresLotResult> {
+  return authedSend<MembresLotResult>("/api/v1/admin/inscriptions/membres-lot", token, "POST", { membres }, "Création en masse impossible");
 }
 
 export function relancerMdpTemporaire(token: string, membreId: string): Promise<{ ok: boolean }> {

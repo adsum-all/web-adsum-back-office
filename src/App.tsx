@@ -1,12 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { type Session, logoutSession } from "./api.js";
+import { type Session, getMyPermissions, logoutSession } from "./api.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
-import { ComptesMasse } from "./components/ComptesMasse.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { DemandesAdmin } from "./components/DemandesAdmin.js";
+import { EngagementAdmin } from "./components/EngagementAdmin.js";
 import { Doublons } from "./components/Doublons.js";
 import { Fonctions } from "./components/Fonctions.js";
 import { Niveaux } from "./components/Niveaux.js";
@@ -23,12 +23,14 @@ import { Organisation } from "./components/Organisation.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
 import { Utilisateurs } from "./components/Utilisateurs.js";
+import { MatricePermissions } from "./components/MatricePermissions.js";
 
 type Section =
   | "dashboard"
   | "statistiques"
   | "participation"
   | "inscriptions"
+  | "engagement"
   | "demandes"
   | "membres"
   | "doublons"
@@ -40,35 +42,40 @@ type Section =
   | "anniversaires"
   | "comptage"
   | "utilisateurs"
-  | "comptes-masse"
+  | "permissions"
   | "terminaux"
   | "integrations"
   | "consentements"
   | "attestations"
   | "audit";
 
-const NAV: { id: Section; label: string; group: string }[] = [
-  { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE" },
-  { id: "statistiques", label: "Statistiques", group: "PILOTAGE" },
-  { id: "participation", label: "Participation & assiduité", group: "PILOTAGE" },
-  { id: "inscriptions", label: "Inscriptions à valider", group: "MEMBRES" },
-  { id: "demandes", label: "Demandes des membres", group: "MEMBRES" },
-  { id: "membres", label: "Annuaire des membres", group: "MEMBRES" },
-  { id: "doublons", label: "Détection de doublons", group: "MEMBRES" },
-  { id: "commissions", label: "Commissions & missions", group: "ORGANISATION" },
-  { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION" },
-  { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION" },
-  { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION" },
-  { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS" },
-  { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS" },
-  { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS" },
-  { id: "utilisateurs", label: "Utilisateurs & rôles", group: "SYSTÈME" },
-  { id: "comptes-masse", label: "Créer comptes (masse)", group: "SYSTÈME" },
-  { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME" },
-  { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME" },
-  { id: "consentements", label: "Documents & consentements", group: "SYSTÈME" },
-  { id: "attestations", label: "Attestations & pays", group: "SYSTÈME" },
-  { id: "audit", label: "Journal d'audit", group: "SYSTÈME" },
+// Each section is shown only to an account that holds its permission. The key is
+// the read/consult permission the section's primary endpoint requires, so the
+// menu mirrors what the server would allow. The menu is never the barrier: every
+// endpoint stays guarded server side by require_permission.
+const NAV: { id: Section; label: string; group: string; perm: string }[] = [
+  { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE", perm: "statistiques.consulter" },
+  { id: "statistiques", label: "Statistiques", group: "PILOTAGE", perm: "statistiques.consulter" },
+  { id: "participation", label: "Participation & assiduité", group: "PILOTAGE", perm: "participation.consulter" },
+  { id: "inscriptions", label: "Inscriptions à valider", group: "MEMBRES", perm: "inscriptions.gerer" },
+  { id: "engagement", label: "Engagement (invitations)", group: "MEMBRES", perm: "inscriptions.gerer" },
+  { id: "demandes", label: "Demandes des membres", group: "MEMBRES", perm: "demandes.superviser" },
+  { id: "membres", label: "Annuaire des membres", group: "MEMBRES", perm: "membres.consulter" },
+  { id: "doublons", label: "Détection de doublons", group: "MEMBRES", perm: "doublons.consulter" },
+  { id: "commissions", label: "Commissions & missions", group: "ORGANISATION", perm: "commissions.consulter" },
+  { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION", perm: "fonctions.consulter" },
+  { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION", perm: "niveaux-engagement.consulter" },
+  { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
+  { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
+  { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS", perm: "anniversaires.gerer" },
+  { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS", perm: "comptage.superviser" },
+  { id: "utilisateurs", label: "Accès & groupes", group: "SYSTÈME", perm: "acces.administrer" },
+  { id: "permissions", label: "Matrice des permissions", group: "SYSTÈME", perm: "acces.administrer" },
+  { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME", perm: "terminaux.consulter" },
+  { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
+  { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
+  { id: "attestations", label: "Attestations & pays", group: "SYSTÈME", perm: "attestations.gerer" },
+  { id: "audit", label: "Journal d'audit", group: "SYSTÈME", perm: "audit.administrer" },
 ];
 
 // Persisted admin session: a refresh no longer signs the administrator out.
@@ -105,12 +112,44 @@ export function App(): JSX.Element {
     setSession(null);
   }, [session]);
 
+  // Re-hydrate a session persisted before permissions were stored, so a refresh
+  // keeps the exact same visible menu without forcing the user to sign in again.
+  useEffect(() => {
+    if (!session || session.permissions !== undefined) return;
+    let cancelled = false;
+    void getMyPermissions(session.token)
+      .then((p) => {
+        if (cancelled) return;
+        const hydrated: Session = { ...session, permissions: p.permissions };
+        saveSession(hydrated);
+        setSession(hydrated);
+      })
+      .catch(() => {
+        // Token no longer valid: sign out rather than show a stale menu.
+        if (!cancelled) {
+          saveSession(null);
+          setSession(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const held = useMemo(() => new Set(session?.permissions ?? []), [session]);
+  const visibleNav = useMemo(() => NAV.filter((n) => held.has(n.perm)), [held]);
+
   if (!session) {
     return <Login onAuth={onAuth} />;
   }
+  if (session.permissions === undefined) {
+    return <div className="auth"><p className="muted">Chargement de la session...</p></div>;
+  }
 
-  const groups = Array.from(new Set(NAV.map((n) => n.group)));
-  const current = NAV.find((n) => n.id === section);
+  const groups = Array.from(new Set(visibleNav.map((n) => n.group)));
+  // Deny-by-default: only ever land on a section the account may see.
+  const current = visibleNav.find((n) => n.id === section) ?? visibleNav[0];
+  const activeId = current?.id;
   const initials = session.role.slice(0, 2).toUpperCase();
 
   return (
@@ -129,16 +168,18 @@ export function App(): JSX.Element {
           {groups.map((group) => (
             <div key={group} className="nav-group">
               <p className="nav-group-title">{group}</p>
-              {NAV.filter((n) => n.group === group).map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  className={`nav-item ${section === n.id ? "nav-item-active" : ""}`}
-                  onClick={() => setSection(n.id)}
-                >
-                  {n.label}
-                </button>
-              ))}
+              {visibleNav
+                .filter((n) => n.group === group)
+                .map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className={`nav-item ${activeId === n.id ? "nav-item-active" : ""}`}
+                    onClick={() => setSection(n.id)}
+                  >
+                    {n.label}
+                  </button>
+                ))}
             </div>
           ))}
         </nav>
@@ -174,27 +215,29 @@ export function App(): JSX.Element {
           </span>
         </header>
         <div className="main-scroll">
-          {section === "dashboard" && <Dashboard token={session.token} />}
-          {section === "statistiques" && <Statistiques token={session.token} />}
-          {section === "participation" && <ParticipationStats token={session.token} />}
-          {section === "inscriptions" && <Inscriptions token={session.token} />}
-          {section === "demandes" && <DemandesAdmin token={session.token} />}
-          {section === "membres" && <Membres token={session.token} />}
-          {section === "doublons" && <Doublons token={session.token} />}
-          {section === "commissions" && <Commissions token={session.token} />}
-          {section === "fonctions" && <Fonctions token={session.token} />}
-          {section === "niveaux" && <Niveaux token={session.token} />}
-          {section === "organisation" && <Organisation token={session.token} />}
-          {section === "evenements" && <Evenements token={session.token} />}
-          {section === "anniversaires" && <Anniversaires token={session.token} />}
-          {section === "comptage" && <ComptageVoletB token={session.token} />}
-          {section === "utilisateurs" && <Utilisateurs token={session.token} />}
-          {section === "comptes-masse" && <ComptesMasse token={session.token} />}
-          {section === "terminaux" && <Terminaux token={session.token} />}
-          {section === "integrations" && <Integrations token={session.token} />}
-          {section === "consentements" && <Consentements token={session.token} />}
-          {section === "attestations" && <Attestations token={session.token} />}
-          {section === "audit" && <JournalAudit token={session.token} />}
+          {activeId === "dashboard" && <Dashboard token={session.token} />}
+          {activeId === "statistiques" && <Statistiques token={session.token} />}
+          {activeId === "participation" && <ParticipationStats token={session.token} />}
+          {activeId === "inscriptions" && <Inscriptions token={session.token} />}
+          {activeId === "engagement" && <EngagementAdmin token={session.token} />}
+          {activeId === "demandes" && <DemandesAdmin token={session.token} />}
+          {activeId === "membres" && <Membres token={session.token} />}
+          {activeId === "doublons" && <Doublons token={session.token} />}
+          {activeId === "commissions" && <Commissions token={session.token} />}
+          {activeId === "fonctions" && <Fonctions token={session.token} />}
+          {activeId === "niveaux" && <Niveaux token={session.token} />}
+          {activeId === "organisation" && <Organisation token={session.token} />}
+          {activeId === "evenements" && <Evenements token={session.token} />}
+          {activeId === "anniversaires" && <Anniversaires token={session.token} />}
+          {activeId === "comptage" && <ComptageVoletB token={session.token} />}
+          {activeId === "utilisateurs" && <Utilisateurs token={session.token} />}
+          {activeId === "permissions" && <MatricePermissions token={session.token} />}
+          {activeId === "terminaux" && <Terminaux token={session.token} />}
+          {activeId === "integrations" && <Integrations token={session.token} />}
+          {activeId === "consentements" && <Consentements token={session.token} />}
+          {activeId === "attestations" && <Attestations token={session.token} />}
+          {activeId === "audit" && <JournalAudit token={session.token} />}
+          {!activeId && <p className="muted">Aucune rubrique accessible avec vos permissions.</p>}
         </div>
       </main>
     </div>
