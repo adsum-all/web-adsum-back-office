@@ -390,9 +390,46 @@ export interface Evenement {
   cible_type?: CibleType;
   cible_id?: string | null;
   cible_libelle?: string | null;
+  cible_genre?: string | null;
+  cible_age_min?: number | null;
+  cible_age_max?: number | null;
+  cible_emails?: string[];
+  tags?: { id: string; cle: string; libelle: string }[];
+  annule?: boolean;
+  annule_motif?: string | null;
+  fuseau_horaire?: string;
+  serie_id?: string | null;
+  /** Per-activity response-window override in hours; null = global default. */
+  fenetre_reponse_heures?: number | null;
 }
 
-export type CibleType = "general" | "coordination" | "commission" | "intendance" | "tribu";
+export interface TagItem {
+  id: string;
+  cle: string;
+  libelle: string;
+  famille?: string | null;
+  description?: string | null;
+}
+
+export function getTags(token: string): Promise<TagItem[]> {
+  return authedGet<TagItem[]>("/api/v1/tags", token, "Étiquettes indisponibles");
+}
+
+export function taguerActivite(token: string, id: string, tagIds: string[]): Promise<{ ok: boolean; tags: number }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/tags`, token, "PUT", { tag_ids: tagIds }, "Étiquetage impossible");
+}
+
+export type CibleType =
+  | "general"
+  | "coordination"
+  | "commission"
+  | "intendance"
+  | "tribu"
+  | "bergers"
+  | "responsables"
+  | "liste";
+/** Scope of a series operation: the clicked date only, or every date of the series. */
+export type PorteeSerie = "cette_occurrence" | "toute_la_serie";
 
 export interface EvenementCreateInput {
   titre: string;
@@ -408,16 +445,32 @@ export interface EvenementCreateInput {
   visibilite?: Visibilite;
   cible_type?: CibleType;
   cible_id?: string | null;
+  /** Refinements that combine (AND) with the target type. */
+  cible_genre?: "homme" | "femme" | null;
+  cible_age_min?: number | null;
+  cible_age_max?: number | null;
+  /** Ad-hoc audience for cible_type = 'liste'. */
+  cible_emails?: string[];
   /** Response window in hours after the end; empty = admin default (6h). */
   fenetre_reponse_heures?: number;
   /** IANA zone the start/end were entered in (default Africa/Abidjan = GMT). */
   fuseau_horaire?: string;
+  /** Extra occurrences (beyond debut/fin) turning the activity into a series.
+   * `mode` overrides the base mode for that date (intermittent variable mode). */
+  occurrences?: { debut: string; fin?: string; mode?: string }[];
+  /** Recurrence rule, recorded for display (freq, interval, count). */
+  recurrence?: { freq: string; interval: number; count: number } | null;
 }
 
 export interface MembreListQuery {
   limit?: number;
   offset?: number;
   q?: string;
+  pays?: string;
+  commission_id?: string;
+  intendance_id?: string;
+  coordination_id?: string;
+  tribu_id?: string;
 }
 
 export class ApiError extends Error {
@@ -522,6 +575,11 @@ function buildQuery(query: MembreListQuery): string {
   if (query.limit !== undefined) params.set("limit", String(query.limit));
   if (query.offset !== undefined) params.set("offset", String(query.offset));
   if (query.q) params.set("q", query.q);
+  if (query.pays) params.set("pays", query.pays);
+  if (query.commission_id) params.set("commission_id", query.commission_id);
+  if (query.intendance_id) params.set("intendance_id", query.intendance_id);
+  if (query.coordination_id) params.set("coordination_id", query.coordination_id);
+  if (query.tribu_id) params.set("tribu_id", query.tribu_id);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -532,6 +590,10 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
     token,
     "Membres indisponibles",
   );
+}
+
+export function getAnnuairePays(token: string): Promise<string[]> {
+  return authedGet<string[]>("/api/v1/admin/annuaire/pays", token, "Pays indisponibles");
 }
 
 export function getMembre(token: string, id: string): Promise<MembreProfile> {
@@ -656,6 +718,44 @@ export function testDiffusionEvenement(token: string, id: string): Promise<{ ok:
   return authedSend(`/api/v1/admin/evenements/${id}/test-diffusion`, token, "POST", {}, "Test impossible");
 }
 
+function porteeQuery(portee?: PorteeSerie): string {
+  return portee === "toute_la_serie" ? "?portee=toute_la_serie" : "";
+}
+
+export function updateEvenement(token: string, id: string, input: EvenementCreateInput, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}${porteeQuery(portee)}`, token, "PUT", input, "Modification impossible");
+}
+
+/** Append dates to an activity's series (additive: never deletes an occurrence).
+ * Each date is an absolute UTC instant; the server copies the master's details,
+ * skips dates already scheduled, and caps the series length. */
+export function ajouterOccurrences(
+  token: string,
+  id: string,
+  occurrences: { debut: string; fin?: string; mode?: string }[],
+): Promise<{ ajoutees: number; total: number }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/occurrences`, token, "POST", { occurrences }, "Ajout des dates impossible");
+}
+
+export function annulerEvenement(token: string, id: string, motif?: string, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}/annuler${porteeQuery(portee)}`, token, "POST", { motif: motif ?? null }, "Annulation impossible");
+}
+
+export function reactiverEvenement(token: string, id: string, portee?: PorteeSerie): Promise<Evenement> {
+  return authedSend<Evenement>(`/api/v1/admin/evenements/${id}/reactiver${porteeQuery(portee)}`, token, "POST", {}, "Réactivation impossible");
+}
+
+export function supprimerEvenement(token: string, id: string, portee?: PorteeSerie): Promise<{ supprimees: number; conservees: number }> {
+  return authedSend<{ supprimees: number; conservees: number }>(`/api/v1/admin/evenements/${id}${porteeQuery(portee)}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export function envoyerSondagePointage(
+  token: string,
+  id: string,
+): Promise<{ cibles: number; envoyes: number; canaux: string[]; sans_canal: number; lien: string }> {
+  return authedSend(`/api/v1/admin/evenements/${id}/sondage`, token, "POST", {}, "Envoi du sondage impossible");
+}
+
 export interface FonctionHonorifique {
   cle: string;
   libelle_h: string;
@@ -770,15 +870,31 @@ export function getQuestionnaireAdmin(token: string, eventId: string): Promise<Q
   return authedGet<QuestionnaireAdmin | null>(`/api/v1/admin/evenements/${eventId}/questionnaire`, token, "Questionnaire indisponible");
 }
 
-export interface ReponseQuestionnaire {
-  membre_nom: string;
-  matricule: string;
-  reponses: Record<string, string>;
-  soumis_le: string | null;
+/** One question's ANONYMOUS aggregate. Ratings come as a mean + 1..5 distribution;
+ * free/choice answers as an author-less list. Never any member identity. */
+export interface QuestionnaireQuestionAgregat {
+  id: string;
+  libelle: string;
+  type: string;
+  reponses?: number;
+  moyenne?: number | null;
+  distribution?: Record<string, number>;
+  valeurs?: string[];
 }
 
-export function getReponsesQuestionnaire(token: string, eventId: string): Promise<ReponseQuestionnaire[]> {
-  return authedGet<ReponseQuestionnaire[]>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Réponses indisponibles");
+/** Anonymous aggregate of an activity's questionnaire. Below `seuil` responses,
+ * `seuil_atteint` is false and no content is exposed (small-cohort protection). */
+export interface QuestionnaireAgregat {
+  total: number;
+  seuil: number;
+  seuil_atteint: boolean;
+  anonyme: true;
+  titre?: string;
+  questions: QuestionnaireQuestionAgregat[];
+}
+
+export function getReponsesQuestionnaire(token: string, eventId: string): Promise<QuestionnaireAgregat> {
+  return authedGet<QuestionnaireAgregat>(`/api/v1/admin/evenements/${eventId}/reponses`, token, "Réponses indisponibles");
 }
 
 export interface IntegrationGuide {
@@ -795,6 +911,8 @@ export interface IntegrationItem {
   renseigne: boolean;
   maj_le: string | null;
   guide: IntegrationGuide;
+  /** Suggested values (quick-picks), used for signatures. */
+  suggestions?: string[];
 }
 
 export interface CanalStatut {
