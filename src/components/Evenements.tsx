@@ -14,8 +14,12 @@ import {
   setQuestionnaireFenetre,
 } from "../api.js";
 import { formatDate } from "../format.js";
+import { FUSEAUX } from "../lib/fuseaux.js";
+import { zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
+import { CalendrierEvenements } from "./CalendrierEvenements.js";
 import { EvenementGestion } from "./EvenementGestion.js";
+import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
 
 const EMPTY: EvenementCreateInput = {
@@ -34,54 +38,29 @@ const EMPTY: EvenementCreateInput = {
 const CIBLE_LABELS: Record<CibleType, string> = {
   general: "Toute la communauté (général)",
   coordination: "Coordination",
-  commission: "Commission",
+  commission: "Commission / Mission",
   intendance: "Intendance",
   tribu: "Tribu",
+  bergers: "Les Bergers",
+  responsables: "Les responsables (avec fonction)",
+  liste: "Liste d'adresses e-mail (groupe ad hoc)",
 };
 
-// Reference time zones offered at creation. Default is the base's home GMT zone;
-// pick the activity's own zone when it takes place elsewhere.
-const FUSEAUX: [string, string][] = [
-  ["Africa/Abidjan", "Côte d'Ivoire (GMT)"],
-  ["Europe/Paris", "France"],
-  ["Europe/Brussels", "Belgique"],
-  ["Africa/Dakar", "Sénégal"],
-  ["Africa/Cotonou", "Bénin"],
-  ["Africa/Lome", "Togo"],
-  ["Africa/Ouagadougou", "Burkina Faso"],
-  ["Africa/Niamey", "Niger"],
-  ["Africa/Bamako", "Mali"],
-  ["Africa/Douala", "Cameroun"],
-  ["Africa/Lagos", "Nigéria"],
-  ["Africa/Kinshasa", "RD Congo"],
-  ["America/New_York", "États-Unis (Est)"],
-  ["America/Toronto", "Canada (Est)"],
-  ["Europe/London", "Royaume-Uni"],
-];
+// Target types that need an organisational unit selected (a second dropdown).
+const CIBLE_UNITES: CibleType[] = ["coordination", "commission", "intendance", "tribu"];
 
-/** Offset (ms) of an IANA zone at a given UTC instant, via Intl. */
-function offsetMs(zone: string, utcMs: number): number {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone, hourCycle: "h23",
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
-  const p: Record<string, string> = {};
-  for (const part of dtf.formatToParts(new Date(utcMs))) p[part.type] = part.value;
-  const n = (k: string): number => Number(p[k] ?? 0);
-  const asIfUtc = Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
-  return asIfUtc - utcMs;
-}
+type Repetition = "aucune" | "quotidienne" | "hebdomadaire" | "dates_precises";
+type DatePrecise = { debut: string; mode: string };
 
-/** Interpret a naive "YYYY-MM-DDTHH:mm" as local to `zone`, return the UTC ISO instant. */
-function zonedToUtc(local: string, zone: string): string {
-  const [d = "", t = ""] = local.split("T");
+/** Add whole days to a naive "YYYY-MM-DDTHH:mm", keeping the same wall-clock time
+ * (so a daily 21:00 series stays at 21:00 every day, across month boundaries). */
+function addDaysLocal(local: string, days: number): string {
+  const [d = "", t = "00:00"] = local.split("T");
   const [y = 0, mo = 1, da = 1] = d.split("-").map(Number);
   const [h = 0, mi = 0] = t.split(":").map(Number);
-  const guess = Date.UTC(y, mo - 1, da, h, mi);
-  // Two passes handle the DST boundary correctly.
-  let off = offsetMs(zone, guess);
-  off = offsetMs(zone, guess - off);
-  return new Date(guess - off).toISOString();
+  const dt = new Date(y, mo - 1, da + days, h, mi);
+  const p = (n: number): string => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
 }
 
 export function Evenements({ token }: { token: string }): JSX.Element {
@@ -98,6 +77,18 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Two page tabs so the page is never one long scroll: the calendar (view and
+  // manage) and the creation form (data entry).
+  const [ongletPage, setOngletPage] = useState<"calendrier" | "saisie">("calendrier");
+  // Month calendar is the primary view; the flat list stays available as a fallback.
+  const [vue, setVue] = useState<"calendrier" | "liste">("calendrier");
+  // Recurrence: how the activity repeats and over how many dates (1 = single).
+  const [repetition, setRepetition] = useState<Repetition>("aucune");
+  const [nbOccurrences, setNbOccurrences] = useState(1);
+  // Explicit intermittent dates (each an extra occurrence with its own mode).
+  const [datesPrecises, setDatesPrecises] = useState<DatePrecise[]>([]);
+  // Ad-hoc e-mail list (one per line / comma) for a 'liste' target.
+  const [emailsTexte, setEmailsTexte] = useState("");
   // Local value of the questionnaire-window slider while it is being dragged, so
   // the position is persisted only once, on release, not on every tick (which
   // would flood the API and the audit log).
@@ -132,8 +123,21 @@ export function Evenements({ token }: { token: string }): JSX.Element {
     setError(null);
     try {
       const cibleType = form.cible_type ?? "general";
-      if (cibleType !== "general" && !form.cible_id) {
+      if (CIBLE_UNITES.includes(cibleType) && !form.cible_id) {
         setError("Choisissez l'unité ciblée ou repassez sur « général ».");
+        setBusy(false);
+        return;
+      }
+      const emails = cibleType === "liste"
+        ? emailsTexte.split(/[\n,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
+        : [];
+      if (cibleType === "liste" && emails.length === 0) {
+        setError("Ajoutez au moins une adresse e-mail pour un ciblage par liste.");
+        setBusy(false);
+        return;
+      }
+      if (form.cible_age_min != null && form.cible_age_max != null && form.cible_age_min > form.cible_age_max) {
+        setError("La tranche d'âge est incohérente (âge minimum supérieur à l'âge maximum).");
         setBusy(false);
         return;
       }
@@ -149,7 +153,11 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
         cible_type: cibleType,
-        cible_id: cibleType === "general" ? null : form.cible_id,
+        cible_id: CIBLE_UNITES.includes(cibleType) ? form.cible_id : null,
+        cible_genre: form.cible_genre ?? null,
+        cible_age_min: form.cible_age_min ?? null,
+        cible_age_max: form.cible_age_max ?? null,
+        cible_emails: emails,
         fuseau_horaire: zone,
       };
       if (form.fin) payload.fin = zonedToUtc(form.fin, zone);
@@ -160,9 +168,47 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         payload.liens = cleanLiens;
         payload.lien_session = cleanLiens[0];
       }
+      // Recurrence: generate the extra occurrences (2nd onward) as real dated
+      // instants in the activity's own zone, so the server creates one activity
+      // per date sharing a serie_id.
+      if (repetition !== "aucune") {
+        let extra: { debut: string; fin?: string; mode?: string }[] = [];
+        let freq = "daily";
+        if (repetition === "dates_precises") {
+          freq = "custom";
+          // Keep the base duration so each explicit date has the same length.
+          const baseDurMs = form.fin ? new Date(zonedToUtc(form.fin, zone)).getTime() - new Date(payload.debut).getTime() : 0;
+          extra = datesPrecises
+            .filter((r) => r.debut)
+            .map((r) => {
+              const debutU = zonedToUtc(r.debut, zone);
+              const occ: { debut: string; fin?: string; mode?: string } = { debut: debutU };
+              if (baseDurMs > 0) occ.fin = new Date(new Date(debutU).getTime() + baseDurMs).toISOString();
+              if (r.mode && r.mode !== (form.mode ?? "")) occ.mode = r.mode;
+              return occ;
+            });
+        } else {
+          const step = repetition === "hebdomadaire" ? 7 : 1;
+          freq = repetition === "hebdomadaire" ? "weekly" : "daily";
+          const count = Math.min(Math.max(2, Math.floor(nbOccurrences)), 104);
+          for (let k = 1; k < count; k += 1) {
+            const occ: { debut: string; fin?: string } = { debut: zonedToUtc(addDaysLocal(form.debut, k * step), zone) };
+            if (form.fin) occ.fin = zonedToUtc(addDaysLocal(form.fin, k * step), zone);
+            extra.push(occ);
+          }
+        }
+        if (extra.length > 0) {
+          payload.occurrences = extra;
+          payload.recurrence = { freq, interval: 1, count: extra.length + 1 };
+        }
+      }
       await createEvenement(token, payload);
       setForm(EMPTY);
       setLiens([""]);
+      setRepetition("aucune");
+      setNbOccurrences(1);
+      setDatesPrecises([]);
+      setEmailsTexte("");
       evenements.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
@@ -178,8 +224,18 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           <h1>Calendrier des événements</h1>
           <p className="muted">Rencontres, formations, sessions en ligne.</p>
         </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button type="button" className={`btn btn-inline ${ongletPage === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("calendrier")}>
+            Calendrier
+          </button>
+          <button type="button" className={`btn btn-inline ${ongletPage === "saisie" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("saisie")}>
+            + Nouvelle activité
+          </button>
+        </div>
       </header>
 
+      {ongletPage === "saisie" && (
+      <>
       <form className="form-card" onSubmit={submit}>
         <div className="form-grid">
           <label className="full">
@@ -206,6 +262,67 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Fin</span>
             <input type="datetime-local" value={form.fin ?? ""} onChange={(e) => set("fin", e.target.value)} />
           </label>
+          <label>
+            <span>Répétition</span>
+            <select
+              value={repetition}
+              onChange={(e) => {
+                const r = e.target.value as Repetition;
+                setRepetition(r);
+                if ((r === "quotidienne" || r === "hebdomadaire") && nbOccurrences < 2) setNbOccurrences(2);
+                if (r === "dates_precises" && datesPrecises.length === 0) setDatesPrecises([{ debut: "", mode: form.mode ?? "presentiel" }]);
+              }}
+            >
+              <option value="aucune">Aucune (activité unique)</option>
+              <option value="quotidienne">Quotidienne</option>
+              <option value="hebdomadaire">Hebdomadaire</option>
+              <option value="dates_precises">Dates précises (intermittent)</option>
+            </select>
+          </label>
+          {(repetition === "quotidienne" || repetition === "hebdomadaire") && (
+            <label>
+              <span>Nombre de dates (max 104)</span>
+              <input type="number" min={2} max={104} value={nbOccurrences} onChange={(e) => setNbOccurrences(Number(e.target.value))} />
+              <span className="muted small" style={{ fontWeight: 400 }}>
+                Chaque date crée une activité réelle (pointage et questionnaire par jour). Ex. : programme de 21 jours = Quotidienne, 21 dates.
+              </span>
+            </label>
+          )}
+          {repetition === "dates_precises" && (
+            <div className="full">
+              <span className="muted small" style={{ display: "block", marginBottom: 6 }}>
+                La 1re date est le « Début » ci-dessus (mode « {form.mode ?? "presentiel"} »). Ajoutez les autres dates, chacune avec son propre mode.
+              </span>
+              {datesPrecises.map((row, i) => (
+                <div key={i} className="toolbar" style={{ marginBottom: 6 }}>
+                  <input
+                    type="datetime-local"
+                    value={row.debut}
+                    style={{ flex: 1 }}
+                    onChange={(e) => setDatesPrecises((rows) => rows.map((x, j) => (j === i ? { ...x, debut: e.target.value } : x)))}
+                  />
+                  <select
+                    value={row.mode}
+                    onChange={(e) => setDatesPrecises((rows) => rows.map((x, j) => (j === i ? { ...x, mode: e.target.value } : x)))}
+                  >
+                    <option value="presentiel">Présentiel</option>
+                    <option value="en_ligne">En ligne</option>
+                    <option value="hybride">Hybride</option>
+                  </select>
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => setDatesPrecises((rows) => rows.filter((_, j) => j !== i))}>
+                    Retirer
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn-ghost btn-inline"
+                onClick={() => setDatesPrecises((rows) => [...rows, { debut: "", mode: form.mode ?? "presentiel" }])}
+              >
+                + Ajouter une date
+              </button>
+            </div>
+          )}
           <label>
             <span>Fenêtre de réponse (h après la fin)</span>
             <input
@@ -241,7 +358,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             </select>
           </label>
           <label>
-            <span>Destinataires</span>
+            <span>
+              Destinataires (qui est concerné ?)
+              <InfoTip title="Destinataires" text="Choisissez qui reçoit et voit l'activité : toute la communauté, une unité (coordination, commission/mission, intendance, tribu), les Bergers, les responsables, ou une liste d'adresses e-mail. Vous pouvez ensuite affiner par genre et par âge." />
+            </span>
             <select
               value={form.cible_type ?? "general"}
               onChange={(e) => {
@@ -254,7 +374,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
               ))}
             </select>
           </label>
-          {form.cible_type && form.cible_type !== "general" && (
+          {form.cible_type && CIBLE_UNITES.includes(form.cible_type) && (
             <label>
               <span>Unité ciblée *</span>
               <select value={form.cible_id ?? ""} onChange={(e) => set("cible_id", e.target.value || null)}>
@@ -265,6 +385,44 @@ export function Evenements({ token }: { token: string }): JSX.Element {
               </select>
             </label>
           )}
+          {form.cible_type === "liste" && (
+            <label className="full">
+              <span>
+                Adresses e-mail *
+                <InfoTip title="Liste d'adresses" text="Une adresse par ligne (ou séparées par des virgules). Seuls les membres dont l'e-mail figure ici seront concernés. Idéal pour un petit groupe ponctuel." />
+              </span>
+              <textarea
+                value={emailsTexte}
+                onChange={(e) => setEmailsTexte(e.target.value)}
+                rows={3}
+                placeholder={"prenom.nom@example.com\nautre@example.com"}
+              />
+            </label>
+          )}
+          <div className="full" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <label>
+              <span>
+                Affiner par genre
+                <InfoTip title="Genre (facultatif)" text="Restreindre en plus aux hommes ou aux femmes. Se combine avec le destinataire choisi (ex. les femmes d'une commission)." />
+              </span>
+              <select value={form.cible_genre ?? ""} onChange={(e) => set("cible_genre", (e.target.value || null) as EvenementCreateInput["cible_genre"])}>
+                <option value="">Tous</option>
+                <option value="homme">Hommes</option>
+                <option value="femme">Femmes</option>
+              </select>
+            </label>
+            <label>
+              <span>
+                Âge min.
+                <InfoTip title="Tranche d'âge (facultatif)" text="Restreindre en plus à une tranche d'âge (ex. les jeunes de 15 à 30 ans). Laisser vide pour tous les âges." />
+              </span>
+              <input type="number" min={0} max={120} value={form.cible_age_min ?? ""} onChange={(e) => set("cible_age_min", e.target.value ? Number(e.target.value) : null)} />
+            </label>
+            <label>
+              <span>Âge max.</span>
+              <input type="number" min={0} max={120} value={form.cible_age_max ?? ""} onChange={(e) => set("cible_age_max", e.target.value ? Number(e.target.value) : null)} />
+            </label>
+          </div>
           <label>
             <span>Diffusion</span>
             <select
@@ -321,37 +479,63 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
         </div>
       </section>
+      </>
+      )}
 
+      {ongletPage === "calendrier" && (
+      <>
       {evenements.error && <p className="banner banner-error">{evenements.error}</p>}
-      {(evenements.data ?? []).map((ev) => (
-        <section className="card" key={ev.id}>
-          <div className="list-row" style={{ border: "none", background: "transparent", padding: 0 }}>
-            <div className="event-main">
-              <strong>{ev.titre}</strong>
-              <span className="muted">{formatDate(ev.debut)}</span>
-            </div>
-            <div className="list-meta">
-              {ev.session_ouverte && <span className="badge badge-ok">Session ouverte</span>}
-              {ev.mode && <span className="badge badge-mut">{ev.mode === "en_ligne" ? "En ligne" : ev.mode === "hybride" ? "Hybride" : "Présentiel"}</span>}
-              {ev.cible_type && ev.cible_type !== "general" && (
-                <span className="badge badge-warn">Réservé : {ev.cible_libelle ?? ev.cible_type}</span>
-              )}
-              {ev.lieu && <span className="muted">{ev.lieu}</span>}
-              <span className="badge badge-mut">Volet {ev.volet}</span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-inline"
-                onClick={() => setOpenId(openId === ev.id ? null : ev.id)}
-              >
-                {openId === ev.id ? "Fermer" : "Gérer la session"}
-              </button>
-            </div>
-          </div>
-          {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={evenements.reload} />}
-        </section>
-      ))}
-      {!evenements.loading && (evenements.data ?? []).length === 0 && (
-        <p className="muted">Aucun événement.</p>
+
+      <div className="toolbar" style={{ justifyContent: "space-between", alignItems: "center", margin: "6px 0 10px" }}>
+        <h2 className="card-title" style={{ margin: 0 }}>Planning des activités</h2>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button type="button" className={`btn btn-inline ${vue === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("calendrier")}>
+            Calendrier
+          </button>
+          <button type="button" className={`btn btn-inline ${vue === "liste" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("liste")}>
+            Liste
+          </button>
+        </div>
+      </div>
+
+      {vue === "calendrier" ? (
+        <CalendrierEvenements token={token} evenements={evenements.data ?? []} onChanged={evenements.reload} />
+      ) : (
+        <>
+          {(evenements.data ?? []).map((ev) => (
+            <section className="card" key={ev.id}>
+              <div className="list-row" style={{ border: "none", background: "transparent", padding: 0 }}>
+                <div className="event-main">
+                  <strong style={{ textDecoration: ev.annule ? "line-through" : "none" }}>{ev.titre}</strong>
+                  <span className="muted">{formatDate(ev.debut)}</span>
+                </div>
+                <div className="list-meta">
+                  {ev.annule && <span className="badge badge-warn">Annulé</span>}
+                  {ev.session_ouverte && <span className="badge badge-ok">Session ouverte</span>}
+                  {ev.mode && <span className="badge badge-mut">{ev.mode === "en_ligne" ? "En ligne" : ev.mode === "hybride" ? "Hybride" : "Présentiel"}</span>}
+                  {ev.cible_type && ev.cible_type !== "general" && (
+                    <span className="badge badge-warn">Réservé : {ev.cible_libelle ?? ev.cible_type}</span>
+                  )}
+                  {ev.lieu && <span className="muted">{ev.lieu}</span>}
+                  <span className="badge badge-mut">Volet {ev.volet}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-inline"
+                    onClick={() => setOpenId(openId === ev.id ? null : ev.id)}
+                  >
+                    {openId === ev.id ? "Fermer" : "Gérer la session"}
+                  </button>
+                </div>
+              </div>
+              {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={evenements.reload} />}
+            </section>
+          ))}
+          {!evenements.loading && (evenements.data ?? []).length === 0 && (
+            <p className="muted">Aucun événement.</p>
+          )}
+        </>
+      )}
+      </>
       )}
     </div>
   );

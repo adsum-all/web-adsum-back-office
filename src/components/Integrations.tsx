@@ -63,18 +63,40 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           Jetons d'accès
           <InfoTip title="Sécurité" text="Ces jetons autorisent l'envoi des notifications. En cas de fuite ou d'intrusion, remplacez-les ici : l'ancien jeton cesse aussitôt de fonctionner. Les valeurs sont masquées." />
         </h2>
-        {(integrations.data ?? []).map((it) => (
-          <TokenRow
-            key={it.cle}
-            item={it}
-            onSaved={() => {
-              integrations.reload();
-              statut.reload();
-              setNote("Jeton mis à jour. L'ancien est désormais inactif.");
-            }}
-            token={token}
-          />
-        ))}
+        {(integrations.data ?? [])
+          .filter((it) => !it.cle.startsWith("signature") && it.cle !== "site_officiel")
+          .map((it) => (
+            <TokenRow
+              key={it.cle}
+              item={it}
+              onSaved={() => {
+                integrations.reload();
+                statut.reload();
+                setNote("Jeton mis à jour. L'ancien est désormais inactif.");
+              }}
+              token={token}
+            />
+          ))}
+      </section>
+
+      <section className="card">
+        <h2 className="card-title">
+          Signatures des messages
+          <InfoTip title="Signatures" text="Chaque famille de messages peut être signée par une autorité (Le Modérateur, Le Collège des Bergers, L'Administration...). Une famille laissée vide utilise la signature globale. Le sondage de pointage utilise la signature « convocation »." />
+        </h2>
+        {(integrations.data ?? [])
+          .filter((it) => it.cle.startsWith("signature") || it.cle === "site_officiel")
+          .map((it) => (
+            <SignatureRow
+              key={it.cle}
+              item={it}
+              token={token}
+              onSaved={() => {
+                integrations.reload();
+                setNote("Signature enregistrée.");
+              }}
+            />
+          ))}
       </section>
 
       <section className="card">
@@ -261,6 +283,58 @@ function TokenRow({ item, token, onSaved }: { item: IntegrationItem; token: stri
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SignatureRow({ item, token, onSaved }: { item: IntegrationItem; token: string; onSaved: () => void }): JSX.Element {
+  const [value, setValue] = useState(item.valeur_masquee ?? "");
+  const [busy, setBusy] = useState(false);
+  const dirty = value.trim() !== (item.valeur_masquee ?? "").trim();
+  async function save(): Promise<void> {
+    setBusy(true);
+    try {
+      await setIntegration(token, item.cle, value.trim());
+      onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div style={{ padding: "12px 0", borderBottom: "1px solid var(--adsum-line)" }}>
+      <div className="event-main" style={{ marginBottom: 6 }}>
+        <strong>
+          {item.guide.titre ?? item.cle}
+          {item.guide.aide && <InfoTip text={item.guide.aide} />}
+          {item.guide.roter && <InfoTip title="Exemples" text={item.guide.roter} />}
+        </strong>
+      </div>
+      {(item.suggestions ?? []).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+          {(item.suggestions ?? []).map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`btn btn-inline ${value.trim() === s ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setValue(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="toolbar">
+        <input
+          className="search"
+          style={{ flex: 1 }}
+          placeholder={item.cle === "site_officiel" ? "URL du site (facultatif)" : "Signature (vide = signature globale)"}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <button type="button" className="btn btn-primary btn-inline" disabled={busy || !dirty} onClick={() => void save()}>
+          Enregistrer
+        </button>
       </div>
     </div>
   );

@@ -45,6 +45,7 @@ interface MembreDetailProps {
   token: string;
   id: string;
   onBack: () => void;
+  onOpenAnnuaire?: () => void;
 }
 
 type TabKey = "apercu" | "consecration" | "participation" | "demandes" | "securite" | "avance";
@@ -58,7 +59,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "avance", label: "Gestion avancée" },
 ];
 
-export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Element {
+export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -78,6 +79,18 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
   const [tab, setTab] = useState<TabKey>("apercu");
   // Security connections can be numerous: page through them five at a time.
   const [connexionsPage, setConnexionsPage] = useState(0);
+
+  // When the open member changes (e.g. picked in the directory side panel while this
+  // component stays mounted), reset the per-member view state so nothing leaks from
+  // the previous profile.
+  useEffect(() => {
+    setTab("apercu");
+    setDemandeOuverte(null);
+    setConnexionsPage(0);
+    setError(null);
+    setNote(null);
+    setConfirmDelete(false);
+  }, [id]);
 
   useEffect(() => {
     let active = true;
@@ -142,9 +155,16 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
     <div className="page">
       <header className="page-head">
         <div>
-          <button type="button" className="link" onClick={onBack}>
-            Annuaire
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" className="link" onClick={onBack}>
+              Annuaire
+            </button>
+            {onOpenAnnuaire && (
+              <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
+                Parcourir l&apos;annuaire
+              </button>
+            )}
+          </div>
           <h1>{heading}</h1>
           {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
           {fonctionsList.map((f, i) => (
@@ -198,6 +218,14 @@ export function MembreDetail({ token, id, onBack }: MembreDetailProps): JSX.Elem
       <section className="card">
         <h2 className="card-title">Informations générales</h2>
         <dl className="detail-grid">
+          <div>
+            <dt>Matricule ADSUM</dt>
+            <dd className="mono">{m.matricule}</dd>
+          </div>
+          <div>
+            <dt>Code membre</dt>
+            <dd className="mono">{m.code_membre ?? "-"}</dd>
+          </div>
           <div>
             <dt>Telephone</dt>
             <dd>{m.telephone ?? "-"}</dd>
