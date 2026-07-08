@@ -24,6 +24,7 @@ import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
 import { Utilisateurs } from "./components/Utilisateurs.js";
 import { MatricePermissions } from "./components/MatricePermissions.js";
+import { EspacesCollab } from "./components/EspacesCollab.js";
 
 type Section =
   | "dashboard"
@@ -43,6 +44,7 @@ type Section =
   | "comptage"
   | "utilisateurs"
   | "permissions"
+  | "espaces-collab"
   | "terminaux"
   | "integrations"
   | "consentements"
@@ -71,6 +73,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS", perm: "comptage.superviser" },
   { id: "utilisateurs", label: "Accès & groupes", group: "SYSTÈME", perm: "acces.administrer" },
   { id: "permissions", label: "Matrice des permissions", group: "SYSTÈME", perm: "acces.administrer" },
+  { id: "espaces-collab", label: "Espaces collaboration", group: "SYSTÈME", perm: "collaboration.superviser" },
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME", perm: "terminaux.consulter" },
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
@@ -232,6 +235,7 @@ export function App(): JSX.Element {
           {activeId === "comptage" && <ComptageVoletB token={session.token} />}
           {activeId === "utilisateurs" && <Utilisateurs token={session.token} />}
           {activeId === "permissions" && <MatricePermissions token={session.token} />}
+          {activeId === "espaces-collab" && <EspacesCollab token={session.token} />}
           {activeId === "terminaux" && <Terminaux token={session.token} />}
           {activeId === "integrations" && <Integrations token={session.token} />}
           {activeId === "consentements" && <Consentements token={session.token} />}
