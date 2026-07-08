@@ -528,29 +528,66 @@ function authedSend<T>(
   return request<T>(path, token, init, onError);
 }
 
-export async function login(email: string, password: string): Promise<Session> {
+export function deviceId(): string {
+  if (typeof localStorage === "undefined") return "";
+  let id = localStorage.getItem("adsum.device.id");
+  if (!id) {
+    id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem("adsum.device.id", id);
+  }
+  return id;
+}
+
+export interface LoginResult {
+  otpRequired: boolean;
+  session: Session | null;
+  canal: string | null;
+}
+
+function loginError(status: number): ApiError {
+  if (status === 401) return new ApiError("Identifiants invalides ou mot de passe temporaire expiré", status);
+  if (status === 429) return new ApiError("Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.", status);
+  if (status === 400) return new ApiError("Code incorrect ou expiré. Vérifiez et réessayez.", status);
+  if (status === 0) return new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+  return new ApiError("Service momentanément indisponible. Réessayez dans un instant.", status);
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/v1/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
       body: JSON.stringify({ email, password }),
     });
   } catch {
-    throw new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+    throw loginError(0);
   }
-  if (!res.ok) {
-    let message: string;
-    if (res.status === 401) {
-      message = "Identifiants invalides";
-    } else if (res.status === 429) {
-      message = "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.";
-    } else {
-      message = "Service momentanément indisponible. Réessayez dans un instant.";
-    }
-    throw new ApiError(message, res.status);
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { otp_required?: boolean; access_token?: string | null; role?: Role; canal?: string | null };
+  return {
+    otpRequired: Boolean(data.otp_required),
+    session: data.access_token ? { token: data.access_token, role: data.role ?? "" } : null,
+    canal: data.canal ?? null,
+  };
+}
+
+export async function loginVerify(email: string, password: string, code: string, faireConfiance: boolean): Promise<Session> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/login-verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
+      body: JSON.stringify({ email, password, code, faire_confiance: faireConfiance }),
+    });
+  } catch {
+    throw loginError(0);
   }
-  const data = (await res.json()) as { access_token: string; role?: Role };
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { access_token?: string | null; role?: Role };
+  if (!data.access_token) throw loginError(401);
   return { token: data.access_token, role: data.role ?? "" };
 }
 
