@@ -570,6 +570,42 @@ export function getCataloguePermissions(token: string): Promise<CataloguePermiss
   );
 }
 
+// Collaboration spaces supervision (read-only): who belongs to which space, with
+// which space role. The fine-grained management stays in the collaboration app.
+export interface CollabMembreEspace {
+  membre_id: string;
+  role: string;
+}
+export interface CollabDemandeAcces {
+  id: string;
+  membre_id: string;
+  cree_le: string;
+}
+export interface CollabEspace {
+  id: string;
+  nom: string;
+  description: string;
+  type: string;
+  couleur: string;
+  initiale: string;
+  membres: CollabMembreEspace[];
+  observateurs_commentent: boolean;
+  archive: boolean;
+  demandes_acces: CollabDemandeAcces[];
+}
+export interface CollabCompte {
+  id: string;
+  nom: string;
+  courriel: string;
+  initiales: string;
+}
+export function listCollabEspaces(token: string): Promise<CollabEspace[]> {
+  return authedGet<CollabEspace[]>("/api/v1/collaboration/espaces", token, "Espaces de collaboration indisponibles");
+}
+export function listCollabComptes(token: string): Promise<CollabCompte[]> {
+  return authedGet<CollabCompte[]>("/api/v1/collaboration/membres", token, "Comptes de collaboration indisponibles");
+}
+
 function buildQuery(query: MembreListQuery): string {
   const params = new URLSearchParams();
   if (query.limit !== undefined) params.set("limit", String(query.limit));
