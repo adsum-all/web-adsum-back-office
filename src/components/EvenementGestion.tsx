@@ -22,6 +22,7 @@ import {
 } from "../api.js";
 import { EvenementEdition } from "./EvenementEdition.js";
 import { InfoTip } from "./InfoTip.js";
+import { PiecesEvenement } from "./PiecesEvenement.js";
 
 /** Per-event admin panel: live session state and the post-session questionnaire
  * (builder + collected responses). The activity's configuration (links, diffusion
@@ -186,6 +187,37 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
   return (
     <div style={{ borderTop: "1px solid var(--adsum-line)", marginTop: 10, paddingTop: 12 }}>
       {note && <p className="banner banner-ok">{note}</p>}
+
+      {(evenement.description || evenement.intervenant_principal || (evenement.intervenants ?? []).length > 0) && (
+        <div style={{ marginBottom: 12 }}>
+          {evenement.description && (
+            <>
+              <p className="card-title" style={{ marginBottom: 6 }}>Description</p>
+              <div
+                className="rich-read"
+                style={{ fontSize: 14, lineHeight: 1.55, marginBottom: 10 }}
+                dangerouslySetInnerHTML={{ __html: evenement.description }}
+              />
+            </>
+          )}
+          {(evenement.intervenant_principal || (evenement.intervenants ?? []).length > 0) && (
+            <>
+              <p className="card-title" style={{ margin: "10px 0 6px" }}>Intervenants</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {evenement.intervenant_principal && <span className="badge badge-ok">{evenement.intervenant_principal}</span>}
+                {(evenement.intervenants ?? []).map((n, i) => (
+                  <span key={i} className="badge badge-mut">{n}</span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <p className="card-title" style={{ marginBottom: 6 }}>Pièces jointes</p>
+      <div style={{ marginBottom: 12 }}>
+        <PiecesEvenement token={token} evenementId={evenement.id} readOnly />
+      </div>
 
       <div className="form-actions" style={{ justifyContent: "flex-start", marginBottom: 8 }}>
         <button type="button" className="btn btn-ghost btn-inline" onClick={() => setEditOpen((v) => !v)}>
