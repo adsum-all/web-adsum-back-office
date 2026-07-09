@@ -12,6 +12,8 @@ import {
 interface Props {
   token: string;
   evenementId: string;
+  /** Read-only gallery: shows attachments without the add or remove controls. */
+  readOnly?: boolean;
 }
 
 function lireFichier(f: File): Promise<string> {
@@ -23,7 +25,7 @@ function lireFichier(f: File): Promise<string> {
   });
 }
 
-export function PiecesEvenement({ token, evenementId }: Props): JSX.Element {
+export function PiecesEvenement({ token, evenementId, readOnly = false }: Props): JSX.Element {
   const [pieces, setPieces] = useState<PieceEvenement[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -69,16 +71,20 @@ export function PiecesEvenement({ token, evenementId }: Props): JSX.Element {
                 <img src={p.url} alt={p.nom} style={{ maxWidth: 150, maxHeight: 110, borderRadius: 8, objectFit: "cover", border: "1px solid var(--adsum-line, #e2e2e2)" }} />
               </a>
             ) : (
-              <a href={p.url} download={p.nom} style={{ fontSize: 13, wordBreak: "break-all" }}>📎 {p.nom}</a>
+              <a href={p.url} download={p.nom} className="btn btn-ghost btn-inline" style={{ fontSize: 13, wordBreak: "break-all" }}>{p.nom}</a>
             )}
-            <button type="button" className="btn btn-ghost btn-inline" style={{ fontSize: 12 }} onClick={() => void retirer(p.id)}>Retirer</button>
+            {!readOnly && (
+              <button type="button" className="btn btn-ghost btn-inline" style={{ fontSize: 12 }} onClick={() => void retirer(p.id)}>Retirer</button>
+            )}
           </div>
         ))}
       </div>
-      <label className="btn btn-ghost btn-inline" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
-        {busy ? "Ajout..." : "+ Ajouter une image ou un fichier"}
-        <input type="file" style={{ display: "none" }} disabled={busy} onChange={(e) => void onFichier(e)} />
-      </label>
+      {!readOnly && (
+        <label className="btn btn-ghost btn-inline" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
+          {busy ? "Ajout..." : "+ Ajouter une image ou un fichier"}
+          <input type="file" style={{ display: "none" }} disabled={busy} onChange={(e) => void onFichier(e)} />
+        </label>
+      )}
       {err && <span className="small" style={{ color: "var(--adsum-danger, #c0392b)" }}>{err}</span>}
     </div>
   );
