@@ -423,6 +423,25 @@ export function taguerActivite(token: string, id: string, tagIds: string[]): Pro
   return authedSend(`/api/v1/admin/evenements/${id}/tags`, token, "PUT", { tag_ids: tagIds }, "Étiquetage impossible");
 }
 
+// Activity attachments (images and files), shared with the collaboration app.
+export interface PieceEvenement {
+  id: string;
+  nom: string;
+  type: string;
+  taille: number;
+  url: string;
+  cree_le?: string | null;
+}
+export function listPiecesEvenement(token: string, id: string): Promise<PieceEvenement[]> {
+  return authedGet<PieceEvenement[]>(`/api/v1/admin/evenements/${id}/pieces`, token, "Pièces indisponibles");
+}
+export function ajouterPieceEvenement(token: string, id: string, piece: { nom: string; type: string; taille: number; data_url: string }): Promise<PieceEvenement> {
+  return authedSend<PieceEvenement>(`/api/v1/admin/evenements/${id}/pieces`, token, "POST", piece, "Pièce non ajoutée");
+}
+export function supprimerPieceEvenement(token: string, pieceId: string): Promise<void> {
+  return request<void>(`/api/v1/admin/evenements/pieces/${pieceId}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+
 export type CibleType =
   | "general"
   | "coordination"
