@@ -17,6 +17,7 @@ import { utcToZoned, zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
+import { PiecesEvenement } from "./PiecesEvenement.js";
 import { RichEditor } from "./RichEditor.js";
 import { SerieOccurrences } from "./SerieOccurrences.js";
 
@@ -284,6 +285,9 @@ export function EvenementEdition({
         <div className="full">
           <span>Description</span>
           <RichEditor value={description} onChange={setDescription} disabled={busy} />
+        </div>
+        <div className="full">
+          <PiecesEvenement token={token} evenementId={evenement.id} />
         </div>
       </div>
       {estSerie && (
