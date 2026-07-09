@@ -17,6 +17,7 @@ import { utcToZoned, zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
+import { RichEditor } from "./RichEditor.js";
 import { SerieOccurrences } from "./SerieOccurrences.js";
 
 const CIBLE_LABELS: Record<CibleType, string> = {
@@ -68,6 +69,11 @@ export function EvenementEdition({
   const [ageMin, setAgeMin] = useState<string>(evenement.cible_age_min != null ? String(evenement.cible_age_min) : "");
   const [ageMax, setAgeMax] = useState<string>(evenement.cible_age_max != null ? String(evenement.cible_age_max) : "");
   const [emailsTexte, setEmailsTexte] = useState<string>((evenement.cible_emails ?? []).join("\n"));
+  const [description, setDescription] = useState<string>(evenement.description ?? "");
+  const [principal, setPrincipal] = useState<string>(evenement.intervenant_principal ?? "");
+  const [intervenants, setIntervenants] = useState<string[]>(
+    evenement.intervenants && evenement.intervenants.length > 0 ? evenement.intervenants : [""],
+  );
   const coordinations = useResource(() => getCoordinations(token), [token]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
@@ -124,6 +130,9 @@ export function EvenementEdition({
         // update would reset a custom window back to the global default.
         fenetre_reponse_heures: fenetre ? Number(fenetre) : undefined,
         fuseau_horaire: zone,
+        description: description.trim() || null,
+        intervenant_principal: principal.trim() || null,
+        intervenants: intervenants.map((x) => x.trim()).filter(Boolean),
       };
       if (fin) payload.fin = zonedToUtc(fin, zone);
       if (lieu.trim()) payload.lieu = lieu.trim();
@@ -257,6 +266,24 @@ export function EvenementEdition({
         </label>
         <div className="full">
           <LiensEditor liens={liensList} onChange={setLiensList} disabled={busy} />
+        </div>
+        <label className="full">
+          <span>Intervenant principal (orateur)</span>
+          <input value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="Nom de l'intervenant principal" />
+        </label>
+        <div className="full">
+          <span>Autres intervenants</span>
+          {intervenants.map((v, i) => (
+            <div key={i} style={{ display: "flex", gap: 6, marginTop: 4 }}>
+              <input style={{ flex: 1 }} value={v} placeholder="Nom d'un intervenant" onChange={(e) => setIntervenants(intervenants.map((x, j) => (j === i ? e.target.value : x)))} />
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => setIntervenants(intervenants.length > 1 ? intervenants.filter((_, j) => j !== i) : [""])}>Retirer</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-ghost btn-inline" style={{ marginTop: 4 }} onClick={() => setIntervenants([...intervenants, ""])}>+ Ajouter un intervenant</button>
+        </div>
+        <div className="full">
+          <span>Description</span>
+          <RichEditor value={description} onChange={setDescription} disabled={busy} />
         </div>
       </div>
       {estSerie && (

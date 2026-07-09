@@ -401,6 +401,10 @@ export interface Evenement {
   serie_id?: string | null;
   /** Per-activity response-window override in hours; null = global default. */
   fenetre_reponse_heures?: number | null;
+  /** Rich description (sanitised HTML) and the human contributors. */
+  description?: string | null;
+  intervenant_principal?: string | null;
+  intervenants?: string[];
 }
 
 export interface TagItem {
@@ -460,6 +464,10 @@ export interface EvenementCreateInput {
   occurrences?: { debut: string; fin?: string; mode?: string }[];
   /** Recurrence rule, recorded for display (freq, interval, count). */
   recurrence?: { freq: string; interval: number; count: number } | null;
+  /** Rich description (sanitised server-side) and the human contributors. */
+  description?: string | null;
+  intervenant_principal?: string | null;
+  intervenants?: string[];
 }
 
 export interface MembreListQuery {

@@ -21,6 +21,7 @@ import { CalendrierEvenements } from "./CalendrierEvenements.js";
 import { EvenementGestion } from "./EvenementGestion.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
+import { RichEditor } from "./RichEditor.js";
 
 const EMPTY: EvenementCreateInput = {
   titre: "",
@@ -159,6 +160,9 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         cible_age_max: form.cible_age_max ?? null,
         cible_emails: emails,
         fuseau_horaire: zone,
+        description: (form.description ?? "").trim() || null,
+        intervenant_principal: (form.intervenant_principal ?? "").trim() || null,
+        intervenants: (form.intervenants ?? []).map((x) => x.trim()).filter(Boolean),
       };
       if (form.fin) payload.fin = zonedToUtc(form.fin, zone);
       if (form.fenetre_reponse_heures) payload.fenetre_reponse_heures = Number(form.fenetre_reponse_heures);
@@ -451,6 +455,24 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           </label>
           <div className="full">
             <LiensEditor liens={liens} onChange={setLiens} disabled={busy} />
+          </div>
+          <label className="full">
+            <span>Intervenant principal (orateur)</span>
+            <input value={form.intervenant_principal ?? ""} onChange={(e) => set("intervenant_principal", e.target.value)} placeholder="Nom de l'intervenant principal" />
+          </label>
+          <div className="full">
+            <span>Autres intervenants</span>
+            {(form.intervenants ?? [""]).map((v, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <input style={{ flex: 1 }} value={v} placeholder="Nom d'un intervenant" onChange={(e) => set("intervenants", (form.intervenants ?? [""]).map((x, j) => (j === i ? e.target.value : x)))} />
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => { const arr = form.intervenants ?? [""]; set("intervenants", arr.length > 1 ? arr.filter((_, j) => j !== i) : [""]); }}>Retirer</button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-ghost btn-inline" style={{ marginTop: 4 }} onClick={() => set("intervenants", [...(form.intervenants ?? [""]), ""])}>+ Ajouter un intervenant</button>
+          </div>
+          <div className="full">
+            <span>Description</span>
+            <RichEditor value={form.description ?? ""} onChange={(html) => set("description", html)} disabled={busy} />
           </div>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
