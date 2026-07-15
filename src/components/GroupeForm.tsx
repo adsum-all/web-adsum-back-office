@@ -174,11 +174,17 @@ export function GroupeForm({
               <div key={domaine} style={{ marginBottom: 8 }}>
                 <p className="nav-group-title" style={{ margin: "6px 0 2px" }}>{domaine}</p>
                 {items.map((p) => (
-                  <label key={p.cle} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0", cursor: "pointer" }}>
-                    <input type="checkbox" checked={perms.has(p.cle)} onChange={() => toggle(p.cle)} />
-                    <span>{p.libelle}</span>
-                    <span className="badge" style={{ background: RISK_COLORS[p.risque] ?? "#868e96", color: "#fff", fontSize: 11 }}>{p.risque}</span>
-                    <span className="mono muted small">{p.cle}</span>
+                  <label key={p.cle} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "5px 0", cursor: "pointer" }}>
+                    <input type="checkbox" checked={perms.has(p.cle)} onChange={() => toggle(p.cle)} style={{ marginTop: 3 }} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span>{p.libelle}</span>
+                        <span className="badge" style={{ background: RISK_COLORS[p.risque] ?? "#868e96", color: "#fff", fontSize: 11 }}>{p.risque}</span>
+                        <span className="mono muted small">{p.cle}</span>
+                      </span>
+                      {p.description && <span className="muted small" style={{ display: "block", lineHeight: 1.35, marginTop: 1 }}>{p.description}</span>}
+                      {p.limite && <span className="small" style={{ display: "block", lineHeight: 1.35, color: "#c0392b" }}>Ne permet pas : {p.limite}</span>}
+                    </span>
                   </label>
                 ))}
               </div>

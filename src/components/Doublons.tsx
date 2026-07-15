@@ -1,9 +1,13 @@
 import { useState } from "react";
 
 import {
+  type ApercuFusion,
   type Comparaison,
+  type DecisionDoublon,
   type DetectionDoublon,
+  apercuFusionDoublon,
   deciderDoublon,
+  fusionnerDoublon,
   getComparaisonDoublon,
   getDoublons,
   getSeuilDoublon,
@@ -22,7 +26,7 @@ const SIGNAL_LABELS: Record<string, string> = {
   photo: "Photo",
 };
 
-export function Doublons({ token }: { token: string }): JSX.Element {
+export function Doublons({ token, canStatuer = false }: { token: string; canStatuer?: boolean }): JSX.Element {
   const detections = useResource(() => getDoublons(token), [token]);
   const seuil = useResource(() => getSeuilDoublon(token), [token]);
   const [busy, setBusy] = useState(false);
@@ -106,6 +110,7 @@ export function Doublons({ token }: { token: string }): JSX.Element {
           key={d.id}
           token={token}
           detection={d}
+          canStatuer={canStatuer}
           open={openId === d.id}
           onToggle={() => setOpenId(openId === d.id ? null : d.id)}
           onDecided={() => detections.reload()}
@@ -118,20 +123,45 @@ export function Doublons({ token }: { token: string }): JSX.Element {
 function DetectionCard({
   token,
   detection,
+  canStatuer,
   open,
   onToggle,
   onDecided,
 }: {
   token: string;
   detection: DetectionDoublon;
+  canStatuer: boolean;
   open: boolean;
   onToggle: () => void;
   onDecided: () => void;
 }): JSX.Element {
   const [cmp, setCmp] = useState<Comparaison | null>(null);
   const [busy, setBusy] = useState(false);
+  // Merge flow: which member is kept, the pre-flight, and any error.
+  const [survivant, setSurvivant] = useState<"a" | "b" | null>(null);
+  const [apercu, setApercu] = useState<ApercuFusion | null>(null);
+  const [fusionErr, setFusionErr] = useState<string | null>(null);
   const d = detection;
   const pct = Math.round(d.score * 100);
+
+  async function ouvrirFusion(keep: "a" | "b"): Promise<void> {
+    setSurvivant(keep); setApercu(null); setFusionErr(null); setBusy(true);
+    const sid = keep === "a" ? d.membre_a.id : d.membre_b.id;
+    const did = keep === "a" ? d.membre_b.id : d.membre_a.id;
+    try { setApercu(await apercuFusionDoublon(token, sid, did)); }
+    catch (e) { setFusionErr(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusy(false); }
+  }
+
+  async function confirmerFusion(): Promise<void> {
+    if (!survivant) return;
+    const sid = survivant === "a" ? d.membre_a.id : d.membre_b.id;
+    const did = survivant === "a" ? d.membre_b.id : d.membre_a.id;
+    setBusy(true); setFusionErr(null);
+    try { await fusionnerDoublon(token, sid, did); onDecided(); }
+    catch (e) { setFusionErr(e instanceof Error ? e.message : "Erreur"); }
+    finally { setBusy(false); }
+  }
 
   function toggle(): void {
     onToggle();
@@ -142,17 +172,28 @@ function DetectionCard({
     }
   }
 
-  async function decide(statut: "confirme" | "ignore"): Promise<void> {
+  async function decide(statut: DecisionDoublon, note?: string): Promise<void> {
     setBusy(true);
     try {
-      await deciderDoublon(token, d.id, statut);
+      await deciderDoublon(token, d.id, statut, note);
       onDecided();
     } finally {
       setBusy(false);
     }
   }
 
+  function demanderDocuments(): void {
+    const note = window.prompt(
+      "Quel document ou vérification demander pour départager ces deux profils ?\n" +
+        "Exemple : pièce d'identité recto-verso, acte de naissance, justificatif de domicile.",
+      "Pièce d'identité recto-verso",
+    );
+    if (note === null) return; // annulé
+    void decide("documents_demandes", note.trim() || undefined);
+  }
+
   const activeSignals = Object.entries(d.signaux).filter(([, v]) => (typeof v === "number" ? v > 0.5 : v));
+  const enAttente = d.statut === "documents_demandes";
 
   return (
     <section className="card">
@@ -165,11 +206,21 @@ function DetectionCard({
           </strong>
           <span className="muted small">
             {d.membre_a.matricule} . {d.membre_b.matricule}
-            {d.statut === "confirme" ? " . CONFIRME" : ""}
+            {d.statut === "confirme" ? " . DOUBLON CONFIRME" : ""}
           </span>
         </div>
-        <span className={`badge ${pct >= 80 ? "badge-bad" : "badge-warn"}`}>{pct}% de similarité</span>
+        <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {enAttente && <span className="badge badge-warn">Documents demandés</span>}
+          <span className={`badge ${pct >= 80 ? "badge-bad" : "badge-warn"}`}>{pct}% de similarité</span>
+        </span>
       </div>
+
+      {d.note && (
+        <p className="banner banner-info small" style={{ textAlign: "left" }}>
+          {enAttente ? "Vérification demandée : " : "Note : "}
+          {d.note}
+        </p>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "10px 0" }}>
         {activeSignals.map(([k, v]) => (
@@ -184,13 +235,59 @@ function DetectionCard({
         <button type="button" className="btn btn-ghost btn-inline" onClick={toggle}>
           {open ? "Masquer la comparaison" : "Comparer les deux profils"}
         </button>
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("confirme")}>
-          Confirmer le doublon
-        </button>
-        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("ignore")}>
-          Ignorer
-        </button>
+        {canStatuer ? (
+          <>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("confirme")}>
+              Confirmer le doublon
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={demanderDocuments}>
+              Demander des documents
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("ignore")}>
+              Personnes distinctes
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setSurvivant(null); setApercu(null); setFusionErr(null); setSurvivant("a"); void ouvrirFusion("a"); }}>
+              Fusionner…
+            </button>
+          </>
+        ) : (
+          <span className="muted small">Consultation seule. Le tri des doublons requiert la permission « Doublons - gerer ».</span>
+        )}
       </div>
+
+      {survivant !== null && (
+        <div className="banner banner-info" style={{ textAlign: "left", marginTop: 10 }}>
+          <strong>Fusionner ces deux fiches en une seule</strong>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>
+            Choisissez la fiche à <strong>conserver</strong> ; toutes les données de l'autre (présences, fonctions,
+            engagements, notifications…) lui sont rattachées, puis l'autre fiche est supprimée. Action définitive et tracée.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button type="button" className={`btn btn-inline ${survivant === "a" ? "btn-primary" : "btn-ghost"}`} disabled={busy} onClick={() => void ouvrirFusion("a")}>
+              Conserver {fullName(d.membre_a.prenoms, d.membre_a.nom, d.membre_a.matricule)}
+            </button>
+            <button type="button" className={`btn btn-inline ${survivant === "b" ? "btn-primary" : "btn-ghost"}`} disabled={busy} onClick={() => void ouvrirFusion("b")}>
+              Conserver {fullName(d.membre_b.prenoms, d.membre_b.nom, d.membre_b.matricule)}
+            </button>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setSurvivant(null); setApercu(null); }}>Annuler</button>
+          </div>
+          {apercu && (
+            <div style={{ marginTop: 8 }}>
+              {apercu.bloque_deux_comptes ? (
+                <p className="banner banner-error small" style={{ margin: 0 }}>Les deux fiches ont un compte de connexion : désactivez ou fusionnez l'un des comptes d'abord.</p>
+              ) : (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="small"><strong>{apercu.references_a_deplacer}</strong> élément(s) seront rattachés à la fiche conservée.</span>
+                  <button type="button" className="btn btn-inline" style={{ background: "var(--adsum-danger)", color: "#fff" }} disabled={busy} onClick={() => void confirmerFusion()}>
+                    Fusionner définitivement
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {fusionErr && <p className="banner banner-error small" style={{ marginTop: 6 }}>{fusionErr}</p>}
+        </div>
+      )}
 
       {open && cmp && (
         <table className="data-table" style={{ marginTop: 12 }}>

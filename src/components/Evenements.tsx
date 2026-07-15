@@ -4,14 +4,18 @@ import {
   ApiError,
   type CibleType,
   type EvenementCreateInput,
+  ajouterPieceEvenement,
   createEvenement,
   getCommissions,
   getCoordinations,
   getEvenements,
   getIntendances,
   getQuestionnaireFenetre,
+  getSemaineJourDebut,
   getTribus,
+  getTypesEvenements,
   setQuestionnaireFenetre,
+  setSemaineJourDebut,
 } from "../api.js";
 import { formatDate } from "../format.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
@@ -19,6 +23,8 @@ import { zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
 import { CalendrierEvenements } from "./CalendrierEvenements.js";
 import { EvenementGestion } from "./EvenementGestion.js";
+import { PiecesACharger } from "./PiecesACharger.js";
+import { lireFichier } from "./PiecesEvenement.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
 import { RichEditor } from "./RichEditor.js";
@@ -67,6 +73,7 @@ function addDaysLocal(local: string, days: number): string {
 export function Evenements({ token }: { token: string }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
+  const semaineDebut = useResource(() => getSemaineJourDebut(token), [token]);
   // Units available as an activity target. Loaded once; the second select only
   // shows the list matching the chosen target kind.
   const coordinations = useResource(() => getCoordinations(token), [token]);
@@ -74,6 +81,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   const intendances = useResource(() => getIntendances(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
+  const [piecesAJoindre, setPiecesAJoindre] = useState<File[]>([]);
+  const typesEvenements = useResource(() => getTypesEvenements(token), [token]);
+  const typesPublies = (typesEvenements.data ?? []).filter((t) => t.publie);
+  const typeCouleur = typesPublies.find((t) => t.id === form.type_evenement_id)?.couleur ?? null;
   const [liens, setLiens] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -99,6 +110,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   function saveFenetre(heures: number): void {
     setFenetreLocal(null);
     void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
+  }
+
+  function saveSemaineDebut(jour: number): void {
+    void setSemaineJourDebut(token, jour).then(() => semaineDebut.reload()).catch(() => undefined);
   }
 
   function set<K extends keyof EvenementCreateInput>(key: K, value: EvenementCreateInput[K]): void {
@@ -150,6 +165,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         // as an absolute UTC instant so every member sees it in their own time.
         debut: zonedToUtc(form.debut, zone),
         type: form.type,
+        type_evenement_id: form.type_evenement_id ?? null,
         mode: form.mode,
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
@@ -206,13 +222,21 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           payload.recurrence = { freq, interval: 1, count: extra.length + 1 };
         }
       }
-      await createEvenement(token, payload);
+      const cree = await createEvenement(token, payload);
+      // Upload the attachments joined during planning to the freshly created event.
+      for (const f of piecesAJoindre) {
+        try {
+          const dataUrl = await lireFichier(f);
+          await ajouterPieceEvenement(token, cree.id, { nom: f.name || `piece-${Date.now()}`, type: f.type, taille: f.size, data_url: dataUrl });
+        } catch { /* a failed attachment must not lose the created event */ }
+      }
       setForm(EMPTY);
       setLiens([""]);
       setRepetition("aucune");
       setNbOccurrences(1);
       setDatesPrecises([]);
       setEmailsTexte("");
+      setPiecesAJoindre([]);
       evenements.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
@@ -346,12 +370,22 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             </select>
           </label>
           <label>
-            <span>Type</span>
+            <span>Nature</span>
             <select value={form.type ?? "rassemblement"} onChange={(e) => set("type", e.target.value)}>
               <option value="rassemblement">Rassemblement</option>
               <option value="formation">Formation</option>
               <option value="priere">Prière</option>
             </select>
+          </label>
+          <label>
+            <span>Type d&apos;événement (couleur du calendrier)</span>
+            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {typeCouleur && <span aria-hidden style={{ width: 16, height: 16, borderRadius: 4, background: typeCouleur, border: "1px solid rgba(0,0,0,0.15)", flexShrink: 0 }} />}
+              <select style={{ flex: 1 }} value={form.type_evenement_id ?? ""} onChange={(e) => set("type_evenement_id", e.target.value || null)}>
+                <option value="">Aucun (couleur par défaut)</option>
+                {typesPublies.map((te) => <option key={te.id} value={te.id}>{te.nom}</option>)}
+              </select>
+            </span>
           </label>
           <label>
             <span>Mode</span>
@@ -474,6 +508,10 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Description</span>
             <RichEditor value={form.description ?? ""} onChange={(html) => set("description", html)} disabled={busy} />
           </div>
+          <div className="full">
+            <span>Pièces jointes (images, documents)</span>
+            <PiecesACharger files={piecesAJoindre} onChange={setPiecesAJoindre} />
+          </div>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
@@ -499,6 +537,26 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             style={{ flex: 1 }}
           />
           <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2 className="card-title">Premier jour de la semaine</h2>
+        <p className="muted small">
+          Détermine la plage d'une semaine pour le récapitulatif (semaine précédente) et l'agenda (semaine en cours)
+          envoyés aux membres. Chaque organisation peut choisir son jour de départ (semaine du lundi au dimanche inclus,
+          ou d'un autre jour au jour précédent).
+        </p>
+        <div className="toolbar">
+          <select
+            className="search"
+            value={semaineDebut.data?.jour ?? 0}
+            onChange={(e) => saveSemaineDebut(Number(e.target.value))}
+          >
+            {["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"].map((j, i) => (
+              <option key={j} value={i}>{j}</option>
+            ))}
+          </select>
         </div>
       </section>
       </>

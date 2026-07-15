@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { type CataloguePermissions, getCataloguePermissions } from "../api.js";
 import { useResource } from "../useResource.js";
+import { Tabs } from "./Tabs.js";
 
 const ROLE_LABELS: Record<string, string> = {
   membre: "Membre",
@@ -52,6 +53,7 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
   }, [data]);
 
   const roles = data?.roles.map((r) => r.role) ?? [];
+  const [tab, setTab] = useState<"roles" | "groupes">("roles");
 
   return (
     <div className="page">
@@ -70,8 +72,17 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
 
       {data && (
         <>
+          <Tabs
+            tabs={[
+              { id: "roles", label: "Permissions par rôle" },
+              { id: "groupes", label: `Groupes spécialisés (${data.groupes_specialises.length})` },
+            ]}
+            active={tab}
+            onChange={(id) => setTab(id as "roles" | "groupes")}
+          />
+          {tab === "roles" && (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-sticky">
               <thead>
                 <tr>
                   <th>Permission</th>
@@ -96,6 +107,8 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
                       <tr key={p.cle}>
                         <td>
                           <div>{p.libelle}</div>
+                          {p.description && <div className="muted small" style={{ maxWidth: 420, lineHeight: 1.35 }}>{p.description}</div>}
+                          {p.limite && <div className="small" style={{ maxWidth: 420, color: "#c0392b", lineHeight: 1.35 }}>Ne permet pas : {p.limite}</div>}
                           <div className="mono muted small">{p.cle}</div>
                         </td>
                         <td>
@@ -121,18 +134,13 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
               </tbody>
             </table>
           </div>
+          )}
 
-          <header className="page-head" style={{ marginTop: 24 }}>
-            <div>
-              <h2>Groupes spécialisés</h2>
-              <p className="muted">
-                Groupes de permissions ciblés, à accorder à un membre sans lui donner un rôle global.
-              </p>
-            </div>
-          </header>
+          {tab === "groupes" && (
+          <>
           {data.groupes_specialises.length === 0 && <p className="muted">Aucun groupe spécialisé défini.</p>}
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-sticky">
               <thead>
                 <tr>
                   <th>Groupe</th>
@@ -165,6 +173,8 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </>
       )}
     </div>

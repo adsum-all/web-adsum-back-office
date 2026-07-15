@@ -10,6 +10,7 @@ import {
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
+import { Tabs } from "./Tabs.js";
 
 // Built-in unit types. The administration can add any other kind by choosing
 // "Autre type" and typing it: the value is stored as a lowercase slug.
@@ -51,6 +52,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
   const [scNom, setScNom] = useState("");
   const [scCommissionId, setScCommissionId] = useState("");
   const [scError, setScError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"unites" | "sous">("unites");
 
   const typeFinal = typeChoisi === "autre" ? slugType(typeCustom) : typeChoisi;
 
@@ -109,6 +111,14 @@ export function Commissions({ token }: { token: string }): JSX.Element {
         </div>
       </header>
 
+      <Tabs
+        tabs={[{ id: "unites", label: "Commissions & missions" }, { id: "sous", label: "Sous-commissions" }]}
+        active={tab}
+        onChange={(id) => setTab(id as "unites" | "sous")}
+      />
+
+      {tab === "unites" && (
+      <>
       <form className="form-card" onSubmit={submit}>
         <div className="form-grid">
           <label>
@@ -158,6 +168,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
             prefix={typeLabel(c.type_organisation)}
             meta={c.description ?? undefined}
             publie={c.publie}
+            edit={{ description: c.description ?? "" }}
             onChanged={commissions.reload}
           />
         ))}
@@ -165,7 +176,10 @@ export function Commissions({ token }: { token: string }): JSX.Element {
       {!commissions.loading && items.length === 0 && (
         <p className="muted">Aucune unité. Créez la première.</p>
       )}
+      </>
+      )}
 
+      {tab === "sous" && (
       <section className="card" style={{ marginTop: 18 }}>
         <h2 className="card-title">Sous-commissions</h2>
         <p className="muted small">Subdivisions rattachées directement à une commission ou une mission.</p>
@@ -195,11 +209,19 @@ export function Commissions({ token }: { token: string }): JSX.Element {
               nom={s.nom}
               meta={s.commission ?? undefined}
               publie={s.publie}
+              edit={{
+                parent: {
+                  value: s.commission_id,
+                  options: items.map((c) => ({ id: c.id, nom: uniteLabel(c) })),
+                  label: "Rattachée à",
+                },
+              }}
               onChanged={sousCommissions.reload}
             />
           ))}
         </ul>
       </section>
+      )}
     </div>
   );
 }

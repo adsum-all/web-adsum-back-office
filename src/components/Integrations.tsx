@@ -17,6 +17,7 @@ import {
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { Switch } from "./Switch.js";
+import { Tabs } from "./Tabs.js";
 
 const CANAL_LABEL: Record<string, string> = {
   in_app: "Notifications in-app",
@@ -32,6 +33,8 @@ export function Integrations({ token }: { token: string }): JSX.Element {
   const types = useResource(() => getTypesNotification(token), [token]);
   const echecs = useResource(() => getEchecsNotification(token), [token]);
   const [note, setNote] = useState<string | null>(null);
+  const [tab, setTab] = useState<"canaux" | "jetons" | "signatures" | "auto" | "echecs">("canaux");
+  const ouverts = echecs.data?.ouverts ?? 0;
 
   return (
     <div className="page">
@@ -44,6 +47,20 @@ export function Integrations({ token }: { token: string }): JSX.Element {
 
       {note && <p className="banner banner-ok">{note}</p>}
 
+      <Tabs
+        tabs={[
+          { id: "canaux", label: "Canaux" },
+          { id: "jetons", label: "Jetons d'accès" },
+          { id: "signatures", label: "Signatures" },
+          { id: "auto", label: "Messages automatiques" },
+          { id: "echecs", label: ouverts > 0 ? `Échecs (${ouverts})` : "Échecs" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as typeof tab)}
+      />
+
+      {tab === "canaux" && (
+      <>
       <TelegramOnboarding bot={(statut.data?.telegram?.bot as string | null) ?? null} />
 
       <section className="card">
@@ -57,7 +74,10 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           ))}
         </div>
       </section>
+      </>
+      )}
 
+      {tab === "jetons" && (
       <section className="card">
         <h2 className="card-title">
           Jetons d'accès
@@ -78,7 +98,9 @@ export function Integrations({ token }: { token: string }): JSX.Element {
             />
           ))}
       </section>
+      )}
 
+      {tab === "signatures" && (
       <section className="card">
         <h2 className="card-title">
           Signatures des messages
@@ -98,7 +120,9 @@ export function Integrations({ token }: { token: string }): JSX.Element {
             />
           ))}
       </section>
+      )}
 
+      {tab === "auto" && (
       <section className="card">
         <h2 className="card-title">
           Messages automatiques
@@ -110,7 +134,9 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           ))}
         </div>
       </section>
+      )}
 
+      {tab === "echecs" && (
       <section className="card">
         <h2 className="card-title">
           Échecs de livraison
@@ -129,6 +155,7 @@ export function Integrations({ token }: { token: string }): JSX.Element {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

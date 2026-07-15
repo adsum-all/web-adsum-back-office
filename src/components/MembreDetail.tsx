@@ -4,8 +4,11 @@ import {
   ApiError,
   type DossierDocument,
   type MembreUpdateInput,
+  type SuppressionApercu,
   bloquerMembre,
+  changerStatutMembre,
   debloquerMembre,
+  getSuppressionApercu,
   demanderDocumentMembre,
   fetchDocumentContentUrl,
   getAdminDemandes,
@@ -26,6 +29,7 @@ import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
+import { MembreApplications } from "./MembreApplications.js";
 import { MembreCorrectionIdentite } from "./MembreCorrectionIdentite.js";
 import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
@@ -75,6 +79,19 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
   const [note, setNote] = useState<string | null>(null);
   const [docType, setDocType] = useState("piece_identite");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [apercu, setApercu] = useState<SuppressionApercu | null>(null);
+
+  async function ouvrirSuppression(): Promise<void> {
+    setBusy(true); setError(null); setNote(null);
+    try {
+      setApercu(await getSuppressionApercu(token, id));
+      setConfirmDelete(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
+    } finally {
+      setBusy(false);
+    }
+  }
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("apercu");
   // Security connections can be numerous: page through them five at a time.
@@ -142,7 +159,25 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
   }
 
   if (membre.loading) return <div className="page muted">Chargement...</div>;
-  if (membre.error || !membre.data) return <div className="page banner banner-error">{membre.error ?? "Introuvable"}</div>;
+  if (membre.error || !membre.data) {
+    // A transient network failure (serverless cold start, connectivity blip) must
+    // not dead-end the whole file: offer a retry instead of a static error.
+    return (
+      <div className="page">
+        <p className="banner banner-error">{membre.error ?? "Introuvable"}</p>
+        <div className="toolbar">
+          <button type="button" className="btn btn-primary btn-inline" onClick={() => membre.reload()}>
+            Réessayer
+          </button>
+          {onBack && (
+            <button type="button" className="btn btn-ghost btn-inline" onClick={onBack}>
+              Retour
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const m = membre.data;
   // Bare name for initials; the heading is the civil name, functions/pastoral shown apart.
@@ -636,6 +671,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
       {tab === "avance" && (
       <>
+      <MembreApplications token={token} membreId={id} />
       <MembreCorrectionIdentite token={token} membre={m} onChanged={() => membre.reload()} />
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
@@ -674,29 +710,54 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
           >
             Débloquer
           </button>
-          {confirmDelete ? (
-            <>
-              <span className="muted small">Confirmer la suppression définitive (RGPD) ?</span>
-              <button
-                type="button"
-                className="btn btn-primary btn-inline"
-                style={{ background: "var(--adsum-danger)" }}
-                disabled={busy}
-                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé.", true)}
-              >
-                Oui, supprimer et purger
-              </button>
-              <button type="button" className="btn btn-ghost btn-inline" onClick={() => setConfirmDelete(false)}>
-                Annuler
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirmDelete(true)}>
+          {!confirmDelete && (
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void ouvrirSuppression()}>
               Supprimer (RGPD)
             </button>
           )}
         </div>
-        <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
+        {confirmDelete && (
+          <div className="banner banner-error small" style={{ textAlign: "left", marginTop: 10 }}>
+            <strong>Suppression définitive (RGPD) de {apercu?.nom || "ce membre"}</strong>
+            <p className="muted" style={{ margin: "6px 0" }}>Avant de supprimer, vérifiez ce que ce membre porte. La suppression efface totalement le membre, son compte, ses demandes, documents, participations et fichiers. Irréversible.</p>
+            {apercu && (
+              <ul className="muted small" style={{ margin: "0 0 8px", paddingLeft: 18 }}>
+                {apercu.porte_titre_berger && <li>Porte un titre de consécration : <strong>{apercu.nom_pastoral || "Berger/Bergère"}</strong></li>}
+                {apercu.fonctions.length > 0 && <li>Fonctions portées : <strong>{apercu.fonctions.join(", ")}</strong></li>}
+                {apercu.responsable_de_commissions > 0 && <li>Responsable de <strong>{apercu.responsable_de_commissions}</strong> commission(s) (le rattachement sera libéré)</li>}
+                {apercu.appartenances > 0 && <li>{apercu.appartenances} rattachement(s) de commission</li>}
+                {apercu.espaces_collaboration > 0 && <li>Membre de <strong>{apercu.espaces_collaboration}</strong> espace(s) de collaboration</li>}
+                {apercu.participations > 0 && <li>{apercu.participations} participation(s) enregistrée(s)</li>}
+                {apercu.documents > 0 && <li>{apercu.documents} document(s)</li>}
+                {apercu.a_un_compte && <li>Possède un compte de connexion (sera supprimé)</li>}
+                {!apercu.porte_titre_berger && apercu.fonctions.length === 0 && apercu.appartenances === 0 && apercu.espaces_collaboration === 0 && (
+                  <li>Aucun titre, fonction ni rattachement particulier.</li>
+                )}
+              </ul>
+            )}
+            <div style={{ marginBottom: 6 }}>
+              <span className="muted small">Alternatives réversibles (sans perte de données) : </span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "archive"), "Membre archivé.")}>Archiver</button>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "inactif"), "Membre désactivé.")}>Désactiver</button>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "suspendu"), "Membre suspendu.")}>Suspendre</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+              <button
+                type="button"
+                className="btn btn-danger btn-inline"
+                disabled={busy}
+                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé définitivement.", true)}
+              >
+                Supprimer définitivement (RGPD)
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setConfirmDelete(false); setApercu(null); }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </section>
       </>
       )}

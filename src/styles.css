@@ -761,6 +761,18 @@ h3 {
 .btn-ghost:hover {
   background: var(--adsum-bg);
 }
+.btn-danger {
+  background: var(--adsum-danger, #c0392b);
+  color: #fff;
+  border: 1px solid transparent;
+}
+.btn-danger:hover {
+  filter: brightness(1.08);
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 /* Lists */
 .list {
@@ -851,6 +863,20 @@ h3 {
 .banner-ok {
   background: var(--adsum-ok-bg);
   color: var(--adsum-ok);
+}
+.banner-info {
+  background: var(--adsum-tint-blue-bg, #eef3fc);
+  color: var(--adsum-tint-blue-fg, #2a4fad);
+}
+
+/* Sticky matrix header: keep the role/group columns visible while scrolling a long
+   permission list, so the operator never loses which column a checkbox belongs to.
+   Scoped to .table-sticky so the generic .table on other screens is untouched. */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--adsum-bg, #eef1f6);
 }
 
 /* Charts */

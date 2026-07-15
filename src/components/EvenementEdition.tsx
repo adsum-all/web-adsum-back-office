@@ -10,6 +10,7 @@ import {
   getCoordinations,
   getIntendances,
   getTribus,
+  getTypesEvenements,
   updateEvenement,
 } from "../api.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
@@ -20,6 +21,9 @@ import { LiensEditor } from "./LiensEditor.js";
 import { PiecesEvenement } from "./PiecesEvenement.js";
 import { RichEditor } from "./RichEditor.js";
 import { SerieOccurrences } from "./SerieOccurrences.js";
+import { Tabs } from "./Tabs.js";
+
+type EvtTab = "infos" | "destinataires" | "contenu" | "serie";
 
 const CIBLE_LABELS: Record<CibleType, string> = {
   general: "Toute la communauté (général)",
@@ -53,8 +57,13 @@ export function EvenementEdition({
   const [fin, setFin] = useState(evenement.fin ? utcToZoned(evenement.fin, zone0) : "");
   const [lieu, setLieu] = useState(evenement.lieu ?? "");
   const [type, setType] = useState(evenement.type ?? "rassemblement");
+  const [typeEvenementId, setTypeEvenementId] = useState<string | null>(evenement.type_evenement_id ?? null);
+  const typesRes = useResource(() => getTypesEvenements(token), [token]);
+  const typesPublies = (typesRes.data ?? []).filter((t) => t.publie);
+  const typeCouleur = typesPublies.find((t) => t.id === typeEvenementId)?.couleur ?? null;
   const [mode, setMode] = useState(evenement.mode ?? "presentiel");
   const [diffusion, setDiffusion] = useState<TypeDiffusion>(evenement.type_diffusion ?? "aucun");
+  const [tab, setTab] = useState<EvtTab>("infos");
   const [visibilite, setVisibilite] = useState(evenement.visibilite ?? "membres");
   const [volet, setVolet] = useState(evenement.volet);
   // Broadcast links and the response-window override are edited here too, so the
@@ -118,6 +127,7 @@ export function EvenementEdition({
         volet,
         debut: zonedToUtc(debut, zone),
         type,
+        type_evenement_id: typeEvenementId,
         mode,
         type_diffusion: diffusion,
         visibilite,
@@ -156,7 +166,17 @@ export function EvenementEdition({
       <p className="card-title" style={{ marginBottom: 8 }}>Modifier les détails</p>
       {ok && <p className="banner banner-ok">Activité mise à jour.</p>}
       {error && <p className="banner banner-error">{error}</p>}
-      <div className="form-grid">
+      <Tabs
+        tabs={[
+          { id: "infos", label: "Informations" },
+          { id: "destinataires", label: "Destinataires" },
+          { id: "contenu", label: "Contenu" },
+          { id: "serie", label: "Série" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as EvtTab)}
+      />
+      <div data-tab="infos" className="form-grid" hidden={tab !== "infos"}>
         <label className="full">
           <span>Titre *</span>
           <input value={titre} onChange={(e) => setTitre(e.target.value)} />
@@ -180,12 +200,24 @@ export function EvenementEdition({
           <input value={lieu} onChange={(e) => setLieu(e.target.value)} />
         </label>
         <label>
-          <span>Type</span>
+          <span>Nature</span>
           <select value={type} onChange={(e) => setType(e.target.value)}>
             <option value="rassemblement">Rassemblement</option>
             <option value="formation">Formation</option>
             <option value="priere">Prière</option>
           </select>
+        </label>
+        <label>
+          <span>Type d'événement (couleur du calendrier)</span>
+          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {typeCouleur && (
+              <span aria-hidden style={{ width: 16, height: 16, borderRadius: 4, background: typeCouleur, border: "1px solid rgba(0,0,0,0.15)", flexShrink: 0 }} />
+            )}
+            <select style={{ flex: 1 }} value={typeEvenementId ?? ""} onChange={(e) => setTypeEvenementId(e.target.value || null)}>
+              <option value="">Aucun (couleur par défaut)</option>
+              {typesPublies.map((te) => <option key={te.id} value={te.id}>{te.nom}</option>)}
+            </select>
+          </span>
         </label>
         <label>
           <span>Mode</span>
@@ -225,6 +257,8 @@ export function EvenementEdition({
           </span>
           <input type="number" min={1} max={336} placeholder="Réglage global" value={fenetre} onChange={(e) => setFenetre(e.target.value)} />
         </label>
+      </div>
+      <div data-tab="destinataires" className="form-grid" hidden={tab !== "destinataires"}>
         <label className="full">
           <span>
             Destinataires
@@ -265,6 +299,8 @@ export function EvenementEdition({
           <span>Âge max.</span>
           <input type="number" min={0} max={120} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
         </label>
+      </div>
+      <div data-tab="contenu" className="form-grid" hidden={tab !== "contenu"}>
         <div className="full">
           <LiensEditor liens={liensList} onChange={setLiensList} disabled={busy} />
         </div>
@@ -290,18 +326,22 @@ export function EvenementEdition({
           <PiecesEvenement token={token} evenementId={evenement.id} />
         </div>
       </div>
-      {estSerie && (
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>
-          <input type="checkbox" checked={toucherSerie} onChange={(e) => setToucherSerie(e.target.checked)} />
-          Appliquer ces détails à toute la série (chaque date garde son horaire propre).
-        </label>
+      {tab !== "serie" && (
+        <>
+          {estSerie && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>
+              <input type="checkbox" checked={toucherSerie} onChange={(e) => setToucherSerie(e.target.checked)} />
+              Appliquer ces détails à toute la série (chaque date garde son horaire propre).
+            </label>
+          )}
+          <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void save()}>
+              {busy ? "Enregistrement..." : toucherSerie ? "Enregistrer pour toute la série" : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </>
       )}
-      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void save()}>
-          {busy ? "Enregistrement..." : toucherSerie ? "Enregistrer pour toute la série" : "Enregistrer les modifications"}
-        </button>
-      </div>
-      <SerieOccurrences token={token} evenement={evenement} onChanged={onSaved} />
+      {tab === "serie" && <SerieOccurrences token={token} evenement={evenement} onChanged={onSaved} />}
     </div>
   );
 }
