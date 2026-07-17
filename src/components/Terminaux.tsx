@@ -4,7 +4,7 @@ import { ApiError, type Terminal, createTerminal, getTerminaux, updateTerminal }
 import { formatDate } from "../format.js";
 import { useResource } from "../useResource.js";
 
-export function Terminaux({ token }: { token: string }): JSX.Element {
+export function Terminaux({ token, canGerer = false }: { token: string; canGerer?: boolean }): JSX.Element {
   const terminaux = useResource(() => getTerminaux(token), [token]);
   const [nom, setNom] = useState("");
   const [appareil, setAppareil] = useState("");
@@ -44,6 +44,7 @@ export function Terminaux({ token }: { token: string }): JSX.Element {
         </div>
       </header>
 
+      {canGerer ? (
       <form className="toolbar" onSubmit={register}>
         <input className="search" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom (Entree A, Tablette accueil...)" />
         <input className="search" value={appareil} onChange={(e) => setAppareil(e.target.value)} placeholder="Identifiant appareil (TRM-01)" />
@@ -51,6 +52,12 @@ export function Terminaux({ token }: { token: string }): JSX.Element {
           + Enregistrer
         </button>
       </form>
+      ) : (
+        <p className="banner banner-info small">
+          Liste en lecture seule. L'enregistrement et la revocation d'un terminal requierent la permission
+          <span className="mono"> terminaux.administrer</span>.
+        </p>
+      )}
       {error && <p className="banner banner-error">{error}</p>}
 
       <div className="table-wrap">
@@ -81,9 +88,13 @@ export function Terminaux({ token }: { token: string }): JSX.Element {
                   </span>
                 </td>
                 <td>
-                  <button type="button" className="link" onClick={() => guard(updateTerminal(token, t.id, { autorise: !t.autorise }))}>
-                    {t.autorise ? "Revoquer" : "Autoriser"}
-                  </button>
+                  {canGerer ? (
+                    <button type="button" className="link" onClick={() => guard(updateTerminal(token, t.id, { autorise: !t.autorise }))}>
+                      {t.autorise ? "Revoquer" : "Autoriser"}
+                    </button>
+                  ) : (
+                    <span className="muted small">Lecture seule</span>
+                  )}
                 </td>
               </tr>
             ))}

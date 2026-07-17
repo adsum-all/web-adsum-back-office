@@ -22,7 +22,7 @@ const LIST_TABS: { id: InscriptionFiltre; label: string }[] = [
  */
 export function Inscriptions({ token }: { token: string }): JSX.Element {
   const [tab, setTab] = useState("creer");
-  const compteurs = useResource(() => getInscriptionCompteurs(token), [token]);
+  const compteurs = useResource(() => getInscriptionCompteurs(token), [token], 10000);
   const c = compteurs.data;
 
   const tabs = [

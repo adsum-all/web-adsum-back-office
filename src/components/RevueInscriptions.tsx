@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import {
   type CorrectionItem,
@@ -24,6 +24,35 @@ const DOC_TYPES: Record<string, string> = {
 
 function docTypeLabel(type: string): string {
   return DOC_TYPES[type] ?? type;
+}
+
+function frDate(v: string | null | undefined): string {
+  if (!v) return "-";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? "-" : d.toLocaleDateString("fr-FR");
+}
+
+/** One label/value line of the control sheet. Long or missing values stay readable. */
+function Champ({ label, value }: { label: string; value: ReactNode }): JSX.Element {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+      <span className="muted small" style={{ textTransform: "uppercase", letterSpacing: 0.3, fontSize: 10 }}>{label}</span>
+      <span style={{ wordBreak: "break-word" }}>{value === null || value === undefined || value === "" ? <span className="muted">-</span> : value}</span>
+    </div>
+  );
+}
+
+/** A titled group of fields, laid out on a responsive grid so a reviewer reads the
+ * whole control sheet without excessive scrolling. */
+function Section({ titre, children }: { titre: string; children: ReactNode }): JSX.Element {
+  return (
+    <div style={{ flex: "1 1 260px", minWidth: 240 }}>
+      <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)", marginTop: 0, marginBottom: 8 }}>{titre}</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 const STATUT_BADGE: Record<string, string> = {
@@ -73,7 +102,7 @@ const VIDE: Record<string, string> = {
  * on every stage.
  */
 export function RevueInscriptions({ token, filtre }: { token: string; filtre: InscriptionFiltre }): JSX.Element {
-  const { data, loading, error, reload } = useResource(() => getInscriptions(token, filtre), [token, filtre]);
+  const { data, loading, error, reload } = useResource(() => getInscriptions(token, filtre), [token, filtre], 12000);
   const [openMotif, setOpenMotif] = useState<{ id: string; decision: string } | null>(null);
   const [motif, setMotif] = useState("");
   const [champs, setChamps] = useState<string[]>([]);
@@ -253,6 +282,48 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
               )}
             </div>
           </div>
+
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: 20, borderTop: "1px solid var(--adsum-line)", paddingTop: 16 }}>
+            <Section titre="Identité">
+              <Champ label="Nom" value={dossier.membre.nom} />
+              <Champ label="Prénoms" value={dossier.membre.prenoms} />
+              <Champ label="Nom affiché" value={dossier.membre.nom_affiche} />
+              <Champ label="Genre" value={dossier.membre.genre} />
+              <Champ label="Naissance" value={frDate(dossier.membre.date_naissance)} />
+              <Champ label="Matricule" value={<span className="mono">{dossier.membre.matricule}</span>} />
+              <Champ label="Code membre" value={dossier.membre.code_membre} />
+              <Champ label="Créé le" value={frDate(dossier.membre.cree_le)} />
+            </Section>
+            <Section titre="Coordonnées">
+              <Champ label="Courriel" value={dossier.membre.email} />
+              <Champ label="Téléphone" value={[dossier.membre.indicatif_telephone, dossier.membre.telephone].filter(Boolean).join(" ") || null} />
+              <Champ label="Pays" value={dossier.membre.pays} />
+              <Champ label="Ville" value={dossier.membre.ville} />
+              <Champ label="Région" value={dossier.membre.region} />
+              <Champ label="Adresse" value={dossier.membre.adresse} />
+            </Section>
+            <Section titre="Rattachements">
+              <Champ label="Commission" value={dossier.membre.commission} />
+              <Champ label="Sous-commission" value={dossier.membre.sous_commission} />
+              <Champ label="Coordination" value={dossier.membre.coordination} />
+              <Champ label="Intendance" value={dossier.membre.intendance} />
+              <Champ label="Tribu" value={dossier.membre.tribu} />
+              <Champ label="Niveau d'engagement" value={dossier.membre.niveau} />
+              <Champ label="Profession" value={dossier.membre.profession} />
+              <Champ label="Adhésion" value={frDate(dossier.membre.date_entree)} />
+              <Champ
+                label="Fonctions"
+                value={
+                  dossier.membre.fonctions && dossier.membre.fonctions.length > 0
+                    ? dossier.membre.fonctions
+                        .map((f) => `${f.libelle ?? ""}${f.perimetre ? ` (${f.perimetre})` : ""}${f.confirmee ? "" : " [à confirmer]"}`)
+                        .join(", ")
+                    : null
+                }
+              />
+            </Section>
+          </div>
+
           <h3 className="card-title" style={{ fontSize: "var(--adsum-text-sm)", marginTop: 20 }}>Documents</h3>
           {dossier.documents.length === 0 ? (
             <p className="muted small">Aucun document transmis.</p>

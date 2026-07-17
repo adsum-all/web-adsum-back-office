@@ -6,10 +6,13 @@ import {
   type CoordinationInput,
   type Intendance,
   type IntendanceInput,
+  type Tribu,
   createCoordination,
   createIntendance,
+  createTribu,
   getCoordinations,
   getIntendances,
+  getTribus,
   updateCoordination,
   updateIntendance,
 } from "../api.js";
@@ -17,6 +20,7 @@ import { CONTINENTS, nomPays } from "../countries.js";
 import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
 import { PaysCombo } from "./PaysCombo.js";
+import { Tabs } from "./Tabs.js";
 
 /**
  * Coordinations and intendances: two independent structures of the same level.
@@ -26,15 +30,32 @@ import { PaysCombo } from "./PaysCombo.js";
  * intendance attached to a coordination) is offered only behind an explicit
  * toggle, never imposed by default.
  */
-export function Organisation({ token }: { token: string }): JSX.Element {
+export function Organisation({
+  token,
+  canGerer = false,
+  canGererTribus = false,
+}: {
+  token: string;
+  // organisation.administrer: create/edit/publish/delete coordinations, intendances,
+  // and every structural row action (including tribu rows, routed through
+  // /admin/organisation/{entity}).
+  canGerer?: boolean;
+  // tribus.administrer: only the creation of a tribu (POST /admin/tribus).
+  canGererTribus?: boolean;
+}): JSX.Element {
   const coordinations = useResource(() => getCoordinations(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
+  const tribus = useResource(() => getTribus(token), [token]);
   const [error, setError] = useState<string | null>(null);
   const [editCoord, setEditCoord] = useState<string | null>(null);
   const [editIntend, setEditIntend] = useState<string | null>(null);
   const [qCoord, setQCoord] = useState("");
   const [qIntend, setQIntend] = useState("");
+  const [qTribu, setQTribu] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
+  const [nomTribu, setNomTribu] = useState("");
+  const [descTribu, setDescTribu] = useState("");
+  const [tab, setTab] = useState<"coord" | "intend" | "tribu">("coord");
 
   function guard<T>(p: Promise<T>, reload: () => void, done?: () => void): void {
     setError(null);
@@ -68,13 +89,82 @@ export function Organisation({ token }: { token: string }): JSX.Element {
       </header>
       {error && <p className="banner banner-error">{error}</p>}
 
+      <Tabs
+        tabs={[
+          { id: "coord", label: `Coordinations (${coords.length})` },
+          { id: "intend", label: `Intendances (${intends.length})` },
+          { id: "tribu", label: `Tribus (${(tribus.data ?? []).length})` },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as "coord" | "intend" | "tribu")}
+      />
+
+      {tab === "tribu" && (
+      <section className="card">
+        <h2 className="card-title">Tribus</h2>
+        <p className="muted small">Référentiel des tribus, paramétrable (jamais codé en dur). Sélectionnable en liste déroulante lors des inscriptions.</p>
+        {canGererTribus ? (
+        <form
+          className="form-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const nom = nomTribu.trim();
+            if (nom) guard(createTribu(token, { nom, description: descTribu.trim() || undefined }), tribus.reload, () => { setNomTribu(""); setDescTribu(""); });
+          }}
+        >
+          <div className="form-grid">
+            <label><span>Nom *</span><input value={nomTribu} onChange={(e) => setNomTribu(e.target.value)} placeholder="Ex : ASHER" required /></label>
+            <label><span>Description</span><input value={descTribu} onChange={(e) => setDescTribu(e.target.value)} /></label>
+          </div>
+          <div className="form-actions"><button type="submit" className="btn btn-primary btn-inline">+ Ajouter une tribu</button></div>
+        </form>
+        ) : (
+          <p className="banner banner-info small">
+            Référentiel en lecture seule. La création d'une tribu requiert la permission
+            <span className="mono"> tribus.administrer</span>.
+          </p>
+        )}
+        <div className="toolbar" style={{ marginTop: 8 }}>
+          <input className="search" value={qTribu} onChange={(e) => setQTribu(e.target.value)} placeholder="Rechercher une tribu..." />
+        </div>
+        {tribus.error && <p className="banner banner-error">{tribus.error}</p>}
+        <ul className="list">
+          {(tribus.data ?? []).filter((t: Tribu) => match(t.nom, qTribu)).map((t: Tribu) => (
+            <OrgItemRow
+              key={t.id}
+              token={token}
+              entity="tribus"
+              id={t.id}
+              nom={t.nom}
+              meta={t.description ?? undefined}
+              publie={t.publie ?? true}
+              edit={{ description: t.description ?? "" }}
+              // Row edit/publish/delete route through /admin/organisation/tribus =
+              // organisation.administrer (not tribus.administrer, which only creates).
+              canGerer={canGerer}
+              onChanged={tribus.reload}
+            />
+          ))}
+        </ul>
+        {!tribus.loading && (tribus.data ?? []).length === 0 && <p className="muted">Aucune tribu.</p>}
+      </section>
+      )}
+
+      {tab === "coord" && (
       <section className="card">
         <h2 className="card-title">Coordinations</h2>
+        {canGerer ? (
         <CoordinationForm
           coordinations={coords}
           submitLabel="+ Ajouter"
           onSubmit={(input) => guard(createCoordination(token, { ...input, nom: input.nom ?? "" }), coordinations.reload)}
         />
+        ) : (
+          <p className="banner banner-info small">
+            Consultation en lecture seule. La gestion des coordinations requiert la permission
+            <span className="mono"> organisation.administrer</span>.
+          </p>
+        )}
         <div className="toolbar" style={{ marginTop: 8 }}>
           <input className="search" placeholder="Rechercher une coordination" value={qCoord} onChange={(e) => setQCoord(e.target.value)} />
         </div>
@@ -99,6 +189,7 @@ export function Organisation({ token }: { token: string }): JSX.Element {
                 nom={c.nom}
                 meta={coordMeta(c)}
                 publie={c.publie}
+                canGerer={canGerer}
                 onEdit={() => setEditCoord(c.id)}
                 onChanged={coordinations.reload}
               />
@@ -106,15 +197,24 @@ export function Organisation({ token }: { token: string }): JSX.Element {
           )}
         </ul>
       </section>
+      )}
 
+      {tab === "intend" && (
       <section className="card">
         <h2 className="card-title">Intendances</h2>
+        {canGerer ? (
         <IntendanceForm
           coordinations={coords}
           intendances={intends}
           submitLabel="+ Ajouter"
           onSubmit={(input) => guard(createIntendance(token, { ...input, nom: input.nom ?? "" }), intendances.reload)}
         />
+        ) : (
+          <p className="banner banner-info small">
+            Consultation en lecture seule. La gestion des intendances requiert la permission
+            <span className="mono"> organisation.administrer</span>.
+          </p>
+        )}
         <div className="toolbar" style={{ marginTop: 8 }}>
           <input className="search" placeholder="Rechercher une intendance" value={qIntend} onChange={(e) => setQIntend(e.target.value)} />
           <PaysCombo value={filtrePays} onChange={setFiltrePays} placeholder="Filtrer par pays" />
@@ -141,6 +241,7 @@ export function Organisation({ token }: { token: string }): JSX.Element {
                 nom={i.nom}
                 meta={intendMeta(i)}
                 publie={i.publie}
+                canGerer={canGerer}
                 onEdit={() => setEditIntend(i.id)}
                 onChanged={intendances.reload}
               />
@@ -148,6 +249,7 @@ export function Organisation({ token }: { token: string }): JSX.Element {
           )}
         </ul>
       </section>
+      )}
     </div>
   );
 }

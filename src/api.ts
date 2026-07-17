@@ -27,6 +27,10 @@ export interface PermissionItem {
   libelle: string;
   risque: string;
   portee: string;
+  // Human explanation shown in the matrix and the group editor: what the
+  // permission concretely allows, and its boundary (what it does not allow).
+  description?: string;
+  limite?: string;
 }
 
 export interface RolePermissions {
@@ -262,6 +266,8 @@ export interface SousCommission {
 export interface Tribu {
   id: string;
   nom: string;
+  description?: string | null;
+  publie?: boolean;
   patriarche: string | null;
   patriarche_membre_id: string | null;
   patriarche_nom: string | null;
@@ -281,6 +287,7 @@ export interface Statistiques {
   par_cheminement: { cheminement: string; total: number }[];
   entrees_mensuelles: { mois: string; total: number }[];
   membres_a_verifier: { id: string; matricule: string; prenoms: string | null; nom: string | null }[];
+  par_type_evenement: { nom: string; couleur: string; total: number; pourcentage: number }[];
 }
 
 export interface DoublonGroupe {
@@ -298,6 +305,9 @@ export interface Utilisateur {
   membre_id: string | null;
   membre_nom: string | null;
   dernier_login: string | null;
+  /** Active GLOBAL group memberships: platform access can exist with role 'membre'
+   * (permission-mode groups), so the roster derives from this too. */
+  groupes_globaux: number;
 }
 
 export interface Terminal {
@@ -345,10 +355,26 @@ export interface Commission {
 }
 
 /** URL segment for the organization management endpoints. */
-export type OrgEntity = "coordinations" | "intendances" | "commissions" | "groupes";
+export type OrgEntity = "coordinations" | "intendances" | "commissions" | "groupes" | "tribus";
+
+export function createTribu(token: string, input: { nom: string; description?: string }): Promise<Tribu> {
+  return authedSend<Tribu>("/api/v1/admin/tribus", token, "POST", input, "Création impossible");
+}
 
 export function renameOrganisation(token: string, entity: OrgEntity, id: string, nom: string): Promise<{ id: string; nom: string }> {
   return authedSend(`/api/v1/admin/organisation/${entity}/${id}`, token, "PATCH", { nom }, "Renommage impossible");
+}
+
+/** Edit a structural entity's name and, where supported, its description
+ * (coordination/intendance/commission) or parent commission (sous-commission).
+ * Only the provided fields are sent; the server ignores fields the table lacks. */
+export function editOrganisation(
+  token: string,
+  entity: OrgEntity,
+  id: string,
+  fields: { nom?: string; description?: string; commission_id?: string | null },
+): Promise<{ id: string; nom: string }> {
+  return authedSend(`/api/v1/admin/organisation/${entity}/${id}`, token, "PATCH", fields, "Modification impossible");
 }
 
 export function publishOrganisation(
@@ -364,6 +390,28 @@ export function deleteOrganisation(token: string, entity: OrgEntity, id: string)
   return request<void>(`/api/v1/admin/organisation/${entity}/${id}`, token, { method: "DELETE" }, "Suppression impossible");
 }
 
+export interface OrgDependanceRef {
+  table: string;
+  colonne: string;
+  label: string;
+  nombre: number;
+  echantillon: string[];
+}
+export interface OrgDependances {
+  entity: string;
+  item_id: string;
+  total: number;
+  supprimable: boolean;
+  references: OrgDependanceRef[];
+  cibles: { id: string; nom: string }[];
+}
+export function getOrgDependances(token: string, entity: OrgEntity, id: string): Promise<OrgDependances> {
+  return authedGet<OrgDependances>(`/api/v1/admin/organisation/${entity}/${id}/dependances`, token, "Analyse des dépendances impossible");
+}
+export function reaffecterOrganisation(token: string, entity: OrgEntity, id: string, cibleId: string | null): Promise<{ reaffectes: number; cible_id: string | null; detail: Record<string, number> }> {
+  return authedSend(`/api/v1/admin/organisation/${entity}/${id}/reaffecter`, token, "POST", { cible_id: cibleId }, "Réaffectation impossible");
+}
+
 export interface CommissionCreateInput {
   nom: string;
   description?: string;
@@ -377,6 +425,10 @@ export interface Evenement {
   id: string;
   titre: string;
   type: string | null;
+  /** Catalogue event type (name + unique colour), drives the calendar colour and tag. */
+  type_evenement_id?: string | null;
+  type_evenement_nom?: string | null;
+  couleur?: string | null;
   volet: string;
   debut: string;
   fin: string | null;
@@ -401,6 +453,10 @@ export interface Evenement {
   serie_id?: string | null;
   /** Per-activity response-window override in hours; null = global default. */
   fenetre_reponse_heures?: number | null;
+  /** Rich description (sanitised HTML) and the human contributors. */
+  description?: string | null;
+  intervenant_principal?: string | null;
+  intervenants?: string[];
 }
 
 export interface TagItem {
@@ -419,21 +475,86 @@ export function taguerActivite(token: string, id: string, tagIds: string[]): Pro
   return authedSend(`/api/v1/admin/evenements/${id}/tags`, token, "PUT", { tag_ids: tagIds }, "Étiquetage impossible");
 }
 
-export type CibleType =
-  | "general"
-  | "coordination"
-  | "commission"
-  | "intendance"
-  | "tribu"
-  | "bergers"
-  | "responsables"
-  | "liste";
+// Activity attachments (images and files), shared with the collaboration app.
+export interface PieceEvenement {
+  id: string;
+  nom: string;
+  type: string;
+  taille: number;
+  url: string;
+  cree_le?: string | null;
+}
+export function listPiecesEvenement(token: string, id: string): Promise<PieceEvenement[]> {
+  return authedGet<PieceEvenement[]>(`/api/v1/admin/evenements/${id}/pieces`, token, "Pièces indisponibles");
+}
+export function ajouterPieceEvenement(token: string, id: string, piece: { nom: string; type: string; taille: number; data_url: string }): Promise<PieceEvenement> {
+  return authedSend<PieceEvenement>(`/api/v1/admin/evenements/${id}/pieces`, token, "POST", piece, "Pièce non ajoutée");
+}
+export function supprimerPieceEvenement(token: string, pieceId: string): Promise<void> {
+  return request<void>(`/api/v1/admin/evenements/pieces/${pieceId}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+
+// Administrable destinations referential (cible_activite). The activity forms
+// load their destination list from here, so an administrator can add, rename,
+// reorder or deactivate a destination without any code change.
+export interface CibleActivite {
+  code: string;
+  libelle: string;
+  description: string | null;
+  categorie: string;
+  type_regle: string;
+  /** True when the destination targets one organisational unit (cible_id required). */
+  besoin_unite: boolean;
+  ordre: number;
+  statut: "actif" | "inactif" | "archive";
+  /** Safe rule template parameters (validated server-side, never free rules). */
+  parametres: { table?: string; attribut?: string; fonction_cles?: string[]; toutes_fonctions?: boolean };
+}
+export function getCiblesActivite(token: string): Promise<CibleActivite[]> {
+  return authedGet<CibleActivite[]>("/api/v1/reference/cibles-activite", token, "Destinations indisponibles");
+}
+export function getCiblesActiviteAdmin(token: string): Promise<CibleActivite[]> {
+  return authedGet<CibleActivite[]>("/api/v1/admin/cibles-activite", token, "Destinations indisponibles");
+}
+export function creerCibleActivite(
+  token: string,
+  payload: { code: string; libelle: string; description?: string | null; categorie?: string; fonction_cles: string[]; ordre?: number },
+): Promise<CibleActivite> {
+  return authedSend<CibleActivite>("/api/v1/admin/cibles-activite", token, "POST", payload, "Création impossible");
+}
+export function modifierCibleActivite(
+  token: string,
+  code: string,
+  payload: { libelle?: string; description?: string | null; ordre?: number; statut?: string; fonction_cles?: string[] },
+): Promise<CibleActivite> {
+  return authedSend<CibleActivite>(`/api/v1/admin/cibles-activite/${code}`, token, "PATCH", payload, "Modification impossible");
+}
+export function supprimerCibleActivite(token: string, code: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/v1/admin/cibles-activite/${code}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+export interface ApercuCible {
+  code: string;
+  libelle: string;
+  nombre: number;
+  type_regle: string;
+}
+export function apercuCibleActivite(token: string, code: string, cibleId?: string | null): Promise<ApercuCible> {
+  const q = cibleId ? `?cible_id=${encodeURIComponent(cibleId)}` : "";
+  return authedGet<ApercuCible>(`/api/v1/admin/cibles-activite/${code}/apercu${q}`, token, "Aperçu indisponible");
+}
+
+/** Stable destination code from the administrable referential (cible_activite).
+ * The historical union is kept for readability but any referential code is valid,
+ * so the type is an open string: new destinations need no front change. */
+export type CibleType = string;
 /** Scope of a series operation: the clicked date only, or every date of the series. */
 export type PorteeSerie = "cette_occurrence" | "toute_la_serie";
 
 export interface EvenementCreateInput {
   titre: string;
   type?: string;
+  /** Catalogue event type; drives the calendar colour of the created event(s). */
+  type_evenement_id?: string | null;
   volet?: string;
   debut: string;
   fin?: string;
@@ -460,6 +581,10 @@ export interface EvenementCreateInput {
   occurrences?: { debut: string; fin?: string; mode?: string }[];
   /** Recurrence rule, recorded for display (freq, interval, count). */
   recurrence?: { freq: string; interval: number; count: number } | null;
+  /** Rich description (sanitised server-side) and the human contributors. */
+  description?: string | null;
+  intervenant_principal?: string | null;
+  intervenants?: string[];
 }
 
 export interface MembreListQuery {
@@ -471,6 +596,11 @@ export interface MembreListQuery {
   intendance_id?: string;
   coordination_id?: string;
   tribu_id?: string;
+  /** Directory compartment (validation/operational status): actifs, en_attente,
+   * corrections, refuses, incomplets, inactifs, suspendus, tous. */
+  statut?: string;
+  /** Sort order: nom (default, alphabetical), nom_desc, inscription, maj, matricule. */
+  tri?: string;
 }
 
 export class ApiError extends Error {
@@ -486,7 +616,30 @@ function messageForStatus(status: number, fallback: string): string {
   if (status === 401) return "Session expirée";
   if (status === 403) return "Accès refusé";
   if (status === 404) return "Ressource indisponible";
+  if (status === 409) return "Action impossible en l'état : cette entité est encore utilisée.";
   return fallback;
+}
+
+/** Read the server-provided reason (FastAPI `detail`) so an actionable message,
+ * e.g. a 409 "still referenced" refusal, is shown instead of an opaque fallback.
+ * A plain string detail is surfaced as-is; a 422 validation error returns `detail`
+ * as a list of {loc, msg, type}, whose `msg` fields are concatenated so the reason
+ * is actionable; anything else falls back to the status-based message. */
+async function detailOr(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    const detail = body?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+      const msgs = detail
+        .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+        .filter((m) => m.trim());
+      if (msgs.length > 0) return msgs.join("; ");
+    }
+  } catch {
+    /* body not JSON: keep the status-based message */
+  }
+  return messageForStatus(res.status, fallback);
 }
 
 async function request<T>(
@@ -504,7 +657,7 @@ async function request<T>(
     },
   });
   if (!res.ok) {
-    throw new ApiError(messageForStatus(res.status, onError), res.status);
+    throw new ApiError(await detailOr(res, onError), res.status);
   }
   if (res.status === 204) {
     return undefined as T;
@@ -528,34 +681,83 @@ function authedSend<T>(
   return request<T>(path, token, init, onError);
 }
 
-export async function login(email: string, password: string): Promise<Session> {
+export function deviceId(): string {
+  if (typeof localStorage === "undefined") return "";
+  let id = localStorage.getItem("adsum.device.id");
+  if (!id) {
+    id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem("adsum.device.id", id);
+  }
+  return id;
+}
+
+export interface LoginResult {
+  otpRequired: boolean;
+  session: Session | null;
+  canal: string | null;
+}
+
+function loginError(status: number): ApiError {
+  if (status === 401) return new ApiError("Identifiants invalides ou mot de passe temporaire expiré", status);
+  if (status === 429) return new ApiError("Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.", status);
+  if (status === 400) return new ApiError("Code incorrect ou expiré. Vérifiez et réessayez.", status);
+  if (status === 0) return new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+  return new ApiError("Service momentanément indisponible. Réessayez dans un instant.", status);
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/v1/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
       body: JSON.stringify({ email, password }),
     });
   } catch {
-    throw new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+    throw loginError(0);
   }
-  if (!res.ok) {
-    let message: string;
-    if (res.status === 401) {
-      message = "Identifiants invalides";
-    } else if (res.status === 429) {
-      message = "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.";
-    } else {
-      message = "Service momentanément indisponible. Réessayez dans un instant.";
-    }
-    throw new ApiError(message, res.status);
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { otp_required?: boolean; access_token?: string | null; role?: Role; canal?: string | null };
+  return {
+    otpRequired: Boolean(data.otp_required),
+    session: data.access_token ? { token: data.access_token, role: data.role ?? "" } : null,
+    canal: data.canal ?? null,
+  };
+}
+
+export async function loginVerify(email: string, password: string, code: string, faireConfiance: boolean): Promise<Session> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/login-verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
+      body: JSON.stringify({ email, password, code, faire_confiance: faireConfiance }),
+    });
+  } catch {
+    throw loginError(0);
   }
-  const data = (await res.json()) as { access_token: string; role?: Role };
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { access_token?: string | null; role?: Role };
+  if (!data.access_token) throw loginError(401);
   return { token: data.access_token, role: data.role ?? "" };
 }
 
 export function getMe(token: string): Promise<Me> {
   return authedGet<Me>("/api/v1/auth/me", token, "Session indisponible");
+}
+
+/** Server-side personal display preferences of the signed-in account, so the choice
+ * follows the account across browsers instead of living in one browser only. */
+export interface PreferencesCompte {
+  vue_evenements: "calendrier" | "liste" | null;
+}
+export function getMesPreferences(token: string): Promise<PreferencesCompte> {
+  return authedGet<PreferencesCompte>("/api/v1/auth/me/preferences", token, "Préférences indisponibles");
+}
+export function setMesPreferences(token: string, input: Partial<PreferencesCompte>): Promise<PreferencesCompte> {
+  return authedSend<PreferencesCompte>("/api/v1/auth/me/preferences", token, "PUT", input, "Enregistrement impossible");
 }
 
 export function getMyPermissions(token: string): Promise<MyPermissions> {
@@ -570,6 +772,192 @@ export function getCataloguePermissions(token: string): Promise<CataloguePermiss
   );
 }
 
+// Collaboration spaces supervision (read-only): who belongs to which space, with
+// which space role. The fine-grained management stays in the collaboration app.
+export interface CollabMembreEspace {
+  membre_id: string;
+  role: string;
+}
+export interface CollabDemandeAcces {
+  id: string;
+  membre_id: string;
+  cree_le: string;
+}
+export interface CollabSousEspace {
+  id: string;
+  nom: string;
+  couleur: string;
+  initiale: string;
+  archive: boolean;
+}
+export interface CollabEspace {
+  id: string;
+  nom: string;
+  description: string;
+  type: string;
+  couleur: string;
+  initiale: string;
+  membres: CollabMembreEspace[];
+  observateurs_commentent: boolean;
+  archive: boolean;
+  demandes_acces: CollabDemandeAcces[];
+  parent_id?: string | null;
+  sous_espaces?: CollabSousEspace[];
+}
+export interface CollabCompte {
+  id: string;
+  nom: string;
+  courriel: string;
+  initiales: string;
+}
+export function listCollabEspaces(token: string): Promise<CollabEspace[]> {
+  // Back-office GOVERNANCE view: lists every workspace's metadata (name, members,
+  // access requests) so the control tower can assign access. This is a governance
+  // surface, not content: /admin/espaces never exposes canal, boards or files. The
+  // member-facing /espaces endpoint is strictly membership-scoped and would hide
+  // workspaces the operator was not added to.
+  return authedGet<CollabEspace[]>("/api/v1/collaboration/admin/espaces", token, "Espaces de collaboration indisponibles");
+}
+export function listCollabComptes(token: string): Promise<CollabCompte[]> {
+  return authedGet<CollabCompte[]>("/api/v1/collaboration/membres", token, "Comptes de collaboration indisponibles");
+}
+
+export interface ReglagesCollab {
+  retention_suppression_jours: number;
+  colonne_instructions_auto: boolean;
+  canal_emetteurs_max: number;
+  canaux_additionnels_actives: boolean;
+  instruction_bot_dedie: boolean;
+  instruction_bot_username: string;
+}
+export interface ReglagesCollabPatch {
+  retention_suppression_jours?: number;
+  colonne_instructions_auto?: boolean;
+  canal_emetteurs_max?: number;
+  canaux_additionnels_actives?: boolean;
+  telegram_instruction_bot_token?: string;
+  telegram_instruction_bot_username?: string;
+}
+export function getReglagesCollab(token: string): Promise<ReglagesCollab> {
+  return authedGet<ReglagesCollab>("/api/v1/collaboration/reglages", token, "Réglages indisponibles");
+}
+
+export interface BotDemande {
+  id: string;
+  nom: string;
+  statut: string;
+  username: string | null;
+  demande_le: string | null;
+}
+export interface BotDemandes {
+  etapes: string[];
+  espaces: BotDemande[];
+}
+export function getBotDemandes(token: string): Promise<BotDemandes> {
+  return authedGet<BotDemandes>("/api/v1/admin/collaboration/bot-demandes", token, "Demandes indisponibles");
+}
+export function configurerBotEspace(token: string, espaceId: string, username: string, botToken: string): Promise<{ ok: boolean; statut: string; username: string }> {
+  return authedSend(`/api/v1/admin/collaboration/espaces/${espaceId}/bot`, token, "PUT", { username, token: botToken }, "Configuration impossible");
+}
+
+export interface BotConfigure {
+  espace_id: string;
+  nom: string;
+  username: string | null;
+  statut: string;
+  derniere_synchro?: string | null;
+  derniere_note?: string | null;
+  dernier_echec?: string | null;
+  dernier_echec_le?: string | null;
+}
+export interface BotsConfigures {
+  bots: BotConfigure[];
+}
+export function getBotsConfigures(token: string): Promise<BotsConfigures> {
+  return authedGet<BotsConfigures>("/api/v1/admin/collaboration/bots", token, "Bots indisponibles");
+}
+export interface DissociationBot {
+  ok: boolean;
+  statut: string;
+  webhook_revoque: boolean;
+  message: string;
+}
+export function dissocierBotEspace(token: string, espaceId: string): Promise<DissociationBot> {
+  return authedSend<DissociationBot>(`/api/v1/admin/collaboration/espaces/${espaceId}/bot`, token, "DELETE", undefined, "Dissociation impossible");
+}
+
+export interface Emetteur {
+  utilisateur_id: string;
+  nom: string;
+}
+export interface Emetteurs {
+  max: number;
+  emetteurs: Emetteur[];
+}
+export function getEmetteurs(token: string, espaceId: string): Promise<Emetteurs> {
+  return authedGet<Emetteurs>(`/api/v1/collaboration/espaces/${espaceId}/emetteurs`, token, "Émetteurs indisponibles");
+}
+export function ajouterEmetteur(token: string, espaceId: string, utilisateurId: string): Promise<Emetteurs> {
+  return authedSend<Emetteurs>(`/api/v1/collaboration/espaces/${espaceId}/emetteurs`, token, "POST", { utilisateur_id: utilisateurId }, "Ajout de l'émetteur impossible");
+}
+export function retirerEmetteur(token: string, espaceId: string, utilisateurId: string): Promise<Emetteurs> {
+  return authedSend<Emetteurs>(`/api/v1/collaboration/espaces/${espaceId}/emetteurs/${utilisateurId}`, token, "DELETE", undefined, "Retrait de l'émetteur impossible");
+}
+
+export interface CorbeilleItem {
+  id: string;
+  nom: string;
+  supprime_le: string | null;
+  jours_restants: number;
+  sous_espace?: boolean;
+  espace_id?: string;
+}
+export interface Corbeille {
+  retention_jours: number;
+  espaces: CorbeilleItem[];
+  tableaux: CorbeilleItem[];
+}
+export function getCorbeille(token: string): Promise<Corbeille> {
+  return authedGet<Corbeille>("/api/v1/collaboration/corbeille", token, "Corbeille indisponible");
+}
+export function restaurerEspace(token: string, espaceId: string): Promise<{ restaure: boolean }> {
+  return authedSend(`/api/v1/collaboration/espaces/${espaceId}/restaurer`, token, "POST", {}, "Restauration impossible");
+}
+export function restaurerTableau(token: string, tableauId: string): Promise<{ restaure: boolean }> {
+  return authedSend(`/api/v1/collaboration/tableaux-espace/${tableauId}/restaurer`, token, "POST", {}, "Restauration impossible");
+}
+
+// --- Accès et rôles par espace (le serveur applique collaboration.gerer + rôle d'espace) ---
+export function addEspaceMembre(token: string, espaceId: string, membreId: string, role: string): Promise<CollabEspace> {
+  return authedSend<CollabEspace>(`/api/v1/collaboration/espaces/${espaceId}/membres`, token, "POST", { membre_id: membreId, role }, "Ajout du membre impossible");
+}
+export function updateEspaceMembreRole(token: string, espaceId: string, membreId: string, role: string): Promise<CollabEspace> {
+  return authedSend<CollabEspace>(`/api/v1/collaboration/espaces/${espaceId}/membres/${membreId}`, token, "PATCH", { role }, "Changement de rôle impossible");
+}
+export function removeEspaceMembre(token: string, espaceId: string, membreId: string): Promise<CollabEspace> {
+  return authedSend<CollabEspace>(`/api/v1/collaboration/espaces/${espaceId}/membres/${membreId}`, token, "DELETE", undefined, "Retrait du membre impossible");
+}
+export function accepterDemandeEspace(token: string, espaceId: string, demandeId: string, role: string): Promise<CollabEspace> {
+  return authedSend<CollabEspace>(`/api/v1/collaboration/espaces/${espaceId}/demandes/${demandeId}/accepter`, token, "POST", { role }, "Acceptation impossible");
+}
+export function refuserDemandeEspace(token: string, espaceId: string, demandeId: string): Promise<CollabEspace> {
+  return authedSend<CollabEspace>(`/api/v1/collaboration/espaces/${espaceId}/demandes/${demandeId}`, token, "DELETE", undefined, "Refus impossible");
+}
+
+export interface CollabStats {
+  espaces: number;
+  tableaux: number;
+  cartes: number;
+  enRetard: number;
+  termineesSemaine: number;
+}
+export function getCollabStats(token: string): Promise<CollabStats> {
+  return authedGet<CollabStats>("/api/v1/collaboration/stats", token, "Statistiques indisponibles");
+}
+export function putReglagesCollab(token: string, patch: ReglagesCollabPatch): Promise<ReglagesCollab> {
+  return authedSend<ReglagesCollab>("/api/v1/collaboration/reglages", token, "PUT", patch, "Mise à jour impossible");
+}
+
 function buildQuery(query: MembreListQuery): string {
   const params = new URLSearchParams();
   if (query.limit !== undefined) params.set("limit", String(query.limit));
@@ -580,6 +968,8 @@ function buildQuery(query: MembreListQuery): string {
   if (query.intendance_id) params.set("intendance_id", query.intendance_id);
   if (query.coordination_id) params.set("coordination_id", query.coordination_id);
   if (query.tribu_id) params.set("tribu_id", query.tribu_id);
+  if (query.statut) params.set("statut", query.statut);
+  if (query.tri) params.set("tri", query.tri);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
@@ -590,6 +980,13 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
     token,
     "Membres indisponibles",
   );
+}
+
+export type MembreCompartiments = Record<string, number>;
+
+/** Exact member count per directory compartment, for the tab badges. */
+export function getMembresCompartiments(token: string): Promise<MembreCompartiments> {
+  return authedGet<MembreCompartiments>("/api/v1/admin/membres/compartiments", token, "Compteurs indisponibles");
 }
 
 export function getAnnuairePays(token: string): Promise<string[]> {
@@ -804,6 +1201,26 @@ export function deleteFonction(token: string, cle: string): Promise<void> {
   return request<void>(`/api/v1/admin/fonctions/${cle}`, token, { method: "DELETE" }, "Retrait impossible");
 }
 
+/** Definitive HARD delete (irreversible). Refused server-side (409) while the title
+ * still has holders: reassign or detach them first. */
+export function supprimerFonctionDefinitif(token: string, cle: string): Promise<{ ok: boolean; cle: string; definitif: boolean }> {
+  return authedSend(`/api/v1/admin/fonctions/${cle}/definitif`, token, "DELETE", undefined, "Suppression définitive impossible");
+}
+
+export interface FonctionDependances {
+  cle: string;
+  porteurs: number;
+  supprimable: boolean;
+  echantillon: string[];
+  cibles: { cle: string; nom: string }[];
+}
+export function getFonctionDependances(token: string, cle: string): Promise<FonctionDependances> {
+  return authedGet<FonctionDependances>(`/api/v1/admin/fonctions/${cle}/dependances`, token, "Analyse des porteurs impossible");
+}
+export function reaffecterFonction(token: string, cle: string, cibleCle: string | null): Promise<{ reaffectes: number; cible_cle: string | null }> {
+  return authedSend(`/api/v1/admin/fonctions/${cle}/reaffecter`, token, "POST", { cible_cle: cibleCle }, "Réaffectation impossible");
+}
+
 export interface NiveauEngagement {
   cle: string;
   libelle: string;
@@ -827,8 +1244,24 @@ export function updateNiveau(
   return authedSend(`/api/v1/admin/niveaux-engagement/${cle}`, token, "PUT", input, "Mise à jour impossible");
 }
 
-export function deleteNiveau(token: string, cle: string): Promise<void> {
-  return request<void>(`/api/v1/admin/niveaux-engagement/${cle}`, token, { method: "DELETE" }, "Retrait impossible");
+export interface NiveauDependances {
+  cle: string;
+  porteurs: number;
+  supprimable: boolean;
+  echantillon: string[];
+  cibles: { cle: string; nom: string }[];
+}
+export function getNiveauDependances(token: string, cle: string): Promise<NiveauDependances> {
+  return authedGet<NiveauDependances>(`/api/v1/admin/niveaux-engagement/${cle}/dependances`, token, "Analyse des membres impossible");
+}
+export function reaffecterNiveau(token: string, cle: string, cibleCle: string | null): Promise<{ reaffectes: number; cible_cle: string | null }> {
+  return authedSend(`/api/v1/admin/niveaux-engagement/${cle}/reaffecter`, token, "POST", { cible_cle: cibleCle }, "Réaffectation impossible");
+}
+
+/** Definitive HARD delete of a level (irreversible). Refused server-side (409) while
+ * members are still on it: reassign or clear them first. */
+export function supprimerNiveauDefinitif(token: string, cle: string): Promise<{ ok: boolean; cle: string; definitif: boolean }> {
+  return authedSend(`/api/v1/admin/niveaux-engagement/${cle}/definitif`, token, "DELETE", undefined, "Suppression définitive impossible");
 }
 
 export function validerFonctionMembre(
@@ -1098,6 +1531,14 @@ export function setQuestionnaireFenetre(token: string, heures: number): Promise<
   return authedSend("/api/v1/admin/parametres/questionnaire-fenetre", token, "PUT", { heures }, "Mise à jour impossible");
 }
 
+export function getSemaineJourDebut(token: string): Promise<{ jour: number }> {
+  return authedGet<{ jour: number }>("/api/v1/admin/parametres/semaine-jour-debut", token, "Paramètre indisponible");
+}
+
+export function setSemaineJourDebut(token: string, jour: number): Promise<{ jour: number }> {
+  return authedSend("/api/v1/admin/parametres/semaine-jour-debut", token, "PUT", { jour }, "Mise à jour impossible");
+}
+
 export function getIntendances(token: string): Promise<Intendance[]> {
   return authedGet<Intendance[]>("/api/v1/admin/intendances", token, "Intendances indisponibles");
 }
@@ -1156,7 +1597,9 @@ export function getUtilisateurs(token: string): Promise<Utilisateur[]> {
 
 export function createUtilisateur(
   token: string,
-  input: { email: string; role: string; password: string; membre_id?: string },
+  // No role field: the server always creates the account as 'membre'; elevated
+  // access is granted afterwards only through an access group.
+  input: { email: string; password: string; membre_id?: string },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>("/api/v1/admin/utilisateurs", token, "POST", input, "Création impossible");
 }
@@ -1182,6 +1625,8 @@ export interface GroupeAcces {
   membres_count: number;
   systeme: boolean;
   actif: boolean;
+  /** Optional application this group serves (application.code), for per-app grouping. */
+  application_code: string | null;
 }
 
 export interface CreateGroupeInput {
@@ -1191,6 +1636,7 @@ export interface CreateGroupeInput {
   mode: "role" | "permissions";
   role_accorde?: string | null;
   permissions?: string[];
+  application_code?: string | null;
 }
 
 export interface UpdateGroupeInput {
@@ -1198,6 +1644,7 @@ export interface UpdateGroupeInput {
   description?: string | null;
   actif?: boolean;
   permissions?: string[];
+  application_code?: string | null;
 }
 
 export interface Appartenance {
@@ -1206,6 +1653,10 @@ export interface Appartenance {
   cle: string;
   libelle: string;
   role_accorde: string;
+  /** False when the group itself is deactivated: the membership then grants nothing. */
+  groupe_actif: boolean;
+  /** 'role' or 'permissions' (a permission-mode group is not a platform role). */
+  mode: string;
   portee_type: string;
   portee_id: string | null;
   portee_libelle: string | null;
@@ -1317,6 +1768,31 @@ export function getComptage(token: string, evenementId: string): Promise<Comptag
   return authedGet<ComptageResume>(`/api/v1/admin/comptage/${evenementId}`, token, "Comptage indisponible");
 }
 
+export interface EvenementEligible {
+  id: string;
+  titre: string;
+  debut: string | null;
+  lieu: string | null;
+  annule: boolean;
+}
+export interface EvenementsEligibles {
+  items: EvenementEligible[];
+  total: number;
+}
+/** Server-filtered, paginated list of the events eligible for volet B counting, so the
+ * selector stays fast and never downloads the whole history to the browser. */
+export function getEvenementsEligiblesComptage(
+  token: string,
+  opts: { q?: string; periode?: "pertinents" | "a_venir" | "passes" | "tous"; limit?: number; offset?: number } = {},
+): Promise<EvenementsEligibles> {
+  const p = new URLSearchParams();
+  if (opts.q) p.set("q", opts.q);
+  if (opts.periode) p.set("periode", opts.periode);
+  p.set("limit", String(opts.limit ?? 25));
+  p.set("offset", String(opts.offset ?? 0));
+  return authedGet<EvenementsEligibles>(`/api/v1/admin/comptage/evenements-eligibles?${p.toString()}`, token, "Événements indisponibles");
+}
+
 export function addComptage(
   token: string,
   input: { evenement_id: string; segment?: string; total_membres?: number; total_anonyme?: number },
@@ -1361,6 +1837,96 @@ export function setPatriarche(
   return authedSend(`/api/v1/admin/tribus/${tribuId}/patriarche`, token, "PUT", { membre_id: membreId, motif }, "Attribution impossible");
 }
 
+/** An administrable event type with its UNIQUE colour, used to distinguish events
+ * on the member calendar and offered in the planning dropdowns. */
+export interface TypeEvenement {
+  id: string;
+  code: string;
+  nom: string;
+  couleur: string;
+  description?: string | null;
+  publie: boolean;
+  ordre: number;
+}
+
+export function getTypesEvenements(token: string): Promise<TypeEvenement[]> {
+  return authedGet<TypeEvenement[]>("/api/v1/admin/types-evenements", token, "Types d'événements indisponibles");
+}
+
+/** Application access (LEVEL 1) governance for a single member. */
+export interface ApplicationAcces {
+  code: string;
+  nom: string;
+  description?: string | null;
+  url?: string | null;
+  actif: boolean;
+  acces_actif: boolean;
+  /** Visible by default to every member (the member space): visibility is automatic. */
+  est_defaut?: boolean;
+}
+export function getMembreApplications(token: string, membreId: string): Promise<ApplicationAcces[]> {
+  return authedGet<ApplicationAcces[]>(`/api/v1/admin/membres/${membreId}/applications`, token, "Accès applicatifs indisponibles");
+}
+/** The application catalogue, for the per-application governance tabs. */
+export function getApplications(token: string): Promise<ApplicationAcces[]> {
+  return authedGet<ApplicationAcces[]>("/api/v1/admin/applications", token, "Applications indisponibles");
+}
+/** Members who currently HAVE access to one application (LEVEL 1). */
+export interface MembreAvecAcces {
+  membre_id: string;
+  nom: string;
+  matricule?: string | null;
+  roles: string[];
+}
+export function getApplicationMembres(token: string, code: string): Promise<MembreAvecAcces[]> {
+  return authedGet<MembreAvecAcces[]>(`/api/v1/admin/applications/${code}/membres`, token, "Membres de l'application indisponibles");
+}
+/** A group assigned to a member FOR one application (removed when access is revoked). */
+export interface GroupeAssigne {
+  membre_groupe_id: string;
+  groupe_id: string;
+  cle: string;
+  libelle: string;
+  /** Granted platform role; 'membre' for a permission-mode group. Rights apply GLOBALLY. */
+  role_accorde: string;
+  /** A deactivated group grants nothing and no longer opens the application. */
+  groupe_actif: boolean;
+}
+export function getGroupesMembreApplication(token: string, membreId: string, code: string): Promise<GroupeAssigne[]> {
+  return authedGet<GroupeAssigne[]>(`/api/v1/admin/membres/${membreId}/applications/${code}/groupes`, token, "Groupes de l'application indisponibles");
+}
+export function setGroupeMembreApplication(token: string, membreId: string, code: string, groupeId: string, actif: boolean): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/applications/${code}/groupes/${groupeId}`, token, "PUT", { actif }, "Modification du groupe impossible");
+}
+export function setMembreApplication(token: string, membreId: string, code: string, actif: boolean): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/membres/${membreId}/applications/${code}`, token, "PUT", { actif }, "Modification d'accès impossible");
+}
+
+/** Suggest the next unused colour so a new type never collides with an existing one. */
+export function getCouleurSuggeree(token: string, eviter?: string): Promise<{ couleur: string }> {
+  const q = eviter ? `?eviter=${encodeURIComponent(eviter)}` : "";
+  return authedGet<{ couleur: string }>(`/api/v1/admin/types-evenements/couleur-suggeree${q}`, token, "Couleur indisponible");
+}
+
+export function createTypeEvenement(
+  token: string,
+  input: { nom: string; description?: string; couleur?: string },
+): Promise<TypeEvenement> {
+  return authedSend<TypeEvenement>("/api/v1/admin/types-evenements", token, "POST", input, "Création impossible");
+}
+
+export function updateTypeEvenement(
+  token: string,
+  id: string,
+  fields: { nom?: string; description?: string; couleur?: string; publie?: boolean },
+): Promise<TypeEvenement> {
+  return authedSend<TypeEvenement>(`/api/v1/admin/types-evenements/${id}`, token, "PATCH", fields, "Modification impossible");
+}
+
+export function deleteTypeEvenement(token: string, id: string): Promise<void> {
+  return request<void>(`/api/v1/admin/types-evenements/${id}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+
 export function getStatistiques(token: string): Promise<Statistiques> {
   return authedGet<Statistiques>("/api/v1/admin/statistiques", token, "Statistiques indisponibles");
 }
@@ -1378,10 +1944,14 @@ export interface DetectionDoublon {
   score: number;
   signaux: Record<string, number | boolean>;
   statut: string;
+  note: string | null;
   detecte_le: string | null;
+  decide_le: string | null;
   membre_a: DetectionMembre;
   membre_b: DetectionMembre;
 }
+
+export type DecisionDoublon = "confirme" | "ignore" | "documents_demandes" | "nouveau";
 
 export interface ComparaisonLigne {
   champ: string;
@@ -1409,8 +1979,23 @@ export function getComparaisonDoublon(token: string, a: string, b: string): Prom
   return authedGet<Comparaison>(`/api/v1/admin/doublons/comparaison?a=${a}&b=${b}`, token, "Comparaison indisponible");
 }
 
-export function deciderDoublon(token: string, id: string, statut: "confirme" | "ignore"): Promise<{ ok: boolean; statut: string }> {
-  return authedSend(`/api/v1/admin/doublons/${id}/statut`, token, "POST", { statut }, "Décision impossible");
+export function deciderDoublon(token: string, id: string, statut: DecisionDoublon, note?: string): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(`/api/v1/admin/doublons/${id}/statut`, token, "POST", { statut, note: note ?? null }, "Décision impossible");
+}
+
+export interface ApercuFusion {
+  survivant: { id: string; nom: string | null };
+  doublon: { id: string; nom: string | null };
+  references_a_deplacer: number;
+  compte_survivant: boolean;
+  compte_doublon: boolean;
+  bloque_deux_comptes: boolean;
+}
+export function apercuFusionDoublon(token: string, survivantId: string, doublonId: string): Promise<ApercuFusion> {
+  return authedGet<ApercuFusion>(`/api/v1/admin/doublons/fusion/apercu?survivant_id=${survivantId}&doublon_id=${doublonId}`, token, "Aperçu de fusion impossible");
+}
+export function fusionnerDoublon(token: string, survivantId: string, doublonId: string): Promise<{ ok: boolean; references_deplacees: Record<string, number> }> {
+  return authedSend(`/api/v1/admin/doublons/fusion`, token, "POST", { survivant_id: survivantId, doublon_id: doublonId }, "Fusion impossible");
 }
 
 export function getSeuilDoublon(token: string): Promise<{ seuil: number }> {
@@ -1554,14 +2139,32 @@ export function decisionInscription(
 export interface DossierMembre {
   id: string;
   matricule: string;
+  code_membre?: string | null;
   prenoms: string | null;
   nom: string | null;
+  nom_affiche?: string | null;
   email: string;
   telephone: string | null;
+  indicatif_telephone?: string | null;
+  date_naissance?: string | null;
+  genre?: string | null;
   pays: string | null;
   ville: string | null;
+  region?: string | null;
+  adresse?: string | null;
+  profession?: string | null;
+  date_entree?: string | null;
+  commission?: string | null;
+  sous_commission?: string | null;
+  coordination?: string | null;
+  intendance?: string | null;
+  tribu?: string | null;
+  niveau?: string | null;
+  fonctions?: { libelle: string | null; perimetre: string | null; confirmee: boolean }[];
+  statut?: string;
   statut_inscription: string;
   verifie: boolean;
+  cree_le?: string | null;
 }
 
 export interface DossierDocument {
@@ -1811,6 +2414,78 @@ export function supprimerMembre(token: string, id: string): Promise<void> {
   return request<void>(`/api/v1/admin/membres/${id}`, token, { method: "DELETE" }, "Suppression impossible");
 }
 
+export interface TechnicalAdmin {
+  id: string;
+  email: string | null;
+  actif: boolean;
+  mfa_actif: boolean;
+  mfa_impose: boolean;
+  niveau: string;
+  audit_count: number;
+  supprimable_dur: boolean;
+  dernier_login: string | null;
+  cree_le: string | null;
+  est_membre: boolean;
+}
+export interface TechnicalAdminsData {
+  techniques: TechnicalAdmin[];
+  candidats: { id: string; email: string | null; est_membre: boolean }[];
+  niveaux: string[];
+  mon_niveau: string | null;
+  mon_id: string;
+  peut_gerer: boolean;
+  techniques_actifs: number;
+}
+export function getTechnicalAdmins(token: string): Promise<TechnicalAdminsData> {
+  return authedGet<TechnicalAdminsData>("/api/v1/admin/technical-super-admins", token, "Réservé aux super-admins techniques");
+}
+export function grantTechnicalAdmin(token: string, id: string): Promise<{ ok: boolean }> {
+  return authedSend(`/api/v1/admin/technical-super-admins/${id}`, token, "POST", {}, "Octroi impossible");
+}
+/** Create a NEW applicative technical super-admin from an e-mail (never a member). */
+export function createTechnicalAdmin(token: string, email: string, niveau: string): Promise<{ ok: boolean; id: string; email: string; niveau: string; message: string }> {
+  return authedSend("/api/v1/admin/technical-super-admins/creer", token, "POST", { email, niveau }, "Création impossible");
+}
+export function revokeTechnicalAdmin(token: string, id: string): Promise<void> {
+  return request<void>(`/api/v1/admin/technical-super-admins/${id}`, token, { method: "DELETE" }, "Révocation impossible");
+}
+export function setTechnicalAdminNiveau(token: string, id: string, niveau: string): Promise<{ ok: boolean; niveau: string }> {
+  return authedSend(`/api/v1/admin/technical-super-admins/${id}/niveau`, token, "PATCH", { niveau }, "Changement de niveau impossible");
+}
+export function setTechnicalAdminActivation(token: string, id: string, actif: boolean): Promise<{ ok: boolean; actif: boolean }> {
+  return authedSend(`/api/v1/admin/technical-super-admins/${id}/activation`, token, "PATCH", { actif }, "Changement d'activation impossible");
+}
+export function deleteTechnicalAdminDefinitif(token: string, id: string): Promise<void> {
+  return request<void>(`/api/v1/admin/technical-super-admins/${id}/definitif`, token, { method: "DELETE" }, "Suppression définitive impossible");
+}
+
+export interface SuppressionApercu {
+  membre_id: string;
+  nom: string;
+  statut: string;
+  porte_titre_berger: boolean;
+  nom_pastoral: string | null;
+  fonctions: string[];
+  responsable_de_commissions: number;
+  appartenances: number;
+  espaces_collaboration: number;
+  participations: number;
+  documents: number;
+  a_un_compte: boolean;
+  alternatives: string[];
+}
+
+/** Pre-flight for an RGPD erasure: what the member holds (titles/functions, memberships,
+ * responsibilities, records), so the operator can pick an alternative before deleting. */
+export function getSuppressionApercu(token: string, id: string): Promise<SuppressionApercu> {
+  return authedGet<SuppressionApercu>(`/api/v1/admin/membres/${id}/suppression-apercu`, token, "Aperçu indisponible");
+}
+
+/** Reversible alternative to erasure: archive / deactivate / suspend / reactivate. */
+export function changerStatutMembre(token: string, id: string, statut: string): Promise<{ ok: boolean; statut: string }> {
+  return authedSend(`/api/v1/admin/membres/${id}/statut`, token, "PATCH", { statut }, "Changement de statut impossible");
+}
+
 export interface ConnexionItem {
   ip: string | null;
   appareil: string | null;
@@ -1933,4 +2608,100 @@ export function getDocumentUrl(token: string, documentId: string): Promise<{ url
 
 export function apiBaseUrl(): string {
   return BASE;
+}
+
+// ---- AI providers (moderator channel transcription and redaction) ----
+
+export interface AiProvider {
+  id: string;
+  capacite: "stt" | "llm";
+  fournisseur: string;
+  libelle: string;
+  modele: string;
+  endpoint: string | null;
+  cle_presente: boolean;
+  params: Record<string, unknown>;
+  actif: boolean;
+  gratuit: boolean;
+  ordre: number;
+}
+
+export interface AiSuggestion {
+  fournisseur: string;
+  modele: string;
+  gratuit?: boolean;
+  note: string;
+}
+
+export interface AiGuide {
+  libelle: string;
+  gratuit: boolean;
+  resume: string;
+  site: string;
+  compte_url: string;
+  cle_url: string;
+  cle_libelle: string;
+  etapes: string[];
+  params: string[];
+}
+
+export interface AiCatalogue {
+  capacites: string[];
+  fournisseurs: string[];
+  guides?: Record<string, AiGuide>;
+  suggestions: { stt: AiSuggestion[]; llm: AiSuggestion[] };
+}
+
+export interface AiProviderInput {
+  capacite: "stt" | "llm";
+  fournisseur: string;
+  libelle: string;
+  modele: string;
+  endpoint?: string | null;
+  cle?: string | null;
+  params?: Record<string, unknown>;
+  gratuit?: boolean;
+  ordre?: number;
+}
+
+export interface AiProviderPatch {
+  libelle?: string;
+  modele?: string;
+  endpoint?: string | null;
+  cle?: string | null;
+  params?: Record<string, unknown>;
+  gratuit?: boolean;
+  ordre?: number;
+}
+
+export function listAiProviders(token: string): Promise<AiProvider[]> {
+  return authedGet(`/api/v1/admin/ai/providers`, token, "Fournisseurs IA indisponibles");
+}
+
+export function aiCatalogue(token: string): Promise<AiCatalogue> {
+  return authedGet(`/api/v1/admin/ai/catalogue`, token, "Catalogue IA indisponible");
+}
+
+export function createAiProvider(token: string, input: AiProviderInput): Promise<AiProvider> {
+  return authedSend(`/api/v1/admin/ai/providers`, token, "POST", input, "Creation impossible");
+}
+
+export function updateAiProvider(token: string, id: string, patch: AiProviderPatch): Promise<AiProvider> {
+  return authedSend(`/api/v1/admin/ai/providers/${id}`, token, "PATCH", patch, "Mise a jour impossible");
+}
+
+export function activerAiProvider(token: string, id: string): Promise<AiProvider> {
+  return authedSend(`/api/v1/admin/ai/providers/${id}/activer`, token, "POST", undefined, "Activation impossible");
+}
+
+export function desactiverAiProvider(token: string, id: string): Promise<AiProvider> {
+  return authedSend(`/api/v1/admin/ai/providers/${id}/desactiver`, token, "POST", undefined, "Désactivation impossible");
+}
+
+export function deleteAiProvider(token: string, id: string): Promise<void> {
+  return authedSend(`/api/v1/admin/ai/providers/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export function testAiProvider(token: string, id: string): Promise<{ ok: boolean; detail: string }> {
+  return authedSend(`/api/v1/admin/ai/providers/${id}/test`, token, "POST", undefined, "Test impossible");
 }

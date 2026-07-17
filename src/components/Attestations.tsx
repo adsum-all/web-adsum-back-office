@@ -13,6 +13,7 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
+import { Tabs } from "./Tabs.js";
 
 // Badge class and label per attestation status (awaiting an admin decision).
 const STATUT_BADGE: Record<string, string> = {
@@ -41,6 +42,7 @@ export function Attestations({ token }: { token: string }): JSX.Element {
 
   const fileAttente: Attestation[] = attestations.data ?? [];
   const matrice: PaysSignature[] = pays.data ?? [];
+  const [tab, setTab] = useState<"file" | "pays">("file");
 
   return (
     <div className="page">
@@ -53,6 +55,16 @@ export function Attestations({ token }: { token: string }): JSX.Element {
         </div>
       </header>
 
+      <Tabs
+        tabs={[
+          { id: "file", label: fileAttente.length > 0 ? `File d'attente (${fileAttente.length})` : "File d'attente" },
+          { id: "pays", label: "Matrice des pays" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as "file" | "pays")}
+      />
+
+      {tab === "file" && (
       <section className="card">
         <h2 className="card-title">File d'attente des attestations</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
@@ -87,7 +99,9 @@ export function Attestations({ token }: { token: string }): JSX.Element {
           </div>
         )}
       </section>
+      )}
 
+      {tab === "pays" && (
       <section className="card">
         <h2 className="card-title">
           Matrice juridique des pays
@@ -124,6 +138,7 @@ export function Attestations({ token }: { token: string }): JSX.Element {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

@@ -87,7 +87,7 @@ function Etapes({ d }: { d: DemandeDetailAdmin }): JSX.Element {
   );
 }
 
-export function DemandesAdmin({ token }: { token: string }): JSX.Element {
+export function DemandesAdmin({ token, canGerer = false }: { token: string; canGerer?: boolean }): JSX.Element {
   const [fStatut, setFStatut] = useState("");
   const [fCat, setFCat] = useState("");
   const [fQ, setFQ] = useState("");
@@ -107,6 +107,13 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
           <p className="muted">Tickets suivis de l'ouverture à la clôture : messagerie, pièces, validation.</p>
         </div>
       </header>
+
+      {!canGerer && (
+        <p className="banner banner-info small">
+          Consultation en lecture seule. Le traitement des demandes (prise en charge, réponse, pièces, décision) requiert
+          la permission <span className="mono">demandes.gerer</span>.
+        </p>
+      )}
 
       <div className="toolbar" style={{ marginBottom: 10, gap: 8 }}>
         <select value={fStatut} onChange={(e) => setFStatut(e.target.value)}>
@@ -144,13 +151,16 @@ export function DemandesAdmin({ token }: { token: string }): JSX.Element {
             </button>
           ))}
         </div>
-        {openId && <Conversation token={token} id={openId} onChanged={reload} />}
+        {openId && <Conversation token={token} id={openId} canGerer={canGerer} onChanged={reload} />}
       </div>
     </div>
   );
 }
 
-export function Conversation({ token, id, onChanged }: { token: string; id: string; onChanged: () => void }): JSX.Element {
+// canGerer defaults to true so the reuse inside MembreDetail (which does not pass it)
+// keeps its current behaviour: only the dedicated Demandes page gates the write
+// controls (demandes.gerer). All write endpoints stay guarded server side either way.
+export function Conversation({ token, id, canGerer = true, onChanged }: { token: string; id: string; canGerer?: boolean; onChanged: () => void }): JSX.Element {
   const [detail, setDetail] = useState<DemandeDetailAdmin | null>(null);
   const [mods, setMods] = useState<ModificationItem[]>([]);
   const [photoPending, setPhotoPending] = useState<{ url: string; fx: number | null; fy: number | null } | null>(null);
@@ -275,7 +285,7 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
         {detail.echeance_reponse ? ` · réponse du membre attendue avant le ${new Date(detail.echeance_reponse).toLocaleDateString("fr-FR")}` : ""}
       </p>
       <Etapes d={detail} />
-      {detail.statut === "ouverte" && (
+      {canGerer && detail.statut === "ouverte" && (
         <div style={{ marginBottom: 10 }}>
           <button
             type="button"
@@ -318,12 +328,14 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
           ),
         )}
       </div>
-      <div className="toolbar">
-        <input className="search" value={draft} placeholder="Répondre au membre..." onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void reply()} />
-        <button type="button" className="btn btn-primary btn-inline" disabled={!draft.trim()} onClick={() => void reply()}>
-          Envoyer
-        </button>
-      </div>
+      {canGerer && (
+        <div className="toolbar">
+          <input className="search" value={draft} placeholder="Répondre au membre..." onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void reply()} />
+          <button type="button" className="btn btn-primary btn-inline" disabled={!draft.trim()} onClick={() => void reply()}>
+            Envoyer
+          </button>
+        </div>
+      )}
 
       {(pending || photoPending) && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
@@ -354,18 +366,20 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
               <img src={photoPending.url} alt="Nouvelle photo proposée" style={{ width: 96, height: 120, borderRadius: 12, objectFit: "cover", objectPosition: `${photoPending.fx ?? 50}% ${photoPending.fy ?? 30}%`, border: "1px solid var(--adsum-line)" }} />
             </div>
           )}
-          <div className="form-actions" style={{ justifyContent: "flex-start" }}>
-            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("valider")}>
-              Valider et enregistrer
-            </button>
-            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("rejeter")}>
-              Rejeter la modification
-            </button>
-          </div>
+          {canGerer && (
+            <div className="form-actions" style={{ justifyContent: "flex-start" }}>
+              <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("valider")}>
+                Valider et enregistrer
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("rejeter")}>
+                Rejeter la modification
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {detail.statut !== "resolue" && detail.statut !== "refusee" && elements.length > 0 && (
+      {canGerer && detail.statut !== "resolue" && detail.statut !== "refusee" && elements.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--adsum-line)" }}>
           <p className="card-title" style={{ marginBottom: 4 }}>Débloquer des éléments pour correction</p>
           <p className="muted small" style={{ marginTop: 0 }}>
@@ -416,25 +430,27 @@ export function Conversation({ token, id, onChanged }: { token: string; id: stri
 
       {pieceErreur && <p className="banner banner-error" style={{ marginTop: 8 }}>{pieceErreur}</p>}
 
-      <div className="form-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
-        {detail.statut !== "resolue" && detail.statut !== "refusee" ? (
-          <>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("piece")}>
-              Demander une pièce
+      {canGerer && (
+        <div className="form-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
+          {detail.statut !== "resolue" && detail.statut !== "refusee" ? (
+            <>
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("piece")}>
+                Demander une pièce
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("refusee")}>
+                Refuser
+              </button>
+              <button type="button" className="btn btn-primary btn-inline" onClick={() => ouvrirPanneau("resolue")}>
+                Marquer résolu
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-ghost btn-inline" onClick={() => void setStatut("en_cours")}>
+              Rouvrir la demande
             </button>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => ouvrirPanneau("refusee")}>
-              Refuser
-            </button>
-            <button type="button" className="btn btn-primary btn-inline" onClick={() => ouvrirPanneau("resolue")}>
-              Marquer résolu
-            </button>
-          </>
-        ) : (
-          <button type="button" className="btn btn-ghost btn-inline" onClick={() => void setStatut("en_cours")}>
-            Rouvrir la demande
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {action && (
         <div style={{ marginTop: 10, padding: 14, border: "1px solid var(--adsum-line)", borderRadius: 10 }}>

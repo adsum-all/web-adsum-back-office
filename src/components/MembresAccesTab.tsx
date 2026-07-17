@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { ApiError, type Utilisateur, getUtilisateurs, updateUtilisateur } from "../api.js";
 import { useResource } from "../useResource.js";
 import { EditeurGroupes } from "./EditeurGroupes.js";
+import { FicheGouvernance } from "./FicheGouvernance.js";
 import { RechercheMembre } from "./RechercheMembre.js";
 import { type CibleMembre, roleLabel } from "./utilisateursShared.js";
 
@@ -15,6 +16,7 @@ import { type CibleMembre, roleLabel } from "./utilisateursShared.js";
 export function MembresAccesTab({ token }: { token: string }): JSX.Element {
   const users = useResource(() => getUtilisateurs(token), [token]);
   const [cible, setCible] = useState<CibleMembre | null>(null);
+  const [fiche, setFiche] = useState<CibleMembre | null>(null);
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,10 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
   const comptesPlateforme = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (users.data ?? [])
-      .filter((u) => u.role !== "membre")
+      // Platform access exists either through an elevated role OR through an active
+      // GLOBAL group membership (a permission-mode group keeps the role 'membre'
+      // while granting real platform permissions): both must appear in this review.
+      .filter((u) => u.role !== "membre" || (u.groupes_globaux ?? 0) > 0)
       .filter((u) => !term || (u.membre_nom ?? "").toLowerCase().includes(term) || u.email.toLowerCase().includes(term) || u.role.toLowerCase().includes(term));
   }, [users.data, q]);
 
@@ -38,8 +43,8 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
         <div>
           <h2 className="section-title">Membres avec un accès plateforme</h2>
           <p className="muted small">
-            Les comptes qui disposent d'un accès au-delà de l'espace membre. Le rôle affiché est calculé à partir des
-            groupes du membre. Cherchez ci-dessous, ou ajoutez un accès à un membre plus bas.
+            Les comptes qui disposent d'un accès au-delà de l'espace membre : rôle plateforme élevé ou groupe de
+            permissions global. Cherchez ci-dessous, ou ajoutez un accès à un membre plus bas.
           </p>
         </div>
       </header>
@@ -73,19 +78,38 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
                     <span className="muted small">{u.email}</span>
                   </div>
                 </td>
-                <td><span className="badge badge-ok">{roleLabel(u.role)}</span></td>
+                <td>
+                  {u.role !== "membre" ? (
+                    <span className="badge badge-ok">{roleLabel(u.role)}</span>
+                  ) : (
+                    // Cached role 'membre' with active global memberships: the access
+                    // comes from a permission-mode group, not a platform role.
+                    <span className="badge badge-ok" title="Permissions accordées par un groupe de permissions global">
+                      Groupe de permissions
+                    </span>
+                  )}
+                </td>
                 <td>
                   <span className={`badge ${u.actif ? "badge-ok" : "badge-warn"}`}>{u.actif ? "actif" : "désactivé"}</span>
                 </td>
                 <td className="row-actions">
                   {u.membre_id ? (
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setCible({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
-                    >
-                      Gérer les groupes
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => setFiche({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
+                      >
+                        Fiche gouvernance
+                      </button>
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => setCible({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
+                      >
+                        Gérer les groupes
+                      </button>
+                    </>
                   ) : (
                     <span className="muted small">compte sans membre lié</span>
                   )}
@@ -108,6 +132,10 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
           onClose={() => setCible(null)}
           onChanged={() => users.reload()}
         />
+      )}
+
+      {fiche && (
+        <FicheGouvernance token={token} membre={fiche} onClose={() => setFiche(null)} />
       )}
     </div>
   );

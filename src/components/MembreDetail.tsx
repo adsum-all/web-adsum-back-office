@@ -4,8 +4,11 @@ import {
   ApiError,
   type DossierDocument,
   type MembreUpdateInput,
+  type SuppressionApercu,
   bloquerMembre,
+  changerStatutMembre,
   debloquerMembre,
+  getSuppressionApercu,
   demanderDocumentMembre,
   fetchDocumentContentUrl,
   getAdminDemandes,
@@ -26,6 +29,7 @@ import { useResource } from "../useResource.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
+import { MembreApplications } from "./MembreApplications.js";
 import { MembreCorrectionIdentite } from "./MembreCorrectionIdentite.js";
 import { MembreFonctions } from "./MembreFonctions.js";
 import { MembreGouvernance } from "./MembreGouvernance.js";
@@ -41,11 +45,45 @@ const DEMANDE_STATUT: Record<string, string> = {
   refusee: "Refusée",
 };
 
+// Human, correctly accented status labels for the member header chip. Any status
+// not listed falls back to a capitalised form so a new value is never shown raw.
+const STATUT_LABELS: Record<string, string> = {
+  actif: "Actif",
+  inactif: "Inactif",
+  desactive: "Désactivé",
+  suspendu: "Suspendu",
+  archive: "Archivé",
+  incomplet: "Incomplet",
+  refuse: "Refusé",
+  en_attente: "En attente",
+  correction_demandee: "Correction demandée",
+  non_verifie: "Non vérifié",
+};
+
+function statutLabel(statut: string): string {
+  return STATUT_LABELS[statut] ?? (statut ? statut.charAt(0).toUpperCase() + statut.slice(1) : "-");
+}
+
+// Colour the status chip by meaning: active is positive, suspended/refused is a
+// hard negative, everything else stays neutral so attention is not misdirected.
+function statutBadge(statut: string): string {
+  if (statut === "actif") return "badge-ok";
+  if (statut === "suspendu" || statut === "refuse") return "badge-bad";
+  return "badge-mut";
+}
+
 interface MembreDetailProps {
   token: string;
   id: string;
   onBack: () => void;
   onOpenAnnuaire?: () => void;
+  /** Grants the affectation controls and the confidential governance zone. When
+   * false, both are shown read-only: the server requires membres.administrer. */
+  canAdministrer?: boolean;
+  /** acces.administrer: gates the applications access sub-panel (GET/PUT
+   * /admin/membres/{id}/applications). When false the panel is read-only and the
+   * GET is not even issued, so a members-only account never hits a 403. */
+  canAccesAdmin?: boolean;
 }
 
 type TabKey = "apercu" | "consecration" | "participation" | "demandes" | "securite" | "avance";
@@ -59,7 +97,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "avance", label: "Gestion avancée" },
 ];
 
-export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetailProps): JSX.Element {
+export function MembreDetail({ token, id, onBack, onOpenAnnuaire, canAdministrer = false, canAccesAdmin = false }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -75,6 +113,19 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
   const [note, setNote] = useState<string | null>(null);
   const [docType, setDocType] = useState("piece_identite");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [apercu, setApercu] = useState<SuppressionApercu | null>(null);
+
+  async function ouvrirSuppression(): Promise<void> {
+    setBusy(true); setError(null); setNote(null);
+    try {
+      setApercu(await getSuppressionApercu(token, id));
+      setConfirmDelete(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
+    } finally {
+      setBusy(false);
+    }
+  }
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("apercu");
   // Security connections can be numerous: page through them five at a time.
@@ -142,7 +193,25 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
   }
 
   if (membre.loading) return <div className="page muted">Chargement...</div>;
-  if (membre.error || !membre.data) return <div className="page banner banner-error">{membre.error ?? "Introuvable"}</div>;
+  if (membre.error || !membre.data) {
+    // A transient network failure (serverless cold start, connectivity blip) must
+    // not dead-end the whole file: offer a retry instead of a static error.
+    return (
+      <div className="page">
+        <p className="banner banner-error">{membre.error ?? "Introuvable"}</p>
+        <div className="toolbar">
+          <button type="button" className="btn btn-primary btn-inline" onClick={() => membre.reload()}>
+            Réessayer
+          </button>
+          {onBack && (
+            <button type="button" className="btn btn-ghost btn-inline" onClick={onBack}>
+              Retour
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const m = membre.data;
   // Bare name for initials; the heading is the civil name, functions/pastoral shown apart.
@@ -153,41 +222,58 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="link" onClick={onBack}>
-              Annuaire
-            </button>
-            {onOpenAnnuaire && (
-              <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
-                Parcourir l&apos;annuaire
-              </button>
-            )}
-          </div>
-          <h1>{heading}</h1>
-          {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
-          {fonctionsList.map((f, i) => (
-            <p key={i} className="muted" style={{ margin: "2px 0" }}>
-              {f.libelle}
-              {f.perimetre ? ` - ${f.perimetre}` : ""}
-            </p>
-          ))}
-          <p className="mono muted">
-            {m.matricule}{m.code_membre ? ` . Code membre ${m.code_membre}` : ""} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
-          </p>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <button type="button" className="link" onClick={onBack}>
+          Annuaire
+        </button>
+        {onOpenAnnuaire && (
+          <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
+            Parcourir l&apos;annuaire
+          </button>
+        )}
+      </div>
+      <header className="profil-head">
         {photoUrl ? (
           <img
-            className="avatar"
+            className="avatar profil-avatar"
             src={photoUrl}
             alt={`Photo de ${name}`}
             style={{ objectFit: "cover", objectPosition: `${m.photo_focus_x ?? 50}% ${m.photo_focus_y ?? 30}%` }}
             onError={() => setPhotoUrl(null)}
           />
         ) : (
-          <div className="avatar">{initials(name)}</div>
+          <div className="avatar profil-avatar">{initials(name)}</div>
         )}
+        <div className="profil-ident">
+          <h1>{heading}</h1>
+          {bergerLabel && <p className="profil-berger">{bergerLabel}</p>}
+          {fonctionsList.length > 0 && (
+            <div className="profil-fonctions">
+              {fonctionsList.map((f, i) => (
+                <span key={i} className="muted small">
+                  {f.libelle}
+                  {f.perimetre ? ` - ${f.perimetre}` : ""}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="profil-chips">
+            <span className="chip chip-mono">
+              <span className="chip-label">Matricule</span>
+              {m.matricule}
+            </span>
+            {m.code_membre && (
+              <span className="chip chip-mono">
+                <span className="chip-label">Code</span>
+                {m.code_membre}
+              </span>
+            )}
+            <span className={`badge ${statutBadge(m.statut)}`}>{statutLabel(m.statut)}</span>
+            <span className={`badge ${m.verifie ? "badge-ok" : "badge-warn"}`}>
+              {m.verifie ? "Identité vérifiée" : "Identité non vérifiée"}
+            </span>
+          </div>
+        </div>
       </header>
 
       {note && <p className="banner banner-ok">{note}</p>}
@@ -323,6 +409,8 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
       <section className="card">
         <h2 className="card-title">Affectation</h2>
+        {canAdministrer ? (
+        <>
         <p className="muted small" style={{ marginTop: 0 }}>
           Un membre appartient à la fois à une commission ou mission et à une tribu ; il peut changer de l'une ou de l'autre
           à tout moment. Chaque changement est tracé.
@@ -410,6 +498,13 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
             </p>
           );
         })()}
+        </>
+        ) : (
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Affectation en lecture seule. La modification de la commission, de la tribu, de l'intendance ou de la
+            coordination requiert la permission <span className="mono">membres.administrer</span>.
+          </p>
+        )}
       </section>
       </>
       )}
@@ -418,7 +513,17 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
       <>
       <MembreConsecration token={token} membre={m} onChanged={() => membre.reload()} />
       <MembreFonctions token={token} membreId={m.id} onChanged={() => membre.reload()} />
-      <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
+      {canAdministrer ? (
+        <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
+      ) : (
+        <section className="card" style={{ borderColor: "var(--adsum-warn, #b5731a)" }}>
+          <h2 className="card-title">Zone confidentielle (administration)</h2>
+          <p className="muted small" style={{ margin: 0 }}>
+            Réservée à l'administration. La consultation et la modification requièrent la permission
+            <span className="mono"> membres.administrer</span>.
+          </p>
+        </section>
+      )}
       </>
       )}
 
@@ -426,7 +531,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
         <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
       )}
 
-      {tab === "apercu" && (
+      {tab === "apercu" && canAdministrer && (
       <div className="form-actions">
         {!m.verifie && (
           <button
@@ -636,6 +741,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
       {tab === "avance" && (
       <>
+      <MembreApplications token={token} membreId={id} canAccesAdmin={canAccesAdmin} />
       <MembreCorrectionIdentite token={token} membre={m} onChanged={() => membre.reload()} />
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
@@ -657,6 +763,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
             Demander ce document
           </button>
         </div>
+        {canAdministrer ? (
         <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
           <button
             type="button"
@@ -674,29 +781,60 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
           >
             Débloquer
           </button>
-          {confirmDelete ? (
-            <>
-              <span className="muted small">Confirmer la suppression définitive (RGPD) ?</span>
-              <button
-                type="button"
-                className="btn btn-primary btn-inline"
-                style={{ background: "var(--adsum-danger)" }}
-                disabled={busy}
-                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé.", true)}
-              >
-                Oui, supprimer et purger
-              </button>
-              <button type="button" className="btn btn-ghost btn-inline" onClick={() => setConfirmDelete(false)}>
-                Annuler
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirmDelete(true)}>
+          {!confirmDelete && (
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void ouvrirSuppression()}>
               Supprimer (RGPD)
             </button>
           )}
         </div>
-        <p className="muted small">La suppression efface le membre, son compte, ses demandes, ses documents et ses fichiers (photos, pieces) dans le stockage. Action irreversible.</p>
+        ) : (
+          <p className="muted small" style={{ marginTop: 8 }}>
+            Blocage, déblocage et suppression (RGPD) en lecture seule : ces actions requièrent la permission
+            <span className="mono"> membres.administrer</span>.
+          </p>
+        )}
+        {canAdministrer && confirmDelete && (
+          <div className="banner banner-error small" style={{ textAlign: "left", marginTop: 10 }}>
+            <strong>Suppression définitive (RGPD) de {apercu?.nom || "ce membre"}</strong>
+            <p className="muted" style={{ margin: "6px 0" }}>Avant de supprimer, vérifiez ce que ce membre porte. La suppression efface totalement le membre, son compte, ses demandes, documents, participations et fichiers. Irréversible.</p>
+            {apercu && (
+              <ul className="muted small" style={{ margin: "0 0 8px", paddingLeft: 18 }}>
+                {apercu.porte_titre_berger && <li>Porte un titre de consécration : <strong>{apercu.nom_pastoral || "Berger/Bergère"}</strong></li>}
+                {apercu.fonctions.length > 0 && <li>Fonctions portées : <strong>{apercu.fonctions.join(", ")}</strong></li>}
+                {apercu.responsable_de_commissions > 0 && <li>Responsable de <strong>{apercu.responsable_de_commissions}</strong> commission(s) (le rattachement sera libéré)</li>}
+                {apercu.appartenances > 0 && <li>{apercu.appartenances} rattachement(s) de commission</li>}
+                {apercu.espaces_collaboration > 0 && <li>Membre de <strong>{apercu.espaces_collaboration}</strong> espace(s) de collaboration</li>}
+                {apercu.participations > 0 && <li>{apercu.participations} participation(s) enregistrée(s)</li>}
+                {apercu.documents > 0 && <li>{apercu.documents} document(s)</li>}
+                {apercu.a_un_compte && <li>Possède un compte de connexion (sera supprimé)</li>}
+                {!apercu.porte_titre_berger && apercu.fonctions.length === 0 && apercu.appartenances === 0 && apercu.espaces_collaboration === 0 && (
+                  <li>Aucun titre, fonction ni rattachement particulier.</li>
+                )}
+              </ul>
+            )}
+            <div style={{ marginBottom: 6 }}>
+              <span className="muted small">Alternatives réversibles (sans perte de données) : </span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "archive"), "Membre archivé.")}>Archiver</button>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "inactif"), "Membre désactivé.")}>Désactiver</button>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void manage(() => changerStatutMembre(token, id, "suspendu"), "Membre suspendu.")}>Suspendre</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+              <button
+                type="button"
+                className="btn btn-danger btn-inline"
+                disabled={busy}
+                onClick={() => void manage(() => supprimerMembre(token, id), "Membre supprimé définitivement.", true)}
+              >
+                Supprimer définitivement (RGPD)
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setConfirmDelete(false); setApercu(null); }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </section>
       </>
       )}

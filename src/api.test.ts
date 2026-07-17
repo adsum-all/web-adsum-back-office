@@ -39,11 +39,19 @@ describe("admin api client", () => {
     expect(apiBaseUrl()).toMatch(/^https?:\/\//);
   });
 
-  it("returns the session token and role on login", async () => {
+  it("returns the session token and role on login (no second factor)", async () => {
     mockFetch(200, { access_token: "jwt-123", token_type: "bearer", role: "admin" });
-    const session = await login("a@b.c", "pw");
-    expect(session.token).toBe("jwt-123");
-    expect(session.role).toBe("admin");
+    const result = await login("a@b.c", "pw");
+    expect(result.otpRequired).toBe(false);
+    expect(result.session?.token).toBe("jwt-123");
+    expect(result.session?.role).toBe("admin");
+  });
+
+  it("signals the second factor when the server asks for a code", async () => {
+    mockFetch(200, { otp_required: true, canal: "email" });
+    const result = await login("a@b.c", "pw");
+    expect(result.otpRequired).toBe(true);
+    expect(result.session).toBeNull();
   });
 
   it("raises a typed error on invalid credentials", async () => {

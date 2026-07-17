@@ -4,6 +4,7 @@ import {
   ApiError,
   type GroupeAcces,
   deleteGroupe,
+  getApplications,
   getCataloguePermissions,
   getGroupes,
   updateGroupe,
@@ -18,11 +19,15 @@ import { roleLabel } from "./utilisateursShared.js";
  * delete a custom group. System groups are read-only. Every action goes through the
  * server, which enforces least privilege and audits the change.
  */
-export function GestionGroupes({ token }: { token: string }): JSX.Element {
+export function GestionGroupes({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
   const groupes = useResource(() => getGroupes(token, true), [token]);
   const catalogue = useResource(() => getCataloguePermissions(token), [token]);
+  const applications = useResource(() => getApplications(token), [token]);
   const [q, setQ] = useState("");
   const [filtre, setFiltre] = useState<"tous" | "role" | "permissions">("tous");
+  // Per-application view: "toutes" shows everything, "aucune" the untagged
+  // (cross-application) groups, otherwise an application code.
+  const [appFiltre, setAppFiltre] = useState<string>("toutes");
   const [creer, setCreer] = useState(false);
   const [edit, setEdit] = useState<GroupeAcces | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,8 +37,16 @@ export function GestionGroupes({ token }: { token: string }): JSX.Element {
     const term = q.trim().toLowerCase();
     return (groupes.data ?? [])
       .filter((g) => (filtre === "tous" ? true : g.mode === filtre))
+      .filter((g) =>
+        appFiltre === "toutes" ? true : appFiltre === "aucune" ? !g.application_code : g.application_code === appFiltre)
       .filter((g) => !term || g.libelle.toLowerCase().includes(term) || g.cle.toLowerCase().includes(term));
-  }, [groupes.data, q, filtre]);
+  }, [groupes.data, q, filtre, appFiltre]);
+
+  const nomApplication = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of applications.data ?? []) map.set(a.code, a.nom.replace(/^ADSUM\s+/i, ""));
+    return map;
+  }, [applications.data]);
 
   async function run(id: string, action: () => Promise<unknown>): Promise<void> {
     setBusy(id);
@@ -64,17 +77,28 @@ export function GestionGroupes({ token }: { token: string }): JSX.Element {
             un membre sans groupe n'a aucun accès. Les groupes système ne sont pas modifiables.
           </p>
         </div>
-        {catalogue.data && (
-          <button type="button" className="btn btn-primary btn-inline" onClick={() => { setCreer(true); setEdit(null); }}>
-            + Nouveau groupe
-          </button>
+        {canSysteme ? (
+          catalogue.data && (
+            <button type="button" className="btn btn-primary btn-inline" onClick={() => { setCreer(true); setEdit(null); }}>
+              + Nouveau groupe
+            </button>
+          )
+        ) : (
+          <span className="muted small">Lecture seule</span>
         )}
       </header>
 
       {error && <p className="banner banner-error">{error}</p>}
       {groupes.error && <p className="banner banner-error">{groupes.error}</p>}
 
-      {(creer || edit) && catalogue.data && (
+      {!canSysteme && (
+        <p className="banner banner-info small">
+          Vous consultez les groupes d'accès en lecture seule. La gestion requiert la permission
+          <span className="mono"> acces.systeme</span>.
+        </p>
+      )}
+
+      {canSysteme && (creer || edit) && catalogue.data && (
         <GroupeForm
           token={token}
           catalogue={catalogue.data}
@@ -86,6 +110,13 @@ export function GestionGroupes({ token }: { token: string }): JSX.Element {
 
       <div className="form-inline" style={{ margin: "12px 0" }}>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un groupe" />
+        <select value={appFiltre} onChange={(e) => setAppFiltre(e.target.value)} aria-label="Filtrer par application">
+          <option value="toutes">Toutes les applications</option>
+          {(applications.data ?? []).map((a) => (
+            <option key={a.code} value={a.code}>{a.nom.replace(/^ADSUM\s+/i, "")}</option>
+          ))}
+          <option value="aucune">Sans application (transverse)</option>
+        </select>
         <select value={filtre} onChange={(e) => setFiltre(e.target.value as "tous" | "role" | "permissions")}>
           <option value="tous">Tous les types</option>
           <option value="role">Groupes de rôle</option>
@@ -111,7 +142,12 @@ export function GestionGroupes({ token }: { token: string }): JSX.Element {
               <tr key={g.id} style={{ opacity: g.actif ? 1 : 0.55 }}>
                 <td>
                   <div className="event-main">
-                    <strong>{g.libelle}</strong>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <strong>{g.libelle}</strong>
+                      {g.application_code && (
+                        <span className="badge badge-mut">{nomApplication.get(g.application_code) ?? g.application_code}</span>
+                      )}
+                    </span>
                     <span className="mono muted small">{g.cle}{g.systeme ? " (système)" : ""}</span>
                     {g.description && <span className="muted small">{g.description}</span>}
                   </div>
@@ -130,7 +166,9 @@ export function GestionGroupes({ token }: { token: string }): JSX.Element {
                   <span className={`badge ${g.actif ? "badge-ok" : "badge-mut"}`}>{g.actif ? "Actif" : "Désactivé"}</span>
                 </td>
                 <td>
-                  {g.systeme ? (
+                  {!canSysteme ? (
+                    <span className="muted small">Lecture seule</span>
+                  ) : g.systeme ? (
                     <span className="muted small">non modifiable</span>
                   ) : (
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>

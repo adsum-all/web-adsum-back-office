@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { type CataloguePermissions, getCataloguePermissions } from "../api.js";
+import { type CataloguePermissions, type PermissionItem, getCataloguePermissions } from "../api.js";
 import { useResource } from "../useResource.js";
+import { PermissionDrawer } from "./PermissionDrawer.js";
+import { Tabs } from "./Tabs.js";
 
 const ROLE_LABELS: Record<string, string> = {
   membre: "Membre",
@@ -51,7 +53,15 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
     return map;
   }, [data]);
 
+  const parCle = useMemo(() => {
+    const map = new Map<string, PermissionItem>();
+    for (const p of data?.permissions ?? []) map.set(p.cle, p);
+    return map;
+  }, [data]);
+
   const roles = data?.roles.map((r) => r.role) ?? [];
+  const [tab, setTab] = useState<"roles" | "groupes">("roles");
+  const [detail, setDetail] = useState<PermissionItem | null>(null);
 
   return (
     <div className="page">
@@ -70,8 +80,17 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
 
       {data && (
         <>
+          <Tabs
+            tabs={[
+              { id: "roles", label: "Permissions par rôle" },
+              { id: "groupes", label: `Groupes spécialisés (${data.groupes_specialises.length})` },
+            ]}
+            active={tab}
+            onChange={(id) => setTab(id as "roles" | "groupes")}
+          />
+          {tab === "roles" && (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-sticky">
               <thead>
                 <tr>
                   <th>Permission</th>
@@ -95,7 +114,14 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
                     ...perms.map((p) => (
                       <tr key={p.cle}>
                         <td>
-                          <div>{p.libelle}</div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                            <span>{p.libelle}</span>
+                            <button type="button" className="link" onClick={() => setDetail(p)} aria-label={`Documentation de la permission ${p.libelle}`}>
+                              Détails
+                            </button>
+                          </div>
+                          {p.description && <div className="muted small" style={{ maxWidth: 420, lineHeight: 1.35 }}>{p.description}</div>}
+                          {p.limite && <div className="small" style={{ maxWidth: 420, color: "#c0392b", lineHeight: 1.35 }}>Ne permet pas : {p.limite}</div>}
                           <div className="mono muted small">{p.cle}</div>
                         </td>
                         <td>
@@ -121,18 +147,13 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
               </tbody>
             </table>
           </div>
+          )}
 
-          <header className="page-head" style={{ marginTop: 24 }}>
-            <div>
-              <h2>Groupes spécialisés</h2>
-              <p className="muted">
-                Groupes de permissions ciblés, à accorder à un membre sans lui donner un rôle global.
-              </p>
-            </div>
-          </header>
+          {tab === "groupes" && (
+          <>
           {data.groupes_specialises.length === 0 && <p className="muted">Aucun groupe spécialisé défini.</p>}
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-sticky">
               <thead>
                 <tr>
                   <th>Groupe</th>
@@ -153,11 +174,25 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
                     </td>
                     <td>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {g.permissions.map((cle) => (
-                          <span key={cle} className="mono small" style={{ background: "#eef1f8", borderRadius: 4, padding: "1px 6px" }}>
-                            {cle}
-                          </span>
-                        ))}
+                        {g.permissions.map((cle) => {
+                          const p = parCle.get(cle);
+                          return p ? (
+                            <button
+                              key={cle}
+                              type="button"
+                              className="mono small"
+                              style={{ background: "#eef1f8", border: "none", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "inherit" }}
+                              onClick={() => setDetail(p)}
+                              aria-label={`Documentation de la permission ${p.libelle}`}
+                            >
+                              {cle}
+                            </button>
+                          ) : (
+                            <span key={cle} className="mono small" style={{ background: "#eef1f8", borderRadius: 4, padding: "1px 6px" }}>
+                              {cle}
+                            </span>
+                          );
+                        })}
                       </div>
                     </td>
                   </tr>
@@ -165,8 +200,12 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </>
       )}
+
+      <PermissionDrawer permission={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

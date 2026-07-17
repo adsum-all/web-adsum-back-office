@@ -356,6 +356,42 @@ h3 {
   font-size: 13px;
   flex-shrink: 0;
 }
+/* Profile menu: the top-bar avatar opens a small identity + sign-out menu. */
+.profil-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+.profil-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(300px, 84vw);
+  background: var(--adsum-panel);
+  border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-lg);
+  box-shadow: -6px 12px 40px rgba(16, 18, 24, 0.18);
+  z-index: 50;
+  padding: 12px 0 8px;
+  animation: drawer-fade 0.14s ease;
+}
+.profil-menu-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--adsum-line);
+}
+.profil-menu-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+.profil-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 0;
+}
+
 .topbar-title {
   min-width: 0;
   flex-shrink: 0;
@@ -728,6 +764,80 @@ h3 {
   overflow: hidden;
 }
 
+/* Member profile identity header: photo and identity grouped as one block, so the
+   name, its functions and the key identifiers read together instead of the photo
+   floating apart in the corner. */
+.profil-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--adsum-line);
+}
+.profil-avatar {
+  width: 76px;
+  height: 76px;
+  border-radius: 20px;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: var(--adsum-shadow-sm);
+}
+.profil-ident {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.profil-ident h1 {
+  margin: 0;
+  font-size: var(--adsum-text-2xl);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.profil-berger {
+  margin: 0;
+  font-weight: 700;
+  color: var(--adsum-acc, #b5731a);
+}
+.profil-fonctions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profil-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--adsum-text-xs);
+  padding: 4px 10px;
+  border-radius: var(--adsum-radius-pill);
+  background: var(--adsum-board);
+  color: var(--adsum-ink);
+  border: 1px solid var(--adsum-line);
+  white-space: nowrap;
+}
+.chip-mono {
+  font-family: var(--adsum-font-mono, monospace);
+  letter-spacing: 0.3px;
+}
+.chip-label {
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  font-size: 10px;
+  color: var(--adsum-mut);
+}
+
 /* Buttons */
 .btn {
   padding: 11px 16px;
@@ -760,6 +870,18 @@ h3 {
 }
 .btn-ghost:hover {
   background: var(--adsum-bg);
+}
+.btn-danger {
+  background: var(--adsum-danger, #c0392b);
+  color: #fff;
+  border: 1px solid transparent;
+}
+.btn-danger:hover {
+  filter: brightness(1.08);
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Lists */
@@ -851,6 +973,20 @@ h3 {
 .banner-ok {
   background: var(--adsum-ok-bg);
   color: var(--adsum-ok);
+}
+.banner-info {
+  background: var(--adsum-tint-blue-bg, #eef3fc);
+  color: var(--adsum-tint-blue-fg, #2a4fad);
+}
+
+/* Sticky matrix header: keep the role/group columns visible while scrolling a long
+   permission list, so the operator never loses which column a checkbox belongs to.
+   Scoped to .table-sticky so the generic .table on other screens is untouched. */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--adsum-bg, #eef1f6);
 }
 
 /* Charts */
@@ -1299,4 +1435,38 @@ h3 {
 
 @media (max-width: 720px) {
   .drawer-panel { width: 100vw; border-left: none; }
+}
+
+/* Print / PDF report mode: keep only the page content, in report-friendly ink.
+   Triggered by the "Imprimer / PDF" button (window.print), so the printed report
+   shows exactly the on-screen figures: no separate export path, no divergence. */
+@media print {
+  .sidebar,
+  .topbar,
+  nav,
+  .no-print,
+  button {
+    display: none !important;
+  }
+  body,
+  .page {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .page {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .card,
+  section.card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    break-inside: avoid;
+  }
+  .kpi-grid {
+    break-inside: avoid;
+  }
+  a[href]::after {
+    content: "";
+  }
 }

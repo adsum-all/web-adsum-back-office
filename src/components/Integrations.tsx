@@ -17,6 +17,7 @@ import {
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { Switch } from "./Switch.js";
+import { Tabs } from "./Tabs.js";
 
 const CANAL_LABEL: Record<string, string> = {
   in_app: "Notifications in-app",
@@ -26,12 +27,20 @@ const CANAL_LABEL: Record<string, string> = {
   sms: "SMS",
 };
 
-export function Integrations({ token }: { token: string }): JSX.Element {
+export function Integrations({ token, canAdministrer = false, canGererNotifs = false }: { token: string; canAdministrer?: boolean; canGererNotifs?: boolean }): JSX.Element {
   const statut = useResource(() => getCanauxStatut(token), [token]);
-  const integrations = useResource(() => getIntegrations(token), [token]);
+  // getIntegrations requires integrations.administrer; only its own tabs (Jetons,
+  // Signatures) consume it and they are hidden without canAdministrer. Skip the call
+  // for a supervise-only account so it never triggers a silent 403.
+  const integrations = useResource(
+    () => (canAdministrer ? getIntegrations(token) : Promise.resolve([] as IntegrationItem[])),
+    [token, canAdministrer],
+  );
   const types = useResource(() => getTypesNotification(token), [token]);
   const echecs = useResource(() => getEchecsNotification(token), [token]);
   const [note, setNote] = useState<string | null>(null);
+  const [tab, setTab] = useState<"canaux" | "jetons" | "signatures" | "auto" | "echecs">("canaux");
+  const ouverts = echecs.data?.ouverts ?? 0;
 
   return (
     <div className="page">
@@ -44,6 +53,31 @@ export function Integrations({ token }: { token: string }): JSX.Element {
 
       {note && <p className="banner banner-ok">{note}</p>}
 
+      {!canAdministrer && (
+        <p className="banner banner-info small">
+          Vous consultez les intégrations en lecture seule. La configuration des canaux, des jetons d'accès et des
+          signatures requiert la permission <span className="mono">integrations.administrer</span>.
+        </p>
+      )}
+
+      <Tabs
+        tabs={[
+          { id: "canaux", label: "Canaux" },
+          ...(canAdministrer
+            ? [
+                { id: "jetons", label: "Jetons d'accès" },
+                { id: "signatures", label: "Signatures" },
+              ]
+            : []),
+          { id: "auto", label: "Messages automatiques" },
+          { id: "echecs", label: ouverts > 0 ? `Échecs (${ouverts})` : "Échecs" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as typeof tab)}
+      />
+
+      {tab === "canaux" && (
+      <>
       <TelegramOnboarding bot={(statut.data?.telegram?.bot as string | null) ?? null} />
 
       <section className="card">
@@ -53,11 +87,14 @@ export function Integrations({ token }: { token: string }): JSX.Element {
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {Object.entries(statut.data ?? {}).map(([cle, s]: [string, CanalStatut]) => (
-            <CanalRow key={cle} cle={cle} statut={s} token={token} onChanged={() => statut.reload()} />
+            <CanalRow key={cle} cle={cle} statut={s} token={token} canAdministrer={canAdministrer} onChanged={() => statut.reload()} />
           ))}
         </div>
       </section>
+      </>
+      )}
 
+      {tab === "jetons" && (
       <section className="card">
         <h2 className="card-title">
           Jetons d'accès
@@ -78,7 +115,9 @@ export function Integrations({ token }: { token: string }): JSX.Element {
             />
           ))}
       </section>
+      )}
 
+      {tab === "signatures" && (
       <section className="card">
         <h2 className="card-title">
           Signatures des messages
@@ -98,7 +137,9 @@ export function Integrations({ token }: { token: string }): JSX.Element {
             />
           ))}
       </section>
+      )}
 
+      {tab === "auto" && (
       <section className="card">
         <h2 className="card-title">
           Messages automatiques
@@ -106,11 +147,14 @@ export function Integrations({ token }: { token: string }): JSX.Element {
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {(types.data ?? []).map((t: TypeNotification) => (
-            <TypeRow key={t.cle} type={t} token={token} onChanged={() => types.reload()} />
+            <TypeRow key={t.cle} type={t} token={token} canGerer={canGererNotifs} onChanged={() => types.reload()} />
           ))}
         </div>
+        {!canGererNotifs && <p className="banner banner-info small" style={{ marginTop: 8 }}>Lecture seule : l'activation des messages requiert la permission de gestion des notifications.</p>}
       </section>
+      )}
 
+      {tab === "echecs" && (
       <section className="card">
         <h2 className="card-title">
           Échecs de livraison
@@ -124,16 +168,17 @@ export function Integrations({ token }: { token: string }): JSX.Element {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(echecs.data?.echecs ?? []).map((e: EchecNotification) => (
-              <EchecRow key={e.id} echec={e} token={token} onChanged={() => echecs.reload()} />
+              <EchecRow key={e.id} echec={e} token={token} canGerer={canGererNotifs} onChanged={() => echecs.reload()} />
             ))}
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }
 
-function EchecRow({ echec, token, onChanged }: { echec: EchecNotification; token: string; onChanged: () => void }): JSX.Element {
+function EchecRow({ echec, token, canGerer, onChanged }: { echec: EchecNotification; token: string; canGerer: boolean; onChanged: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const quand = echec.cree_le ? new Date(echec.cree_le).toLocaleString("fr-FR") : "";
   async function resoudre(): Promise<void> {
@@ -154,14 +199,18 @@ function EchecRow({ echec, token, onChanged }: { echec: EchecNotification; token
           {quand}{echec.detail ? ` . ${echec.detail}` : ""}
         </div>
       </div>
-      <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void resoudre()}>
-        Marquer traité
-      </button>
+      {canGerer ? (
+        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void resoudre()}>
+          Marquer traité
+        </button>
+      ) : (
+        <span className="muted small">Lecture seule</span>
+      )}
     </div>
   );
 }
 
-function CanalRow({ cle, statut, token, onChanged }: { cle: string; statut: CanalStatut; token: string; onChanged: () => void }): JSX.Element {
+function CanalRow({ cle, statut, token, canAdministrer, onChanged }: { cle: string; statut: CanalStatut; token: string; canAdministrer: boolean; onChanged: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const autorise = statut.autorise !== false;
   async function toggle(): Promise<void> {
@@ -193,7 +242,7 @@ function CanalRow({ cle, statut, token, onChanged }: { cle: string; statut: Cana
         ) : (
           <>
             <span className="muted small" style={{ minWidth: 58, textAlign: "right" }}>{autorise ? "Activé" : "Désactivé"}</span>
-            <Switch checked={autorise} onChange={() => void toggle()} disabled={busy} label={`Canal ${CANAL_LABEL[cle] ?? cle}`} />
+            <Switch checked={autorise} onChange={() => void toggle()} disabled={busy || !canAdministrer} label={`Canal ${CANAL_LABEL[cle] ?? cle}`} />
           </>
         )}
       </div>
@@ -340,7 +389,7 @@ function SignatureRow({ item, token, onSaved }: { item: IntegrationItem; token: 
   );
 }
 
-function TypeRow({ type, token, onChanged }: { type: TypeNotification; token: string; onChanged: () => void }): JSX.Element {
+function TypeRow({ type, token, canGerer, onChanged }: { type: TypeNotification; token: string; canGerer: boolean; onChanged: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   // A critical security type is always delivered by the engine; it cannot be
   // turned off, so the switch is locked and a badge states it plainly.
@@ -366,7 +415,7 @@ function TypeRow({ type, token, onChanged }: { type: TypeNotification; token: st
         ) : (
           <>
             <span className="muted small" style={{ minWidth: 62, textAlign: "right" }}>{type.actif ? "Activé" : "Désactivé"}</span>
-            <Switch checked={type.actif} onChange={() => void toggle()} disabled={busy} label={`Notification ${type.libelle}`} />
+            <Switch checked={type.actif} onChange={() => void toggle()} disabled={busy || !canGerer} label={`Notification ${type.libelle}`} />
           </>
         )}
       </div>
