@@ -166,9 +166,18 @@ export function FicheGouvernance({
                   </thead>
                   <tbody>
                     {(groupes.data?.groupes ?? []).map((g) => (
-                      <tr key={g.appartenance_id}>
-                        <td>{g.libelle}</td>
-                        <td>{roleLabel(g.role_accorde)}</td>
+                      <tr key={g.appartenance_id} style={{ opacity: g.groupe_actif === false ? 0.6 : 1 }}>
+                        <td>
+                          <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                            {g.libelle}
+                            {g.groupe_actif === false && (
+                              <span className="badge badge-warn" title="Ce groupe est désactivé : cette appartenance n'accorde plus rien.">
+                                Groupe désactivé
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td>{g.mode === "permissions" ? "Groupe de permissions" : roleLabel(g.role_accorde)}</td>
                         <td>{porteeLabel(g.portee_type, g.portee_libelle)}</td>
                         <td className="muted small">{formatDate(g.ajoute_le)}</td>
                         <td className="muted small">{g.ajoute_par_nom ?? "-"}</td>

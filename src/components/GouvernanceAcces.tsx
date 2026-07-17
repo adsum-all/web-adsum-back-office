@@ -16,6 +16,7 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { Tabs } from "./Tabs.js";
+import { roleLabel } from "./utilisateursShared.js";
 
 /**
  * Central access governance, one tab per application. Inside a tab: exactly WHO has
@@ -181,13 +182,18 @@ function MembreGroupes({ token, membreId, code }: { token: string; membreId: str
 
   return (
     <div style={{ background: "var(--adsum-panel)", border: "1px solid var(--adsum-line)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-      <span className="muted small">Droits via les groupes (créés dans « Accès &amp; groupes », sélectionnés ici). Ces droits sont liés à cette application : révoquer l'accès les retire tous automatiquement.</span>
+      <span className="muted small">
+        Droits via les groupes (créés dans « Accès &amp; groupes », sélectionnés ici). Attention : un groupe accorde son
+        rôle ou ses permissions sur TOUTE la plateforme (portée globale) ; le rattachement à cette application sert à
+        ouvrir sa connexion et à retirer ces groupes automatiquement quand l'accès est révoqué.
+      </span>
       {error && <p className="banner banner-error">{error}</p>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {assignes.length === 0 && <span className="muted small">Aucun groupe. Le membre voit l'application mais ne peut pas encore s'y connecter.</span>}
         {assignes.map((a) => (
-          <span key={a.membre_groupe_id} className="badge badge-mut" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            {a.libelle}
+          <span key={a.membre_groupe_id} className={`badge ${a.groupe_actif === false ? "badge-warn" : "badge-mut"}`} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            title={a.groupe_actif === false ? "Groupe désactivé : n'accorde plus rien et n'ouvre plus la connexion." : `Rôle accordé (global) : ${roleLabel(a.role_accorde)}`}>
+            {a.libelle}{a.groupe_actif === false ? " (désactivé)" : ""}
             <button type="button" aria-label="Retirer" disabled={busy} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 13, lineHeight: 1 }}
               onClick={() => run(setGroupeMembreApplication(token, membreId, code, a.groupe_id, false))}>×</button>
           </span>
@@ -197,7 +203,9 @@ function MembreGroupes({ token, membreId, code }: { token: string; membreId: str
         <select className="search" value={groupeId} onChange={(e) => setGroupeId(e.target.value)}>
           <option value="">- choisir un groupe -</option>
           {groupes.filter((g) => !dejaId.has(g.id)).map((g) => (
-            <option key={g.id} value={g.id}>{g.libelle}</option>
+            <option key={g.id} value={g.id}>
+              {g.libelle} ({g.mode === "permissions" ? `${g.permissions.length} permission${g.permissions.length > 1 ? "s" : ""}` : `rôle global : ${roleLabel(g.role_accorde)}`})
+            </option>
           ))}
         </select>
         <button type="button" className="btn btn-primary btn-inline" disabled={busy || !groupeId}

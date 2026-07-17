@@ -158,6 +158,9 @@ export function GroupeForm({
               <option key={a.code} value={a.code}>{a.nom.replace(/^ADSUM\s+/i, "")}</option>
             ))}
           </select>
+          <span className="muted small" style={{ display: "block", marginTop: 2 }}>
+            Classement uniquement : cette étiquette organise les groupes par application et ne limite pas les droits accordés.
+          </span>
         </label>
       </div>
       {!editing && libelle.trim() && <p className="muted small">Clé technique : <span className="mono">{cle || "(invalide)"}</span></p>}

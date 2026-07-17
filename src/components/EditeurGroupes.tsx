@@ -161,11 +161,20 @@ export function EditeurGroupes({
               </tr>
             )}
             {appartenances.map((a) => (
-              <tr key={a.appartenance_id}>
+              <tr key={a.appartenance_id} style={{ opacity: a.groupe_actif === false ? 0.6 : 1 }}>
                 <td>
                   <div className="event-main">
-                    <strong>{a.libelle}</strong>
-                    <span className="muted small">{roleLabel(a.role_accorde)}</span>
+                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <strong>{a.libelle}</strong>
+                      {a.groupe_actif === false && (
+                        <span className="badge badge-warn" title="Ce groupe est désactivé : cette appartenance n'accorde plus rien.">
+                          Groupe désactivé
+                        </span>
+                      )}
+                    </span>
+                    <span className="muted small">
+                      {a.mode === "permissions" ? "Groupe de permissions" : roleLabel(a.role_accorde)}
+                    </span>
                   </div>
                 </td>
                 <td>
@@ -235,7 +244,9 @@ export function EditeurGroupes({
           <select value={groupeId} onChange={(e) => { setGroupeId(e.target.value); setPorteeType("global"); setPorteeId(""); }}>
             <option value="">Choisir un groupe...</option>
             {catalogue.map((g) => (
-              <option key={g.id} value={g.id}>{g.libelle} ({roleLabel(g.role_accorde)})</option>
+              <option key={g.id} value={g.id}>
+                {g.libelle} ({g.mode === "permissions" ? `${g.permissions.length} permission${g.permissions.length > 1 ? "s" : ""}` : `rôle : ${roleLabel(g.role_accorde)}`})
+              </option>
             ))}
           </select>
         </label>

@@ -305,6 +305,9 @@ export interface Utilisateur {
   membre_id: string | null;
   membre_nom: string | null;
   dernier_login: string | null;
+  /** Active GLOBAL group memberships: platform access can exist with role 'membre'
+   * (permission-mode groups), so the roster derives from this too. */
+  groupes_globaux: number;
 }
 
 export interface Terminal {
@@ -1550,7 +1553,9 @@ export function getUtilisateurs(token: string): Promise<Utilisateur[]> {
 
 export function createUtilisateur(
   token: string,
-  input: { email: string; role: string; password: string; membre_id?: string },
+  // No role field: the server always creates the account as 'membre'; elevated
+  // access is granted afterwards only through an access group.
+  input: { email: string; password: string; membre_id?: string },
 ): Promise<Utilisateur> {
   return authedSend<Utilisateur>("/api/v1/admin/utilisateurs", token, "POST", input, "Création impossible");
 }
@@ -1604,6 +1609,10 @@ export interface Appartenance {
   cle: string;
   libelle: string;
   role_accorde: string;
+  /** False when the group itself is deactivated: the membership then grants nothing. */
+  groupe_actif: boolean;
+  /** 'role' or 'permissions' (a permission-mode group is not a platform role). */
+  mode: string;
   portee_type: string;
   portee_id: string | null;
   portee_libelle: string | null;
@@ -1834,6 +1843,10 @@ export interface GroupeAssigne {
   groupe_id: string;
   cle: string;
   libelle: string;
+  /** Granted platform role; 'membre' for a permission-mode group. Rights apply GLOBALLY. */
+  role_accorde: string;
+  /** A deactivated group grants nothing and no longer opens the application. */
+  groupe_actif: boolean;
 }
 export function getGroupesMembreApplication(token: string, membreId: string, code: string): Promise<GroupeAssigne[]> {
   return authedGet<GroupeAssigne[]>(`/api/v1/admin/membres/${membreId}/applications/${code}/groupes`, token, "Groupes de l'application indisponibles");

@@ -59,7 +59,14 @@ export function MembreApplications({ token, membreId, canAccesAdmin = false }: {
                   <strong>{a.nom}</strong>
                   {a.description && <span className="muted small" style={{ display: "block" }}>{a.description}</span>}
                 </span>
-                {a.est_defaut ? (
+                {!a.actif ? (
+                  // A deactivated application is listed so a surviving grant stays
+                  // reviewable, but it cannot be toggled (the server refuses it).
+                  <>
+                    <span className="badge badge-warn">Application désactivée</span>
+                    <span className="badge badge-mut">{a.acces_actif ? "Octroi conservé" : "Pas d'accès"}</span>
+                  </>
+                ) : a.est_defaut ? (
                   // The member space is visible to every member automatically: there is
                   // nothing to grant or revoke here (the server refuses it with a 409).
                   <>
