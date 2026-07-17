@@ -309,8 +309,17 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
               <Champ label="Intendance" value={dossier.membre.intendance} />
               <Champ label="Tribu" value={dossier.membre.tribu} />
               <Champ label="Niveau d'engagement" value={dossier.membre.niveau} />
+              <Champ label="Promotion" value={dossier.membre.promotion} />
               <Champ label="Profession" value={dossier.membre.profession} />
               <Champ label="Adhésion" value={frDate(dossier.membre.date_entree)} />
+              <Champ
+                label="Se déclare berger / bergère"
+                value={
+                  dossier.membre.berger_declare
+                    ? `Oui${dossier.membre.berger_nom_declare ? ` (nom souhaité : ${dossier.membre.berger_nom_declare})` : ""} [à confirmer via la fiche membre]`
+                    : null
+                }
+              />
               <Champ
                 label="Fonctions"
                 value={
