@@ -128,9 +128,17 @@ export function FicheGouvernance({
               {(applications.data ?? []).map((a) => (
                 <li key={a.code} className="list-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <strong style={{ flex: 1, minWidth: 140 }}>{a.nom}</strong>
-                  <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>
-                    {a.acces_actif ? "Visible" : "Non visible"}
-                  </span>
+                  {a.est_defaut ? (
+                    // A default application (the member space) is visible to EVERY member
+                    // automatically: it can never be "not visible" and is not revocable.
+                    <span className="badge badge-ok" title="Visibilité automatique pour tous les membres">
+                      Visible par défaut
+                    </span>
+                  ) : (
+                    <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>
+                      {a.acces_actif ? "Visible" : "Non visible"}
+                    </span>
+                  )}
                   {!a.actif && <span className="badge badge-warn">Application désactivée</span>}
                 </li>
               ))}

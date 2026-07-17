@@ -29,6 +29,11 @@ export function MembreApplications({ token, membreId, canAccesAdmin = false }: {
       .finally(() => setBusy(null));
   }
 
+  function libelleBascule(a: ApplicationAcces): string {
+    if (busy === a.code) return "...";
+    return a.acces_actif ? "Révoquer" : "Accorder";
+  }
+
   return (
     <section className="card">
       <h2 className="card-title">Accès aux applications</h2>
@@ -54,15 +59,26 @@ export function MembreApplications({ token, membreId, canAccesAdmin = false }: {
                   <strong>{a.nom}</strong>
                   {a.description && <span className="muted small" style={{ display: "block" }}>{a.description}</span>}
                 </span>
-                <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>{a.acces_actif ? "Accès actif" : "Pas d'accès"}</span>
-                <button
-                  type="button"
-                  className={`btn btn-inline ${a.acces_actif ? "btn-danger" : "btn-primary"}`}
-                  disabled={busy !== null}
-                  onClick={() => basculer(a)}
-                >
-                  {busy === a.code ? "..." : a.acces_actif ? "Révoquer" : "Accorder"}
-                </button>
+                {a.est_defaut ? (
+                  // The member space is visible to every member automatically: there is
+                  // nothing to grant or revoke here (the server refuses it with a 409).
+                  <>
+                    <span className="badge badge-ok" title="Visibilité automatique pour tous les membres">Visible par défaut</span>
+                    <span className="muted small">non révocable</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>{a.acces_actif ? "Accès actif" : "Pas d'accès"}</span>
+                    <button
+                      type="button"
+                      className={`btn btn-inline ${a.acces_actif ? "btn-danger" : "btn-primary"}`}
+                      disabled={busy !== null}
+                      onClick={() => basculer(a)}
+                    >
+                      {libelleBascule(a)}
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
