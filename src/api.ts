@@ -2161,6 +2161,9 @@ export interface DossierMembre {
   intendance?: string | null;
   tribu?: string | null;
   niveau?: string | null;
+  promotion?: string | null;
+  berger_declare?: boolean;
+  berger_nom_declare?: string | null;
   fonctions?: { libelle: string | null; perimetre: string | null; confirmee: boolean }[];
   statut?: string;
   statut_inscription: string;
