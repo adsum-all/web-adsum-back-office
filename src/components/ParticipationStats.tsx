@@ -228,6 +228,19 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                 <Kpi label="Non-rép. connectés (fenêtre)" value={stats.non_repondants_connectes ?? 0} tone="warn" />
                 <Kpi label="Non-rép. non connectés" value={stats.non_repondants_non_connectes ?? 0} tone="mut" />
               </div>
+              {/* Figures the API already computes but that were never surfaced:
+                  the presence split (in-person vs online) as a share, the presence
+                  rate among responders, the pending (unvalidated) drafts, and the
+                  off-target presences counted apart (never in the rates). */}
+              <div className="kpi-grid kpi-grid-compact">
+                <Kpi label="Part présentiel" value={`${stats.part_presentiel}%`} />
+                <Kpi label="Part en ligne" value={`${stats.part_en_ligne}%`} />
+                <Kpi label="Taux présence (répondants)" value={`${stats.taux_presence_repondants}%`} />
+                <Kpi label="Brouillons (non validés)" value={stats.brouillons} tone="mut" />
+                {stats.hors_cible > 0 && (
+                  <Kpi label="Présents hors cible" value={stats.hors_cible} tone="warn" />
+                )}
+              </div>
 
               <div className="card-grid-2" style={{ marginBottom: 14 }}>
                 <div>
