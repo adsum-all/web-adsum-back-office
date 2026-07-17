@@ -1435,6 +1435,7 @@ export interface ParticipationStats {
   partiels: number;
   absents: number;
   brouillons: number;
+  hors_cible: number;
   taux_reponse: number;
   taux_non_reponse: number;
   taux_presence: number;
