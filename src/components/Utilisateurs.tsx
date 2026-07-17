@@ -15,7 +15,7 @@ const TABS = [
  * manage the members that hold platform access. Everyone is a member first; access
  * is a right granted through a group, never an identity.
  */
-export function Utilisateurs({ token }: { token: string }): JSX.Element {
+export function Utilisateurs({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
   const [tab, setTab] = useState("groupes");
 
   return (
@@ -33,7 +33,7 @@ export function Utilisateurs({ token }: { token: string }): JSX.Element {
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
-      {tab === "groupes" && <GestionGroupes token={token} />}
+      {tab === "groupes" && <GestionGroupes token={token} canSysteme={canSysteme} />}
       {tab === "membres" && <MembresAccesTab token={token} />}
     </div>
   );

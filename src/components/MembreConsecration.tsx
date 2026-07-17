@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { ApiError, type MembreProfile, type MembreUpdateInput, updateMembre } from "../api.js";
+import { ApiError, type MembreProfile, type MembreUpdateInput, getNiveaux, updateMembre } from "../api.js";
+import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { PerimetreSelect } from "./PerimetreSelect.js";
 
@@ -26,6 +27,8 @@ export function MembreConsecration({
   const [nomMarital, setNomMarital] = useState(membre.nom_marital ?? "");
   const [nomAffiche, setNomAffiche] = useState(membre.nom_affiche ?? "");
   const [perimetre, setPerimetre] = useState(membre.fonction_perimetre ?? "");
+  const [niveau, setNiveau] = useState(membre.type_membre ?? "");
+  const niveaux = useResource(() => getNiveaux(token), [token]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +66,13 @@ export function MembreConsecration({
         nom_marital: nomMarital.trim() || "",
         nom_affiche: nomAffiche || undefined,
         fonction_perimetre: perimetre.trim() || "",
+        ...(niveau ? { type_membre: niveau } : {}),
       },
       "Identité et titre de consécration enregistrés.",
     );
+
+  const enregistrerNiveau = (): Promise<void> =>
+    save({ type_membre: niveau }, "Niveau d'engagement mis à jour.");
 
   return (
     <section className="card">
@@ -112,6 +119,25 @@ export function MembreConsecration({
         <label>
           <span>Fonction : périmètre</span>
           <PerimetreSelect token={token} value={perimetre} onChange={setPerimetre} disabled={busy} />
+        </label>
+        <label>
+          <span>
+            Niveau d'engagement
+            <InfoTip title="Niveau d'engagement" text="Le niveau d'engagement évolue dans le temps. Changez-le ici puis enregistrez ; la fiche du membre est mise à jour immédiatement." />
+          </span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={niveau} disabled={busy} onChange={(e) => setNiveau(e.target.value)} style={{ flex: 1 }}>
+              <option value="">- Aucun -</option>
+              {(niveaux.data ?? [])
+                .filter((n) => n.actif || n.cle === niveau)
+                .map((n) => (
+                  <option key={n.cle} value={n.cle}>{n.libelle}{n.actif ? "" : " (inactif)"}</option>
+                ))}
+            </select>
+            <button type="button" className="btn btn-ghost btn-inline" disabled={busy || !niveau} onClick={() => void enregistrerNiveau()}>
+              Appliquer
+            </button>
+          </div>
         </label>
       </div>
 

@@ -27,7 +27,22 @@ import { PiecesEvenement } from "./PiecesEvenement.js";
 /** Per-event admin panel: live session state and the post-session questionnaire
  * (builder + collected responses). The activity's configuration (links, diffusion
  * type, visibility, and every detail) is edited in EvenementEdition above. */
-export function EvenementGestion({ token, evenement, onChanged }: { token: string; evenement: Evenement; onChanged: () => void }): JSX.Element {
+export function EvenementGestion({
+  token,
+  evenement,
+  canGerer = false,
+  canSuperviser = false,
+  onChanged,
+}: {
+  token: string;
+  evenement: Evenement;
+  // evenements.gerer: edit, session, test-diffusion, questionnaire, tags, cancel,
+  // reactivate, delete.
+  canGerer?: boolean;
+  // evenements.superviser: only the attendance survey (POST .../sondage).
+  canSuperviser?: boolean;
+  onChanged: () => void;
+}): JSX.Element {
   const [ouverte, setOuverte] = useState(!!evenement.session_ouverte);
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [titre, setTitre] = useState("Questionnaire de session");
@@ -219,6 +234,8 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
         <PiecesEvenement token={token} evenementId={evenement.id} readOnly />
       </div>
 
+      {canGerer && (
+      <>
       <div className="form-actions" style={{ justifyContent: "flex-start", marginBottom: 8 }}>
         <button type="button" className="btn btn-ghost btn-inline" onClick={() => setEditOpen((v) => !v)}>
           {editOpen ? "Fermer l'édition" : "Modifier les détails de l'activité"}
@@ -309,9 +326,13 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
           </button>
         </>
       )}
+      </>
+      )}
 
-      <p className="card-title" style={{ margin: "14px 0 6px" }}>Gestion de l'activité</p>
-      {estSerie && (
+      {(canGerer || canSuperviser) && (
+        <p className="card-title" style={{ margin: "14px 0 6px" }}>Gestion de l'activité</p>
+      )}
+      {canGerer && estSerie && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <span className="badge badge-mut">Série récurrente</span>
           <span className="muted small">Portée :</span>
@@ -332,13 +353,14 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
           Activité annulée{evenement.annule_motif ? ` : ${evenement.annule_motif}` : ""}. Elle ne déclenche plus le sondage de pointage.
         </p>
       )}
+      {(canGerer || canSuperviser) && (
       <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 4, gap: 8, flexWrap: "wrap" }}>
-        {!annule && (
+        {canSuperviser && !annule && (
           <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void envoyerSondage()}>
             Envoyer le sondage de pointage
           </button>
         )}
-        {annule ? (
+        {canGerer && (annule ? (
           <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void reactiverActivite()}>
             Réactiver l'activité
           </button>
@@ -346,8 +368,8 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
           <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void annulerActivite()}>
             Annuler l'activité
           </button>
-        )}
-        {!confirmSuppr ? (
+        ))}
+        {canGerer && (!confirmSuppr ? (
           <button type="button" className="btn btn-ghost btn-inline" disabled={busy} style={{ color: "var(--adsum-danger)" }} onClick={() => setConfirmSuppr(true)}>
             Supprimer
           </button>
@@ -360,11 +382,14 @@ export function EvenementGestion({ token, evenement, onChanged }: { token: strin
               Annuler
             </button>
           </>
-        )}
+        ))}
       </div>
+      )}
+      {canGerer && (
       <p className="muted small" style={{ margin: "6px 0 0" }}>
         La suppression n'est possible que si aucune présence n'est enregistrée ; sinon, annulez l'activité (l'historique est conservé).
       </p>
+      )}
 
       {reponses && reponses.total > 0 && (
         <>

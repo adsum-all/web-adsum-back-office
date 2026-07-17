@@ -15,6 +15,9 @@ import { PAYS as PAYS_REF } from "../countries.js";
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { PaysCombo } from "./PaysCombo.js";
+import { Tabs } from "./Tabs.js";
+
+type MembreTab = "identite" | "coordonnees" | "rattachement" | "parcours" | "situation";
 
 const TYPE_MEMBRE: [string, string][] = [
   ["Membre simple", "membre_simple"],
@@ -75,6 +78,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
     date_entree: TODAY,
   });
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<MembreTab>("identite");
   const [busy, setBusy] = useState(false);
 
   function set<K extends keyof MembreCreateInput>(key: K, value: MembreCreateInput[K]): void {
@@ -101,8 +105,23 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
     }));
   }
 
-  async function submit(e: React.FormEvent): Promise<void> {
+  async function submit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
+    // The form spans tabs, so native validation is disabled (noValidate) and run
+    // here: if a required field is empty on a hidden tab, switch to that tab and only
+    // then report it (a hidden field cannot be focused, which would block silently).
+    const formEl = e.currentTarget;
+    const invalide = formEl.querySelector<HTMLElement>(":invalid");
+    if (invalide) {
+      const cible = invalide.closest<HTMLElement>("[data-tab]")?.dataset.tab as MembreTab | undefined;
+      if (cible && cible !== tab) {
+        setTab(cible);
+        requestAnimationFrame(() => formEl.reportValidity());
+      } else {
+        formEl.reportValidity();
+      }
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -134,8 +153,19 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
         </div>
       </header>
 
-      <form className="form-card" onSubmit={submit}>
-        <div className="form-grid">
+      <form className="form-card" onSubmit={submit} noValidate>
+        <Tabs
+          tabs={[
+            { id: "identite", label: "Identité" },
+            { id: "coordonnees", label: "Coordonnées" },
+            { id: "rattachement", label: "Rattachement" },
+            { id: "parcours", label: "Parcours" },
+            { id: "situation", label: "Situation" },
+          ]}
+          active={tab}
+          onChange={(id) => setTab(id as MembreTab)}
+        />
+        <div data-tab="identite" className="form-grid" hidden={tab !== "identite"}>
           <Field label="Nom de famille *" hint="Nom a l'etat civil. Mis en MAJUSCULES automatiquement.">
             <input value={form.nom ?? ""} onChange={(e) => set("nom", e.target.value)} required placeholder="Ex : LABEL" />
           </Field>
@@ -167,6 +197,8 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           <Field label="Nom pastoral" hint="Nom spirituel, ex : David de Jesus. Affiche 'Berger David de Jesus'.">
             <input value={form.nom_pastoral ?? ""} onChange={(e) => set("nom_pastoral", e.target.value || undefined)} placeholder="Ex : David de Jesus" />
           </Field>
+        </div>
+        <div data-tab="coordonnees" className="form-grid" hidden={tab !== "coordonnees"}>
           <Field label="Fonction : perimetre" hint="Portee de la fonction, ex : Commission Communication.">
             <input value={form.fonction_perimetre ?? ""} onChange={(e) => set("fonction_perimetre", e.target.value || undefined)} placeholder="Ex : Commission Communication" />
           </Field>
@@ -193,6 +225,8 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           <Field label="Ville">
             <input value={form.ville ?? ""} onChange={(e) => set("ville", e.target.value)} />
           </Field>
+        </div>
+        <div data-tab="rattachement" className="form-grid" hidden={tab !== "rattachement"}>
           <Field label="Intendance">
             {/* A member usually belongs to an intendance OR a coordination, but in
                 rare cases to both, so the two axes are independent (no exclusion). */}
@@ -230,6 +264,8 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           <Field label="Date d'entree">
             <input type="date" value={form.date_entree ?? ""} onChange={(e) => set("date_entree", e.target.value || undefined)} />
           </Field>
+        </div>
+        <div data-tab="parcours" className="form-grid" hidden={tab !== "parcours"}>
           <Field label="Cheminement Pastoral *">
             <select value={form.cheminement_pastoral ?? "nouveau"} onChange={(e) => set("cheminement_pastoral", e.target.value)}>
               {CHEMINEMENTS.map(([l, v]) => (
@@ -259,6 +295,9 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           <Field label="Promotion">
             <input value={form.promotion ?? ""} onChange={(e) => set("promotion", e.target.value)} placeholder="Pierre Saint-Paul 1" />
           </Field>
+        </div>
+        <div data-tab="situation" hidden={tab !== "situation"}>
+        <div className="form-grid">
           <Field label="Situation matrimoniale">
             <select value={form.situation_matrimoniale ?? ""} onChange={(e) => set("situation_matrimoniale", e.target.value || undefined)}>
               <option value="">Selectionner</option>
@@ -299,6 +338,7 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
             Premiere communion
           </label>
         </fieldset>
+        </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="button" className="btn btn-ghost btn-inline" onClick={onCancel}>

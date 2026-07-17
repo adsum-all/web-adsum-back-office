@@ -6,16 +6,13 @@ import { EvenementGestion } from "./EvenementGestion.js";
 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-/** Distinct colour per activity type, so the month reads at a glance. A cancelled
- * activity is muted. */
+/** UNIVERSAL colour, identical in every app: the administrable event-type colour when
+ * the activity has a type (each type has its own unique colour), otherwise a single
+ * shared neutral. A cancelled activity is muted. */
+export const COULEUR_SANS_TYPE = "#64748B";
 function eventColor(ev: Evenement): string {
   if (ev.annule) return "var(--adsum-faint)";
-  const byType: Record<string, string> = {
-    formation: "#7c3aed",
-    priere: "#0891b2",
-    rassemblement: "var(--adsum-acc)",
-  };
-  return byType[ev.type ?? ""] ?? "var(--adsum-acc)";
+  return ev.couleur || COULEUR_SANS_TYPE;
 }
 
 function modeLabel(mode: string | null | undefined): string {
@@ -35,10 +32,14 @@ function longDay(key: string): string {
 export function CalendrierEvenements({
   token,
   evenements,
+  canGerer = false,
+  canSuperviser = false,
   onChanged,
 }: {
   token: string;
   evenements: Evenement[];
+  canGerer?: boolean;
+  canSuperviser?: boolean;
   onChanged: () => void;
 }): JSX.Element {
   const now = useMemo(() => new Date(), []);
@@ -102,10 +103,8 @@ export function CalendrierEvenements({
           <button type="button" className="btn btn-ghost btn-inline" aria-label="Mois suivant" onClick={() => shift(1)}>›</button>
         </div>
         <div style={{ fontWeight: 700, fontSize: 18, textTransform: "capitalize" }}>{monthLabel(cursor.year, cursor.month)}</div>
-        <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--adsum-mut)" }}>
-          <LegendDot color="var(--adsum-acc)" label="Rassemblement" />
-          <LegendDot color="#7c3aed" label="Formation" />
-          <LegendDot color="#0891b2" label="Prière" />
+        <div style={{ fontSize: 11, color: "var(--adsum-mut)" }}>
+          Couleur par type d&apos;événement (voir « Types d&apos;événements »)
         </div>
       </div>
 
@@ -146,7 +145,7 @@ export function CalendrierEvenements({
               {evs.slice(0, 3).map((ev) => (
                 <span
                   key={ev.id}
-                  title={ev.titre}
+                  title={`${ev.type_evenement_nom ? ev.type_evenement_nom + " - " : ""}${ev.titre}`}
                   style={{
                     fontSize: 10.5,
                     borderRadius: 5,
@@ -160,6 +159,7 @@ export function CalendrierEvenements({
                     opacity: ev.annule ? 0.75 : 1,
                   }}
                 >
+                  {ev.type_evenement_nom && <strong>{ev.type_evenement_nom} · </strong>}
                   {formatTime(ev.debut)} {ev.titre}
                 </span>
               ))}
@@ -228,7 +228,7 @@ export function CalendrierEvenements({
                         </button>
                       </div>
                     </div>
-                    {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={onChanged} />}
+                    {openId === ev.id && <EvenementGestion token={token} evenement={ev} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={onChanged} />}
                   </section>
                 ))
               )}
@@ -240,11 +240,3 @@ export function CalendrierEvenements({
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }): JSX.Element {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      <span style={{ width: 9, height: 9, borderRadius: "50%", background: color }} />
-      {label}
-    </span>
-  );
-}

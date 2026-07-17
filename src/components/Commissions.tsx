@@ -10,6 +10,7 @@ import {
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
+import { Tabs } from "./Tabs.js";
 
 // Built-in unit types. The administration can add any other kind by choosing
 // "Autre type" and typing it: the value is stored as a lowercase slug.
@@ -37,7 +38,18 @@ function typeLabel(slug: string): string {
  * before its name. Sous-commissions are managed here too, directly under their
  * parent unit, not in the coordinations/intendances area.
  */
-export function Commissions({ token }: { token: string }): JSX.Element {
+export function Commissions({
+  token,
+  canCreerCommission = false,
+  canGererOrg = false,
+}: {
+  token: string;
+  // commissions.administrer: create a commission/mission (POST /admin/commissions).
+  canCreerCommission?: boolean;
+  // organisation.administrer: create a sous-commission (POST /admin/sous-commissions)
+  // and every OrgItemRow action, routed through /admin/organisation/{entity}.
+  canGererOrg?: boolean;
+}): JSX.Element {
   const commissions = useResource(() => getCommissions(token), [token]);
   const sousCommissions = useResource(() => getSousCommissions(token), [token]);
   const [nom, setNom] = useState("");
@@ -51,6 +63,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
   const [scNom, setScNom] = useState("");
   const [scCommissionId, setScCommissionId] = useState("");
   const [scError, setScError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"unites" | "sous">("unites");
 
   const typeFinal = typeChoisi === "autre" ? slugType(typeCustom) : typeChoisi;
 
@@ -109,6 +122,23 @@ export function Commissions({ token }: { token: string }): JSX.Element {
         </div>
       </header>
 
+      {!canCreerCommission && !canGererOrg && (
+        <p className="banner banner-info small">
+          Vous consultez ce catalogue en lecture seule. Créer une commission requiert
+          <span className="mono"> commissions.administrer</span> ; les sous-commissions et l'édition des unités requièrent
+          <span className="mono"> organisation.administrer</span>.
+        </p>
+      )}
+
+      <Tabs
+        tabs={[{ id: "unites", label: "Commissions & missions" }, { id: "sous", label: "Sous-commissions" }]}
+        active={tab}
+        onChange={(id) => setTab(id as "unites" | "sous")}
+      />
+
+      {tab === "unites" && (
+      <>
+      {canCreerCommission && (
       <form className="form-card" onSubmit={submit}>
         <div className="form-grid">
           <label>
@@ -145,6 +175,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
           </button>
         </div>
       </form>
+      )}
 
       {commissions.error && <p className="banner banner-error">{commissions.error}</p>}
       <ul className="list">
@@ -158,6 +189,8 @@ export function Commissions({ token }: { token: string }): JSX.Element {
             prefix={typeLabel(c.type_organisation)}
             meta={c.description ?? undefined}
             publie={c.publie}
+            edit={{ description: c.description ?? "" }}
+            canGerer={canGererOrg}
             onChanged={commissions.reload}
           />
         ))}
@@ -165,10 +198,14 @@ export function Commissions({ token }: { token: string }): JSX.Element {
       {!commissions.loading && items.length === 0 && (
         <p className="muted">Aucune unité. Créez la première.</p>
       )}
+      </>
+      )}
 
+      {tab === "sous" && (
       <section className="card" style={{ marginTop: 18 }}>
         <h2 className="card-title">Sous-commissions</h2>
         <p className="muted small">Subdivisions rattachées directement à une commission ou une mission.</p>
+        {canGererOrg && (
         <form className="toolbar" onSubmit={submitSc}>
           <input
             className="search"
@@ -184,6 +221,7 @@ export function Commissions({ token }: { token: string }): JSX.Element {
           </select>
           <button type="submit" className="btn btn-primary btn-inline">+ Ajouter</button>
         </form>
+        )}
         {scError && <p className="banner banner-error">{scError}</p>}
         <ul className="list">
           {(sousCommissions.data ?? []).map((s) => (
@@ -195,11 +233,20 @@ export function Commissions({ token }: { token: string }): JSX.Element {
               nom={s.nom}
               meta={s.commission ?? undefined}
               publie={s.publie}
+              edit={{
+                parent: {
+                  value: s.commission_id,
+                  options: items.map((c) => ({ id: c.id, nom: uniteLabel(c) })),
+                  label: "Rattachée à",
+                },
+              }}
+              canGerer={canGererOrg}
               onChanged={sousCommissions.reload}
             />
           ))}
         </ul>
       </section>
+      )}
     </div>
   );
 }

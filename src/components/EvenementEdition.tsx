@@ -6,10 +6,12 @@ import {
   type Evenement,
   type EvenementCreateInput,
   type TypeDiffusion,
+  getCiblesActivite,
   getCommissions,
   getCoordinations,
   getIntendances,
   getTribus,
+  getTypesEvenements,
   updateEvenement,
 } from "../api.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
@@ -20,19 +22,14 @@ import { LiensEditor } from "./LiensEditor.js";
 import { PiecesEvenement } from "./PiecesEvenement.js";
 import { RichEditor } from "./RichEditor.js";
 import { SerieOccurrences } from "./SerieOccurrences.js";
+import { Tabs } from "./Tabs.js";
 
-const CIBLE_LABELS: Record<CibleType, string> = {
-  general: "Toute la communauté (général)",
-  coordination: "Coordination",
-  commission: "Commission / Mission",
-  intendance: "Intendance",
-  tribu: "Tribu",
-  bergers: "Les Bergers",
-  responsables: "Les responsables (avec fonction)",
-  liste: "Liste d'adresses e-mail (groupe ad hoc)",
-};
+type EvtTab = "infos" | "destinataires" | "contenu" | "serie";
 
-const CIBLE_UNITES: CibleType[] = ["coordination", "commission", "intendance", "tribu"];
+// The destination list comes from the administrable referential
+// (GET /reference/cibles-activite): no hardcoded destination here. The current
+// (possibly deactivated) destination of the event stays selectable so an old
+// activity can be edited without being forced onto another audience.
 
 /** Compact edit form for an existing activity's core details, reachable from the
  * calendar. Reuses the create validation server-side (PUT sends a full payload).
@@ -53,8 +50,13 @@ export function EvenementEdition({
   const [fin, setFin] = useState(evenement.fin ? utcToZoned(evenement.fin, zone0) : "");
   const [lieu, setLieu] = useState(evenement.lieu ?? "");
   const [type, setType] = useState(evenement.type ?? "rassemblement");
+  const [typeEvenementId, setTypeEvenementId] = useState<string | null>(evenement.type_evenement_id ?? null);
+  const typesRes = useResource(() => getTypesEvenements(token), [token]);
+  const typesPublies = (typesRes.data ?? []).filter((t) => t.publie);
+  const typeCouleur = typesPublies.find((t) => t.id === typeEvenementId)?.couleur ?? null;
   const [mode, setMode] = useState(evenement.mode ?? "presentiel");
   const [diffusion, setDiffusion] = useState<TypeDiffusion>(evenement.type_diffusion ?? "aucun");
+  const [tab, setTab] = useState<EvtTab>("infos");
   const [visibilite, setVisibilite] = useState(evenement.visibilite ?? "membres");
   const [volet, setVolet] = useState(evenement.volet);
   // Broadcast links and the response-window override are edited here too, so the
@@ -79,15 +81,21 @@ export function EvenementEdition({
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
+  // Administrable destinations referential: single source of the target list.
+  const cibles = useResource(() => getCiblesActivite(token), [token]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
+  const cibleCourante = (cibles.data ?? []).find((c) => c.code === cibleType);
+  const besoinUnite = cibleCourante?.besoin_unite ?? false;
+  const estListe = cibleCourante?.type_regle === "liste";
+  const uniteTable = cibleCourante?.parametres.table ?? "";
   const cibleOptions: { id: string; nom: string }[] =
-    cibleType === "coordination" ? (coordinations.data ?? [])
-      : cibleType === "commission" ? (commissions.data ?? [])
-        : cibleType === "intendance" ? (intendances.data ?? [])
-          : cibleType === "tribu" ? (tribus.data ?? []) : [];
+    uniteTable === "coordination" ? (coordinations.data ?? [])
+      : uniteTable === "commission" ? (commissions.data ?? [])
+        : uniteTable === "intendance" ? (intendances.data ?? [])
+          : uniteTable === "tribu" ? (tribus.data ?? []) : [];
   // When the activity is part of a series, the admin can apply the details (not
   // the date) to every occurrence of the series at once.
   const estSerie = !!evenement.serie_id;
@@ -98,14 +106,14 @@ export function EvenementEdition({
       setError("Le titre et la date de début sont obligatoires.");
       return;
     }
-    if (CIBLE_UNITES.includes(cibleType) && !cibleId) {
+    if (besoinUnite && !cibleId) {
       setError("Choisissez l'unité ciblée ou repassez sur « général ».");
       return;
     }
-    const emails = cibleType === "liste"
+    const emails = estListe
       ? emailsTexte.split(/[\n,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
       : [];
-    if (cibleType === "liste" && emails.length === 0) {
+    if (estListe && emails.length === 0) {
       setError("Ajoutez au moins une adresse e-mail pour un ciblage par liste.");
       return;
     }
@@ -118,11 +126,12 @@ export function EvenementEdition({
         volet,
         debut: zonedToUtc(debut, zone),
         type,
+        type_evenement_id: typeEvenementId,
         mode,
         type_diffusion: diffusion,
         visibilite,
         cible_type: cibleType,
-        cible_id: CIBLE_UNITES.includes(cibleType) ? cibleId : null,
+        cible_id: besoinUnite ? cibleId : null,
         cible_genre: (cibleGenre || null) as EvenementCreateInput["cible_genre"],
         cible_age_min: ageMin ? Number(ageMin) : null,
         cible_age_max: ageMax ? Number(ageMax) : null,
@@ -156,7 +165,17 @@ export function EvenementEdition({
       <p className="card-title" style={{ marginBottom: 8 }}>Modifier les détails</p>
       {ok && <p className="banner banner-ok">Activité mise à jour.</p>}
       {error && <p className="banner banner-error">{error}</p>}
-      <div className="form-grid">
+      <Tabs
+        tabs={[
+          { id: "infos", label: "Informations" },
+          { id: "destinataires", label: "Destinataires" },
+          { id: "contenu", label: "Contenu" },
+          { id: "serie", label: "Série" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as EvtTab)}
+      />
+      <div data-tab="infos" className="form-grid" hidden={tab !== "infos"}>
         <label className="full">
           <span>Titre *</span>
           <input value={titre} onChange={(e) => setTitre(e.target.value)} />
@@ -180,12 +199,24 @@ export function EvenementEdition({
           <input value={lieu} onChange={(e) => setLieu(e.target.value)} />
         </label>
         <label>
-          <span>Type</span>
+          <span>Nature</span>
           <select value={type} onChange={(e) => setType(e.target.value)}>
             <option value="rassemblement">Rassemblement</option>
             <option value="formation">Formation</option>
             <option value="priere">Prière</option>
           </select>
+        </label>
+        <label>
+          <span>Type d'événement (couleur du calendrier)</span>
+          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {typeCouleur && (
+              <span aria-hidden style={{ width: 16, height: 16, borderRadius: 4, background: typeCouleur, border: "1px solid rgba(0,0,0,0.15)", flexShrink: 0 }} />
+            )}
+            <select style={{ flex: 1 }} value={typeEvenementId ?? ""} onChange={(e) => setTypeEvenementId(e.target.value || null)}>
+              <option value="">Aucun (couleur par défaut)</option>
+              {typesPublies.map((te) => <option key={te.id} value={te.id}>{te.nom}</option>)}
+            </select>
+          </span>
         </label>
         <label>
           <span>Mode</span>
@@ -225,16 +256,23 @@ export function EvenementEdition({
           </span>
           <input type="number" min={1} max={336} placeholder="Réglage global" value={fenetre} onChange={(e) => setFenetre(e.target.value)} />
         </label>
+      </div>
+      <div data-tab="destinataires" className="form-grid" hidden={tab !== "destinataires"}>
         <label className="full">
           <span>
             Destinataires
             <InfoTip title="Destinataires" text="Qui est concerné : toute la communauté, une unité (coordination, commission/mission, intendance, tribu), les Bergers, les responsables, ou une liste d'e-mails. Affinez ensuite par genre et âge. Modifiable à tout moment tant que l'activité n'a pas eu lieu." />
           </span>
           <select value={cibleType} onChange={(e) => { setCibleType(e.target.value as CibleType); setCibleId(null); }}>
-            {(Object.keys(CIBLE_LABELS) as CibleType[]).map((k) => <option key={k} value={k}>{CIBLE_LABELS[k]}</option>)}
+            {(cibles.data ?? []).map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
+            {/* An event may carry a destination that was deactivated since: keep it
+                selectable so editing does not silently retarget the audience. */}
+            {cibleCourante == null && (cibles.data ?? []).length > 0 && (
+              <option value={cibleType}>{cibleType} (destination désactivée)</option>
+            )}
           </select>
         </label>
-        {CIBLE_UNITES.includes(cibleType) && (
+        {besoinUnite && (
           <label>
             <span>Unité ciblée *</span>
             <select value={cibleId ?? ""} onChange={(e) => setCibleId(e.target.value || null)}>
@@ -243,7 +281,7 @@ export function EvenementEdition({
             </select>
           </label>
         )}
-        {cibleType === "liste" && (
+        {estListe && (
           <label className="full">
             <span>Adresses e-mail *</span>
             <textarea value={emailsTexte} onChange={(e) => setEmailsTexte(e.target.value)} rows={2} placeholder={"une adresse par ligne"} />
@@ -265,6 +303,8 @@ export function EvenementEdition({
           <span>Âge max.</span>
           <input type="number" min={0} max={120} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
         </label>
+      </div>
+      <div data-tab="contenu" className="form-grid" hidden={tab !== "contenu"}>
         <div className="full">
           <LiensEditor liens={liensList} onChange={setLiensList} disabled={busy} />
         </div>
@@ -290,18 +330,22 @@ export function EvenementEdition({
           <PiecesEvenement token={token} evenementId={evenement.id} />
         </div>
       </div>
-      {estSerie && (
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>
-          <input type="checkbox" checked={toucherSerie} onChange={(e) => setToucherSerie(e.target.checked)} />
-          Appliquer ces détails à toute la série (chaque date garde son horaire propre).
-        </label>
+      {tab !== "serie" && (
+        <>
+          {estSerie && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>
+              <input type="checkbox" checked={toucherSerie} onChange={(e) => setToucherSerie(e.target.checked)} />
+              Appliquer ces détails à toute la série (chaque date garde son horaire propre).
+            </label>
+          )}
+          <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+            <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void save()}>
+              {busy ? "Enregistrement..." : toucherSerie ? "Enregistrer pour toute la série" : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </>
       )}
-      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void save()}>
-          {busy ? "Enregistrement..." : toucherSerie ? "Enregistrer pour toute la série" : "Enregistrer les modifications"}
-        </button>
-      </div>
-      <SerieOccurrences token={token} evenement={evenement} onChanged={onSaved} />
+      {tab === "serie" && <SerieOccurrences token={token} evenement={evenement} onChanged={onSaved} />}
     </div>
   );
 }

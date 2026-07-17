@@ -1,24 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ApiError,
   type CibleType,
   type EvenementCreateInput,
+  ajouterPieceEvenement,
+  apercuCibleActivite,
   createEvenement,
+  getCiblesActivite,
   getCommissions,
   getCoordinations,
   getEvenements,
   getIntendances,
+  getMesPreferences,
   getQuestionnaireFenetre,
+  getSemaineJourDebut,
   getTribus,
+  getTypesEvenements,
+  setMesPreferences,
   setQuestionnaireFenetre,
+  setSemaineJourDebut,
 } from "../api.js";
 import { formatDate } from "../format.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
 import { zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
 import { CalendrierEvenements } from "./CalendrierEvenements.js";
+import { DestinationsCiblage } from "./DestinationsCiblage.js";
 import { EvenementGestion } from "./EvenementGestion.js";
+import { PiecesACharger } from "./PiecesACharger.js";
+import { lireFichier } from "./PiecesEvenement.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
 import { RichEditor } from "./RichEditor.js";
@@ -36,19 +47,9 @@ const EMPTY: EvenementCreateInput = {
   fuseau_horaire: "Africa/Abidjan",
 };
 
-const CIBLE_LABELS: Record<CibleType, string> = {
-  general: "Toute la communauté (général)",
-  coordination: "Coordination",
-  commission: "Commission / Mission",
-  intendance: "Intendance",
-  tribu: "Tribu",
-  bergers: "Les Bergers",
-  responsables: "Les responsables (avec fonction)",
-  liste: "Liste d'adresses e-mail (groupe ad hoc)",
-};
-
-// Target types that need an organisational unit selected (a second dropdown).
-const CIBLE_UNITES: CibleType[] = ["coordination", "commission", "intendance", "tribu"];
+// The destination list (labels, order, unit requirement) comes from the
+// administrable referential (GET /reference/cibles-activite): an administrator
+// can add, rename, reorder or deactivate a destination without any code change.
 
 type Repetition = "aucune" | "quotidienne" | "hebdomadaire" | "dates_precises";
 type DatePrecise = { debut: string; mode: string };
@@ -64,25 +65,60 @@ function addDaysLocal(local: string, days: number): string {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
 }
 
-export function Evenements({ token }: { token: string }): JSX.Element {
+// Personal display preference (calendar vs list) for the events section. It is a
+// per-account view choice, kept in localStorage so it persists for THIS operator on
+// THIS browser and never changes what anyone else sees. Calendar is the default.
+const VUE_PREF_KEY = "adsum.bo.evenements.vue";
+function loadVuePref(): "calendrier" | "liste" {
+  try {
+    const v = typeof localStorage !== "undefined" ? localStorage.getItem(VUE_PREF_KEY) : null;
+    return v === "liste" ? "liste" : "calendrier";
+  } catch {
+    return "calendrier";
+  }
+}
+
+export function Evenements({
+  token,
+  canGerer = false,
+  canSuperviser = false,
+  canParametres = false,
+}: {
+  token: string;
+  // evenements.gerer: create an activity and manage it (edit/session/tags/cancel/delete).
+  canGerer?: boolean;
+  // evenements.superviser: trigger the attendance survey on an activity.
+  canSuperviser?: boolean;
+  // parametres.gerer: change the questionnaire window and the week start (org settings).
+  canParametres?: boolean;
+}): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
+  const semaineDebut = useResource(() => getSemaineJourDebut(token), [token]);
   // Units available as an activity target. Loaded once; the second select only
   // shows the list matching the chosen target kind.
   const coordinations = useResource(() => getCoordinations(token), [token]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
+  // Administrable destinations referential: single source of the target list.
+  const cibles = useResource(() => getCiblesActivite(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
+  const [piecesAJoindre, setPiecesAJoindre] = useState<File[]>([]);
+  const typesEvenements = useResource(() => getTypesEvenements(token), [token]);
+  const typesPublies = (typesEvenements.data ?? []).filter((t) => t.publie);
+  const typeCouleur = typesPublies.find((t) => t.id === form.type_evenement_id)?.couleur ?? null;
   const [liens, setLiens] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  // Two page tabs so the page is never one long scroll: the calendar (view and
-  // manage) and the creation form (data entry).
-  const [ongletPage, setOngletPage] = useState<"calendrier" | "saisie">("calendrier");
-  // Month calendar is the primary view; the flat list stays available as a fallback.
-  const [vue, setVue] = useState<"calendrier" | "liste">("calendrier");
+  // Three page sections so the page is never one long scroll and so the global
+  // organisation settings are never mixed into the creation form: the activities
+  // section (view and manage), the creation form (data entry) and the settings.
+  const [ongletPage, setOngletPage] = useState<"calendrier" | "saisie" | "parametres">("calendrier");
+  // Month calendar is the default display; the flat list stays available. The choice
+  // is a personal preference persisted per operator (see loadVuePref / choisirVue).
+  const [vue, setVue] = useState<"calendrier" | "liste">(loadVuePref);
   // Recurrence: how the activity repeats and over how many dates (1 = single).
   const [repetition, setRepetition] = useState<Repetition>("aucune");
   const [nbOccurrences, setNbOccurrences] = useState(1);
@@ -101,19 +137,52 @@ export function Evenements({ token }: { token: string }): JSX.Element {
     void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
   }
 
+  // The server-side preference is authoritative (it follows the account across
+  // browsers); localStorage stays as an instant cache for the very first paint.
+  useEffect(() => {
+    let alive = true;
+    getMesPreferences(token)
+      .then((p) => {
+        if (alive && (p.vue_evenements === "calendrier" || p.vue_evenements === "liste")) setVue(p.vue_evenements);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [token]);
+
+  // Change the display mode and remember it for this operator only: instantly in
+  // this browser (localStorage) and durably on the account (server preference).
+  function choisirVue(v: "calendrier" | "liste"): void {
+    setVue(v);
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(VUE_PREF_KEY, v);
+    } catch {
+      /* private mode: the choice stays for this session only. */
+    }
+    void setMesPreferences(token, { vue_evenements: v }).catch(() => undefined);
+  }
+
+  function saveSemaineDebut(jour: number): void {
+    void setSemaineJourDebut(token, jour).then(() => semaineDebut.reload()).catch(() => undefined);
+  }
+
   function set<K extends keyof EvenementCreateInput>(key: K, value: EvenementCreateInput[K]): void {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  // Units matching the chosen target kind, for the second select.
+  // The chosen destination row from the referential drives everything: whether a
+  // unit must be picked (besoin_unite), which unit list to show (parametres.table)
+  // and whether the ad-hoc e-mail list applies (type_regle 'liste').
+  const cibleCourante = (cibles.data ?? []).find((c) => c.code === (form.cible_type ?? "general"));
+  const besoinUnite = cibleCourante?.besoin_unite ?? false;
+  const uniteTable = cibleCourante?.parametres.table ?? "";
   const cibleOptions: { id: string; nom: string }[] =
-    form.cible_type === "coordination"
+    uniteTable === "coordination"
       ? (coordinations.data ?? [])
-      : form.cible_type === "commission"
+      : uniteTable === "commission"
         ? (commissions.data ?? [])
-        : form.cible_type === "intendance"
+        : uniteTable === "intendance"
           ? (intendances.data ?? [])
-          : form.cible_type === "tribu"
+          : uniteTable === "tribu"
             ? (tribus.data ?? [])
             : [];
 
@@ -124,15 +193,16 @@ export function Evenements({ token }: { token: string }): JSX.Element {
     setError(null);
     try {
       const cibleType = form.cible_type ?? "general";
-      if (CIBLE_UNITES.includes(cibleType) && !form.cible_id) {
+      if (besoinUnite && !form.cible_id) {
         setError("Choisissez l'unité ciblée ou repassez sur « général ».");
         setBusy(false);
         return;
       }
-      const emails = cibleType === "liste"
+      const estListe = cibleCourante?.type_regle === "liste";
+      const emails = estListe
         ? emailsTexte.split(/[\n,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
         : [];
-      if (cibleType === "liste" && emails.length === 0) {
+      if (estListe && emails.length === 0) {
         setError("Ajoutez au moins une adresse e-mail pour un ciblage par liste.");
         setBusy(false);
         return;
@@ -150,11 +220,12 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         // as an absolute UTC instant so every member sees it in their own time.
         debut: zonedToUtc(form.debut, zone),
         type: form.type,
+        type_evenement_id: form.type_evenement_id ?? null,
         mode: form.mode,
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
         cible_type: cibleType,
-        cible_id: CIBLE_UNITES.includes(cibleType) ? form.cible_id : null,
+        cible_id: besoinUnite ? form.cible_id : null,
         cible_genre: form.cible_genre ?? null,
         cible_age_min: form.cible_age_min ?? null,
         cible_age_max: form.cible_age_max ?? null,
@@ -206,13 +277,21 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           payload.recurrence = { freq, interval: 1, count: extra.length + 1 };
         }
       }
-      await createEvenement(token, payload);
+      const cree = await createEvenement(token, payload);
+      // Upload the attachments joined during planning to the freshly created event.
+      for (const f of piecesAJoindre) {
+        try {
+          const dataUrl = await lireFichier(f);
+          await ajouterPieceEvenement(token, cree.id, { nom: f.name || `piece-${Date.now()}`, type: f.type, taille: f.size, data_url: dataUrl });
+        } catch { /* a failed attachment must not lose the created event */ }
+      }
       setForm(EMPTY);
       setLiens([""]);
       setRepetition("aucune");
       setNbOccurrences(1);
       setDatesPrecises([]);
       setEmailsTexte("");
+      setPiecesAJoindre([]);
       evenements.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur réseau");
@@ -230,17 +309,24 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button type="button" className={`btn btn-inline ${ongletPage === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("calendrier")}>
-            Calendrier
+            Activités
           </button>
-          <button type="button" className={`btn btn-inline ${ongletPage === "saisie" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("saisie")}>
-            + Nouvelle activité
+          {canGerer && (
+            <button type="button" className={`btn btn-inline ${ongletPage === "saisie" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("saisie")}>
+              + Nouvelle activité
+            </button>
+          )}
+          <button type="button" className={`btn btn-inline ${ongletPage === "parametres" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("parametres")}>
+            Paramètres
           </button>
         </div>
       </header>
 
       {ongletPage === "saisie" && (
       <>
+      {canGerer ? (
       <form className="form-card" onSubmit={submit}>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Créer une activité</h2>
         <div className="form-grid">
           <label className="full">
             <span>Titre *</span>
@@ -346,12 +432,22 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             </select>
           </label>
           <label>
-            <span>Type</span>
+            <span>Nature</span>
             <select value={form.type ?? "rassemblement"} onChange={(e) => set("type", e.target.value)}>
               <option value="rassemblement">Rassemblement</option>
               <option value="formation">Formation</option>
               <option value="priere">Prière</option>
             </select>
+          </label>
+          <label>
+            <span>Type d&apos;événement (couleur du calendrier)</span>
+            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {typeCouleur && <span aria-hidden style={{ width: 16, height: 16, borderRadius: 4, background: typeCouleur, border: "1px solid rgba(0,0,0,0.15)", flexShrink: 0 }} />}
+              <select style={{ flex: 1 }} value={form.type_evenement_id ?? ""} onChange={(e) => set("type_evenement_id", e.target.value || null)}>
+                <option value="">Aucun (couleur par défaut)</option>
+                {typesPublies.map((te) => <option key={te.id} value={te.id}>{te.nom}</option>)}
+              </select>
+            </span>
           </label>
           <label>
             <span>Mode</span>
@@ -373,12 +469,14 @@ export function Evenements({ token }: { token: string }): JSX.Element {
                 set("cible_id", null);
               }}
             >
-              {(Object.keys(CIBLE_LABELS) as CibleType[]).map((k) => (
-                <option key={k} value={k}>{CIBLE_LABELS[k]}</option>
+              {(cibles.data ?? []).map((c) => (
+                <option key={c.code} value={c.code}>{c.libelle}</option>
               ))}
             </select>
+            {cibles.error && <span className="muted small">Destinations indisponibles : rechargez la page.</span>}
+            {cibleCourante?.description && <span className="muted small">{cibleCourante.description}</span>}
           </label>
-          {form.cible_type && CIBLE_UNITES.includes(form.cible_type) && (
+          {besoinUnite && (
             <label>
               <span>Unité ciblée *</span>
               <select value={form.cible_id ?? ""} onChange={(e) => set("cible_id", e.target.value || null)}>
@@ -389,7 +487,8 @@ export function Evenements({ token }: { token: string }): JSX.Element {
               </select>
             </label>
           )}
-          {form.cible_type === "liste" && (
+          <ApercuAudience token={token} code={form.cible_type ?? "general"} cibleId={form.cible_id ?? null} besoinUnite={besoinUnite} typeRegle={cibleCourante?.type_regle ?? null} />
+          {cibleCourante?.type_regle === "liste" && (
             <label className="full">
               <span>
                 Adresses e-mail *
@@ -474,18 +573,40 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             <span>Description</span>
             <RichEditor value={form.description ?? ""} onChange={(html) => set("description", html)} disabled={busy} />
           </div>
+          <div className="full">
+            <span>Pièces jointes (images, documents)</span>
+            <PiecesACharger files={piecesAJoindre} onChange={setPiecesAJoindre} />
+          </div>
         </div>
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>
-            {busy ? "Création..." : "+ Nouvel événement"}
+            {busy ? "Création en cours..." : "Créer l'activité"}
           </button>
         </div>
       </form>
+      ) : (
+        <p className="banner banner-info small">
+          Création d'activité en lecture seule. La planification et la gestion des événements requièrent la permission
+          <span className="mono"> evenements.gerer</span>.
+        </p>
+      )}
+      </>
+      )}
+
+      {ongletPage === "parametres" && (
+      <>
+      <div className="page-head" style={{ marginBottom: 8 }}>
+        <div>
+          <h2 className="card-title" style={{ margin: 0 }}>Paramètres des événements</h2>
+          <p className="muted small">Réglages globaux de l'organisation. Ils s'appliquent à toutes les activités et ne sont jamais modifiés lors de la création d'une activité.</p>
+        </div>
+      </div>
 
       <section className="card">
         <h2 className="card-title">Fenêtre des questionnaires</h2>
         <p className="muted small">Durée, en heures après la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
+        {!canParametres && <p className="banner banner-info small">Lecture seule : modifier ce réglage requiert la permission de gestion des paramètres.</p>}
         <div className="toolbar">
           <input
             type="range"
@@ -493,6 +614,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             max={72}
             step={1}
             value={fenetreValue}
+            disabled={!canParametres}
             onChange={(e) => setFenetreLocal(Number(e.target.value))}
             onPointerUp={(e) => saveFenetre(Number(e.currentTarget.value))}
             onKeyUp={(e) => saveFenetre(Number(e.currentTarget.value))}
@@ -501,6 +623,29 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
         </div>
       </section>
+
+      <section className="card">
+        <h2 className="card-title">Premier jour de la semaine</h2>
+        <p className="muted small">
+          Détermine la plage d'une semaine pour le récapitulatif (semaine précédente) et l'agenda (semaine en cours)
+          envoyés aux membres. Chaque organisation peut choisir son jour de départ (semaine du lundi au dimanche inclus,
+          ou d'un autre jour au jour précédent).
+        </p>
+        <div className="toolbar">
+          <select
+            className="search"
+            value={semaineDebut.data?.jour ?? 0}
+            disabled={!canParametres}
+            onChange={(e) => saveSemaineDebut(Number(e.target.value))}
+          >
+            {["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"].map((j, i) => (
+              <option key={j} value={i}>{j}</option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      <DestinationsCiblage token={token} canGerer={canParametres} />
       </>
       )}
 
@@ -510,18 +655,21 @@ export function Evenements({ token }: { token: string }): JSX.Element {
 
       <div className="toolbar" style={{ justifyContent: "space-between", alignItems: "center", margin: "6px 0 10px" }}>
         <h2 className="card-title" style={{ margin: 0 }}>Planning des activités</h2>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button type="button" className={`btn btn-inline ${vue === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("calendrier")}>
-            Calendrier
-          </button>
-          <button type="button" className={`btn btn-inline ${vue === "liste" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("liste")}>
-            Liste
-          </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span className="muted small">Affichage</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" className={`btn btn-inline ${vue === "calendrier" ? "btn-primary" : "btn-ghost"}`} aria-pressed={vue === "calendrier"} onClick={() => choisirVue("calendrier")}>
+              Calendrier
+            </button>
+            <button type="button" className={`btn btn-inline ${vue === "liste" ? "btn-primary" : "btn-ghost"}`} aria-pressed={vue === "liste"} onClick={() => choisirVue("liste")}>
+              Liste
+            </button>
+          </div>
         </div>
       </div>
 
       {vue === "calendrier" ? (
-        <CalendrierEvenements token={token} evenements={evenements.data ?? []} onChanged={evenements.reload} />
+        <CalendrierEvenements token={token} evenements={evenements.data ?? []} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={evenements.reload} />
       ) : (
         <>
           {(evenements.data ?? []).map((ev) => (
@@ -549,7 +697,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
                   </button>
                 </div>
               </div>
-              {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={evenements.reload} />}
+              {openId === ev.id && <EvenementGestion token={token} evenement={ev} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={evenements.reload} />}
             </section>
           ))}
           {!evenements.loading && (evenements.data ?? []).length === 0 && (
@@ -560,5 +708,42 @@ export function Evenements({ token }: { token: string }): JSX.Element {
       </>
       )}
     </div>
+  );
+}
+
+/** Live audience preview under the destination selector: how many active members
+ * the chosen destination currently reaches. Computed SERVER-SIDE with the same
+ * safe rule templates as the visibility engine, so the number is real, never a
+ * front-side guess. Hidden for 'liste' (its audience is the typed e-mails) and
+ * while a unit destination has no unit picked yet. */
+function ApercuAudience({ token, code, cibleId, besoinUnite, typeRegle }: {
+  token: string;
+  code: string;
+  cibleId: string | null;
+  besoinUnite: boolean;
+  typeRegle: string | null;
+}): JSX.Element | null {
+  const [nombre, setNombre] = useState<number | null>(null);
+  useEffect(() => {
+    setNombre(null);
+    if (!code || typeRegle === "liste" || (besoinUnite && !cibleId)) return;
+    let alive = true;
+    apercuCibleActivite(token, code, cibleId)
+      .then((a) => { if (alive) setNombre(a.nombre); })
+      .catch(() => { if (alive) setNombre(null); });
+    return () => { alive = false; };
+  }, [token, code, cibleId, besoinUnite, typeRegle]);
+  if (typeRegle === "liste" || nombre == null) return null;
+  if (nombre === 0) {
+    return (
+      <p className="banner banner-warn full" style={{ margin: 0 }}>
+        Attention : aucun membre actif ne correspond actuellement à cette destination. L'activité serait créée mais ne toucherait personne.
+      </p>
+    );
+  }
+  return (
+    <p className="muted small full" style={{ margin: 0 }}>
+      Aperçu : {nombre} membre{nombre > 1 ? "s" : ""} actif{nombre > 1 ? "s" : ""} concerné{nombre > 1 ? "s" : ""} (calcul serveur, doublons exclus).
+    </p>
   );
 }

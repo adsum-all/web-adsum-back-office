@@ -20,6 +20,10 @@ not under a deployment-unblock constraint.
 - src/components/Evenements.tsx (542 lines): the events page (calendar host plus
   the creation form). To be split by extracting the creation form into its own
   component, keeping the calendar and list host lean.
+- src/components/EspacesCollab.tsx (736 lines): the collaboration-spaces admin page
+  (space list, membership, roles, access requests). Exceeds the 750-approaching range;
+  to be split by extracting the membership and access-request panels into their own
+  components.
 
 ## Rule
 
