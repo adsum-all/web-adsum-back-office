@@ -1,19 +1,59 @@
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, type ComptageResume, addComptage, getComptage, getEvenements } from "../api.js";
-import { useResource } from "../useResource.js";
+import {
+  ApiError,
+  type ComptageResume,
+  type EvenementEligible,
+  addComptage,
+  getComptage,
+  getEvenementsEligiblesComptage,
+} from "../api.js";
 
 const PUBLIC_BASE = (import.meta.env.VITE_PUBLIC_URL as string | undefined) ?? "https://adsum-public.pages.dev";
+const PAGE = 25;
+
+type Periode = "pertinents" | "a_venir" | "passes" | "tous";
+
+function labelEvenement(e: EvenementEligible): string {
+  const quand = e.debut ? new Date(e.debut).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  const lieu = e.lieu ? `, ${e.lieu}` : "";
+  return `${e.titre}${quand ? ` (${quand})` : ""}${lieu}`;
+}
 
 export function ComptageVoletB({ token }: { token: string }): JSX.Element {
-  const events = useResource(() => getEvenements(token), [token]);
-  const voletB = (events.data ?? []).filter((e) => e.volet === "B");
+  // Eligible events are fetched from the server already filtered (volet B, not cancelled),
+  // searched and paginated, so the selector never downloads the whole history and stays
+  // fast at any scale.
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [periode, setPeriode] = useState<Periode>("pertinents");
+  const [offset, setOffset] = useState(0);
+  const [eligibles, setEligibles] = useState<EvenementEligible[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loadingList, setLoadingList] = useState(true);
+
   const [eventId, setEventId] = useState("");
   const [resume, setResume] = useState<ComptageResume | null>(null);
   const [segment, setSegment] = useState("");
   const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Debounce the search so typing does not fire one request per keystroke.
+  useEffect(() => {
+    const t = window.setTimeout(() => { setDebouncedQ(q); setOffset(0); }, 300);
+    return () => window.clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    let alive = true;
+    setLoadingList(true);
+    getEvenementsEligiblesComptage(token, { q: debouncedQ || undefined, periode, limit: PAGE, offset })
+      .then((r) => { if (alive) { setEligibles(r.items); setTotal(r.total); } })
+      .catch((err: unknown) => { if (alive) setError(err instanceof ApiError ? err.message : "Erreur réseau"); })
+      .finally(() => { if (alive) setLoadingList(false); });
+    return () => { alive = false; };
+  }, [token, debouncedQ, periode, offset]);
 
   async function load(id: string): Promise<void> {
     setEventId(id);
@@ -51,17 +91,54 @@ export function ComptageVoletB({ token }: { token: string }): JSX.Element {
         </div>
       </header>
 
-      <form className="toolbar">
-        <select className="search" value={eventId} onChange={(e) => void load(e.target.value)}>
-          <option value="">Choisir un événement volet B...</option>
-          {voletB.map((e) => (
-            <option key={e.id} value={e.id}>{e.titre}</option>
-          ))}
-        </select>
-      </form>
-      {voletB.length === 0 && !events.loading && (
-        <p className="muted">Aucun événement volet B. Créez-en un dans le calendrier.</p>
-      )}
+      <section className="card">
+        <div className="toolbar" style={{ flexWrap: "wrap", gap: 8 }}>
+          <input
+            className="search"
+            style={{ flex: 1, minWidth: 200 }}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Rechercher un événement (titre, lieu)..."
+            aria-label="Rechercher un événement volet B"
+          />
+          <select className="search" value={periode} onChange={(e) => { setPeriode(e.target.value as Periode); setOffset(0); }} aria-label="Période">
+            <option value="pertinents">Récents et à venir</option>
+            <option value="a_venir">À venir</option>
+            <option value="passes">Passés</option>
+            <option value="tous">Tous</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+          <select
+            className="search"
+            value={eventId}
+            onChange={(e) => void load(e.target.value)}
+            size={Math.min(8, Math.max(2, eligibles.length + 1))}
+            aria-label="Événement volet B"
+          >
+            <option value="">Choisir un événement volet B...</option>
+            {eligibles.map((e) => (
+              <option key={e.id} value={e.id}>{labelEvenement(e)}</option>
+            ))}
+          </select>
+          <div className="toolbar" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <span className="muted small">
+              {loadingList ? "Chargement..." : `${total} événement(s) volet B éligible(s)${total > PAGE ? `, affichés ${offset + 1} à ${Math.min(offset + PAGE, total)}` : ""}`}
+            </span>
+            {total > PAGE && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Précédent</button>
+                <button type="button" className="btn btn-ghost btn-inline" disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>Suivant</button>
+              </div>
+            )}
+          </div>
+        </div>
+        {!loadingList && total === 0 && (
+          <p className="muted small" style={{ marginTop: 8 }}>
+            {debouncedQ ? "Aucun événement volet B ne correspond à votre recherche." : "Aucun événement volet B éligible sur cette période. Créez-en un dans le calendrier (volet B)."}
+          </p>
+        )}
+      </section>
       {error && <p className="banner banner-error">{error}</p>}
 
       {resume && (

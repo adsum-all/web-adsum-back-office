@@ -37,11 +37,16 @@ interface OrgItemRowProps {
   /** When provided, a "Modifier" button opens the full edit form (all fields),
    * distinct from the inline quick rename. */
   onEdit?: () => void;
+  /** When false (the default), every write control (publish toggle, rename/edit,
+   * delete) is hidden and a read-only mention is shown instead. Fail-closed: a
+   * caller that forgets to pass the gate gets the read-only row, never a control
+   * whose endpoint would return 403. */
+  canGerer?: boolean;
   onChanged: () => void;
 }
 
 /** A structural-entity row with inline rename, publish toggle and safe delete. */
-export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit, onEdit, onChanged }: OrgItemRowProps): JSX.Element {
+export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit, onEdit, canGerer = false, onChanged }: OrgItemRowProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(nom);
   const [draftDesc, setDraftDesc] = useState(edit?.description ?? "");
@@ -180,6 +185,13 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit,
         )}
       </div>
       <div className="org-row-actions">
+        {!canGerer ? (
+          <>
+            <span className={`pill ${publie ? "pill-on" : "pill-off"}`}>{publie ? "Publié" : "Masqué"}</span>
+            <span className="muted small">Lecture seule</span>
+          </>
+        ) : (
+        <>
         <button
           type="button"
           className={`pill ${publie ? "pill-on" : "pill-off"}`}
@@ -225,6 +237,8 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit,
         <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void ouvrirSuppression()}>
           Supprimer
         </button>
+        </>
+        )}
       </div>
       {deps && (
         <div className="org-row-resolver banner" style={{ flexBasis: "100%", marginTop: 8, textAlign: "left", background: "var(--adsum-panel)", border: "1px solid var(--adsum-line)" }}>

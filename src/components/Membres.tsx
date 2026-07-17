@@ -49,7 +49,7 @@ function writeAnnuaireHash(statut: string, q: string, tri: string): void {
   if (window.location.hash !== next) window.location.hash = next;
 }
 
-export function Membres({ token }: { token: string }): JSX.Element {
+export function Membres({ token, canAdministrer = false, canAccesAdmin = false }: { token: string; canAdministrer?: boolean; canAccesAdmin?: boolean }): JSX.Element {
   const initial = readAnnuaireHash();
   const [view, setView] = useState<View>({ kind: "list" });
   const [q, setQ] = useState(initial.q);
@@ -96,6 +96,8 @@ export function Membres({ token }: { token: string }): JSX.Element {
         <MembreDetail
           token={token}
           id={view.id}
+          canAdministrer={canAdministrer}
+          canAccesAdmin={canAccesAdmin}
           onBack={() => {
             setAnnuaireOpen(false);
             setView({ kind: "list" });
@@ -128,9 +130,11 @@ export function Membres({ token }: { token: string }): JSX.Element {
           <h1>Annuaire des membres</h1>
           <p className="muted">Compartimenté par statut ; tri alphabétique par nom, puis prénoms.</p>
         </div>
-        <button type="button" className="btn btn-primary btn-inline" onClick={() => setView({ kind: "create" })}>
-          + Creer un compte
-        </button>
+        {canAdministrer && (
+          <button type="button" className="btn btn-primary btn-inline" onClick={() => setView({ kind: "create" })}>
+            + Creer un compte
+          </button>
+        )}
       </header>
 
       <Tabs tabs={tabs} active={compartiment} onChange={(id) => setCompartiment(id)} />

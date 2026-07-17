@@ -10,8 +10,13 @@ import { useResource } from "../useResource.js";
  * inside the application (those are the RBAC roles and perimeters, governed elsewhere).
  * Every grant/revoke is audited server-side.
  */
-export function MembreApplications({ token, membreId }: { token: string; membreId: string }): JSX.Element {
-  const apps = useResource(() => getMembreApplications(token, membreId), [token, membreId]);
+export function MembreApplications({ token, membreId, canAccesAdmin = false }: { token: string; membreId: string; canAccesAdmin?: boolean }): JSX.Element {
+  // Both the GET and the PUT require acces.administrer. Without it, skip the fetch
+  // entirely (no silent 403) and present the panel read-only.
+  const apps = useResource(
+    () => (canAccesAdmin ? getMembreApplications(token, membreId) : Promise.resolve([] as ApplicationAcces[])),
+    [token, membreId, canAccesAdmin],
+  );
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -32,29 +37,38 @@ export function MembreApplications({ token, membreId }: { token: string; membreI
         membre. Cela ne donne ni les rôles ni les données internes de l'application, qui restent régis par les rôles et
         les périmètres. Chaque changement est journalisé.
       </p>
-      {error && <p className="banner banner-error">{error}</p>}
-      {note && <p className="banner banner-ok">{note}</p>}
-      {apps.error && <p className="banner banner-error">{apps.error}</p>}
-      <ul className="list">
-        {(apps.data ?? []).map((a) => (
-          <li key={a.code} className="list-row" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ flex: 1, minWidth: 180 }}>
-              <strong>{a.nom}</strong>
-              {a.description && <span className="muted small" style={{ display: "block" }}>{a.description}</span>}
-            </span>
-            <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>{a.acces_actif ? "Accès actif" : "Pas d'accès"}</span>
-            <button
-              type="button"
-              className={`btn btn-inline ${a.acces_actif ? "btn-danger" : "btn-primary"}`}
-              disabled={busy !== null}
-              onClick={() => basculer(a)}
-            >
-              {busy === a.code ? "..." : a.acces_actif ? "Révoquer" : "Accorder"}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {!apps.loading && (apps.data ?? []).length === 0 && <p className="muted">Aucune application au catalogue.</p>}
+      {!canAccesAdmin ? (
+        <p className="banner banner-info small">
+          Réservé à l'administration des accès. La consultation et la modification des accès applicatifs d'un membre
+          requièrent la permission <span className="mono">acces.administrer</span>.
+        </p>
+      ) : (
+        <>
+          {error && <p className="banner banner-error">{error}</p>}
+          {note && <p className="banner banner-ok">{note}</p>}
+          {apps.error && <p className="banner banner-error">{apps.error}</p>}
+          <ul className="list">
+            {(apps.data ?? []).map((a) => (
+              <li key={a.code} className="list-row" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ flex: 1, minWidth: 180 }}>
+                  <strong>{a.nom}</strong>
+                  {a.description && <span className="muted small" style={{ display: "block" }}>{a.description}</span>}
+                </span>
+                <span className={`badge ${a.acces_actif ? "badge-ok" : "badge-mut"}`}>{a.acces_actif ? "Accès actif" : "Pas d'accès"}</span>
+                <button
+                  type="button"
+                  className={`btn btn-inline ${a.acces_actif ? "btn-danger" : "btn-primary"}`}
+                  disabled={busy !== null}
+                  onClick={() => basculer(a)}
+                >
+                  {busy === a.code ? "..." : a.acces_actif ? "Révoquer" : "Accorder"}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!apps.loading && (apps.data ?? []).length === 0 && <p className="muted">Aucune application au catalogue.</p>}
+        </>
+      )}
     </section>
   );
 }

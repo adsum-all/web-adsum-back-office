@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { ApiError, type Utilisateur, getUtilisateurs, updateUtilisateur } from "../api.js";
 import { useResource } from "../useResource.js";
 import { EditeurGroupes } from "./EditeurGroupes.js";
+import { FicheGouvernance } from "./FicheGouvernance.js";
 import { RechercheMembre } from "./RechercheMembre.js";
 import { type CibleMembre, roleLabel } from "./utilisateursShared.js";
 
@@ -15,6 +16,7 @@ import { type CibleMembre, roleLabel } from "./utilisateursShared.js";
 export function MembresAccesTab({ token }: { token: string }): JSX.Element {
   const users = useResource(() => getUtilisateurs(token), [token]);
   const [cible, setCible] = useState<CibleMembre | null>(null);
+  const [fiche, setFiche] = useState<CibleMembre | null>(null);
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -79,13 +81,22 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
                 </td>
                 <td className="row-actions">
                   {u.membre_id ? (
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setCible({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
-                    >
-                      Gérer les groupes
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => setFiche({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
+                      >
+                        Fiche gouvernance
+                      </button>
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => setCible({ id: u.membre_id as string, nom: u.membre_nom ?? u.email })}
+                      >
+                        Gérer les groupes
+                      </button>
+                    </>
                   ) : (
                     <span className="muted small">compte sans membre lié</span>
                   )}
@@ -108,6 +119,10 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
           onClose={() => setCible(null)}
           onChanged={() => users.reload()}
         />
+      )}
+
+      {fiche && (
+        <FicheGouvernance token={token} membre={fiche} onClose={() => setFiche(null)} />
       )}
     </div>
   );

@@ -26,7 +26,7 @@ const SIGNAL_LABELS: Record<string, string> = {
   photo: "Photo",
 };
 
-export function Doublons({ token, canStatuer = false }: { token: string; canStatuer?: boolean }): JSX.Element {
+export function Doublons({ token, canStatuer = false, canScanner = false }: { token: string; canStatuer?: boolean; canScanner?: boolean }): JSX.Element {
   const detections = useResource(() => getDoublons(token), [token]);
   const seuil = useResource(() => getSeuilDoublon(token), [token]);
   const [busy, setBusy] = useState(false);
@@ -72,9 +72,11 @@ export function Doublons({ token, canStatuer = false }: { token: string; canStat
             ou une tentative de fraude.
           </p>
         </div>
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void runScan()}>
-          {busy ? "Analyse..." : "Lancer l'analyse"}
-        </button>
+        {canScanner && (
+          <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void runScan()}>
+            {busy ? "Analyse..." : "Lancer l'analyse"}
+          </button>
+        )}
       </header>
 
       {note && <p className="banner banner-ok">{note}</p>}
@@ -83,21 +85,28 @@ export function Doublons({ token, canStatuer = false }: { token: string; canStat
       <section className="card">
         <h2 className="card-title">Seuil de détection</h2>
         <p className="muted small">Score de similarité (0 à 1) au-delà duquel une paire est signalée.</p>
-        <div className="toolbar">
-          <input
-            type="range"
-            min={0.3}
-            max={0.95}
-            step={0.05}
-            value={seuil.data?.seuil ?? 0.6}
-            disabled={busy}
-            onChange={(e) => void saveSeuil(Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <span className="mono" style={{ minWidth: 44, textAlign: "right" }}>
-            {(seuil.data?.seuil ?? 0.6).toFixed(2)}
-          </span>
-        </div>
+        {canScanner ? (
+          <div className="toolbar">
+            <input
+              type="range"
+              min={0.3}
+              max={0.95}
+              step={0.05}
+              value={seuil.data?.seuil ?? 0.6}
+              disabled={busy}
+              onChange={(e) => void saveSeuil(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <span className="mono" style={{ minWidth: 44, textAlign: "right" }}>
+              {(seuil.data?.seuil ?? 0.6).toFixed(2)}
+            </span>
+          </div>
+        ) : (
+          <div className="toolbar">
+            <span className="mono" style={{ minWidth: 44 }}>{(seuil.data?.seuil ?? 0.6).toFixed(2)}</span>
+            <span className="muted small">Lecture seule : le réglage du seuil requiert la permission doublons.administrer.</span>
+          </div>
+        )}
       </section>
 
       {detections.error && <p className="banner banner-error">{detections.error}</p>}
@@ -111,6 +120,7 @@ export function Doublons({ token, canStatuer = false }: { token: string; canStat
           token={token}
           detection={d}
           canStatuer={canStatuer}
+          canScanner={canScanner}
           open={openId === d.id}
           onToggle={() => setOpenId(openId === d.id ? null : d.id)}
           onDecided={() => detections.reload()}
@@ -124,13 +134,17 @@ function DetectionCard({
   token,
   detection,
   canStatuer,
+  canScanner,
   open,
   onToggle,
   onDecided,
 }: {
   token: string;
   detection: DetectionDoublon;
+  // doublons.gerer: decide a detection (confirm / documents / distinct persons).
   canStatuer: boolean;
+  // doublons.administrer: merge two records (POST /admin/doublons/fusion).
+  canScanner: boolean;
   open: boolean;
   onToggle: () => void;
   onDecided: () => void;
@@ -235,7 +249,7 @@ function DetectionCard({
         <button type="button" className="btn btn-ghost btn-inline" onClick={toggle}>
           {open ? "Masquer la comparaison" : "Comparer les deux profils"}
         </button>
-        {canStatuer ? (
+        {canStatuer && (
           <>
             <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void decide("confirme")}>
               Confirmer le doublon
@@ -246,12 +260,15 @@ function DetectionCard({
             <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void decide("ignore")}>
               Personnes distinctes
             </button>
-            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setSurvivant(null); setApercu(null); setFusionErr(null); setSurvivant("a"); void ouvrirFusion("a"); }}>
-              Fusionner…
-            </button>
           </>
-        ) : (
-          <span className="muted small">Consultation seule. Le tri des doublons requiert la permission « Doublons - gerer ».</span>
+        )}
+        {canScanner && (
+          <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => { setSurvivant(null); setApercu(null); setFusionErr(null); setSurvivant("a"); void ouvrirFusion("a"); }}>
+            Fusionner…
+          </button>
+        )}
+        {!canStatuer && !canScanner && (
+          <span className="muted small">Consultation seule. Le tri des doublons requiert « Doublons - gerer » ; la fusion requiert « Doublons - administrer ».</span>
         )}
       </div>
 

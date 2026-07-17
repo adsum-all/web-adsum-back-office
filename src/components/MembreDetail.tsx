@@ -45,11 +45,45 @@ const DEMANDE_STATUT: Record<string, string> = {
   refusee: "Refusée",
 };
 
+// Human, correctly accented status labels for the member header chip. Any status
+// not listed falls back to a capitalised form so a new value is never shown raw.
+const STATUT_LABELS: Record<string, string> = {
+  actif: "Actif",
+  inactif: "Inactif",
+  desactive: "Désactivé",
+  suspendu: "Suspendu",
+  archive: "Archivé",
+  incomplet: "Incomplet",
+  refuse: "Refusé",
+  en_attente: "En attente",
+  correction_demandee: "Correction demandée",
+  non_verifie: "Non vérifié",
+};
+
+function statutLabel(statut: string): string {
+  return STATUT_LABELS[statut] ?? (statut ? statut.charAt(0).toUpperCase() + statut.slice(1) : "-");
+}
+
+// Colour the status chip by meaning: active is positive, suspended/refused is a
+// hard negative, everything else stays neutral so attention is not misdirected.
+function statutBadge(statut: string): string {
+  if (statut === "actif") return "badge-ok";
+  if (statut === "suspendu" || statut === "refuse") return "badge-bad";
+  return "badge-mut";
+}
+
 interface MembreDetailProps {
   token: string;
   id: string;
   onBack: () => void;
   onOpenAnnuaire?: () => void;
+  /** Grants the affectation controls and the confidential governance zone. When
+   * false, both are shown read-only: the server requires membres.administrer. */
+  canAdministrer?: boolean;
+  /** acces.administrer: gates the applications access sub-panel (GET/PUT
+   * /admin/membres/{id}/applications). When false the panel is read-only and the
+   * GET is not even issued, so a members-only account never hits a 403. */
+  canAccesAdmin?: boolean;
 }
 
 type TabKey = "apercu" | "consecration" | "participation" | "demandes" | "securite" | "avance";
@@ -63,7 +97,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "avance", label: "Gestion avancée" },
 ];
 
-export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetailProps): JSX.Element {
+export function MembreDetail({ token, id, onBack, onOpenAnnuaire, canAdministrer = false, canAccesAdmin = false }: MembreDetailProps): JSX.Element {
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -188,41 +222,58 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="link" onClick={onBack}>
-              Annuaire
-            </button>
-            {onOpenAnnuaire && (
-              <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
-                Parcourir l&apos;annuaire
-              </button>
-            )}
-          </div>
-          <h1>{heading}</h1>
-          {bergerLabel && <p style={{ margin: "2px 0", fontWeight: 700, color: "var(--adsum-acc, #b5731a)" }}>{bergerLabel}</p>}
-          {fonctionsList.map((f, i) => (
-            <p key={i} className="muted" style={{ margin: "2px 0" }}>
-              {f.libelle}
-              {f.perimetre ? ` - ${f.perimetre}` : ""}
-            </p>
-          ))}
-          <p className="mono muted">
-            {m.matricule}{m.code_membre ? ` . Code membre ${m.code_membre}` : ""} . {m.verifie ? "VERIFIE" : "NON VERIFIE"} . {m.statut.toUpperCase()}
-          </p>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <button type="button" className="link" onClick={onBack}>
+          Annuaire
+        </button>
+        {onOpenAnnuaire && (
+          <button type="button" className="btn btn-ghost btn-inline annuaire-trigger" onClick={onOpenAnnuaire}>
+            Parcourir l&apos;annuaire
+          </button>
+        )}
+      </div>
+      <header className="profil-head">
         {photoUrl ? (
           <img
-            className="avatar"
+            className="avatar profil-avatar"
             src={photoUrl}
             alt={`Photo de ${name}`}
             style={{ objectFit: "cover", objectPosition: `${m.photo_focus_x ?? 50}% ${m.photo_focus_y ?? 30}%` }}
             onError={() => setPhotoUrl(null)}
           />
         ) : (
-          <div className="avatar">{initials(name)}</div>
+          <div className="avatar profil-avatar">{initials(name)}</div>
         )}
+        <div className="profil-ident">
+          <h1>{heading}</h1>
+          {bergerLabel && <p className="profil-berger">{bergerLabel}</p>}
+          {fonctionsList.length > 0 && (
+            <div className="profil-fonctions">
+              {fonctionsList.map((f, i) => (
+                <span key={i} className="muted small">
+                  {f.libelle}
+                  {f.perimetre ? ` - ${f.perimetre}` : ""}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="profil-chips">
+            <span className="chip chip-mono">
+              <span className="chip-label">Matricule</span>
+              {m.matricule}
+            </span>
+            {m.code_membre && (
+              <span className="chip chip-mono">
+                <span className="chip-label">Code</span>
+                {m.code_membre}
+              </span>
+            )}
+            <span className={`badge ${statutBadge(m.statut)}`}>{statutLabel(m.statut)}</span>
+            <span className={`badge ${m.verifie ? "badge-ok" : "badge-warn"}`}>
+              {m.verifie ? "Identité vérifiée" : "Identité non vérifiée"}
+            </span>
+          </div>
+        </div>
       </header>
 
       {note && <p className="banner banner-ok">{note}</p>}
@@ -358,6 +409,8 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
       <section className="card">
         <h2 className="card-title">Affectation</h2>
+        {canAdministrer ? (
+        <>
         <p className="muted small" style={{ marginTop: 0 }}>
           Un membre appartient à la fois à une commission ou mission et à une tribu ; il peut changer de l'une ou de l'autre
           à tout moment. Chaque changement est tracé.
@@ -445,6 +498,13 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
             </p>
           );
         })()}
+        </>
+        ) : (
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Affectation en lecture seule. La modification de la commission, de la tribu, de l'intendance ou de la
+            coordination requiert la permission <span className="mono">membres.administrer</span>.
+          </p>
+        )}
       </section>
       </>
       )}
@@ -453,7 +513,17 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
       <>
       <MembreConsecration token={token} membre={m} onChanged={() => membre.reload()} />
       <MembreFonctions token={token} membreId={m.id} onChanged={() => membre.reload()} />
-      <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
+      {canAdministrer ? (
+        <MembreGouvernance token={token} membreId={m.id} onChanged={() => membre.reload()} />
+      ) : (
+        <section className="card" style={{ borderColor: "var(--adsum-warn, #b5731a)" }}>
+          <h2 className="card-title">Zone confidentielle (administration)</h2>
+          <p className="muted small" style={{ margin: 0 }}>
+            Réservée à l'administration. La consultation et la modification requièrent la permission
+            <span className="mono"> membres.administrer</span>.
+          </p>
+        </section>
+      )}
       </>
       )}
 
@@ -461,7 +531,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
         <MembreDocuments token={token} documents={dossier.data?.documents ?? []} loading={dossier.loading} onError={setError} />
       )}
 
-      {tab === "apercu" && (
+      {tab === "apercu" && canAdministrer && (
       <div className="form-actions">
         {!m.verifie && (
           <button
@@ -671,7 +741,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
 
       {tab === "avance" && (
       <>
-      <MembreApplications token={token} membreId={id} />
+      <MembreApplications token={token} membreId={id} canAccesAdmin={canAccesAdmin} />
       <MembreCorrectionIdentite token={token} membre={m} onChanged={() => membre.reload()} />
       <section className="card" style={{ borderColor: "var(--adsum-danger)" }}>
         <h2 className="card-title">Gestion avancee (administration)</h2>
@@ -693,6 +763,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
             Demander ce document
           </button>
         </div>
+        {canAdministrer ? (
         <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
           <button
             type="button"
@@ -716,7 +787,13 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire }: MembreDetail
             </button>
           )}
         </div>
-        {confirmDelete && (
+        ) : (
+          <p className="muted small" style={{ marginTop: 8 }}>
+            Blocage, déblocage et suppression (RGPD) en lecture seule : ces actions requièrent la permission
+            <span className="mono"> membres.administrer</span>.
+          </p>
+        )}
+        {canAdministrer && confirmDelete && (
           <div className="banner banner-error small" style={{ textAlign: "left", marginTop: 10 }}>
             <strong>Suppression définitive (RGPD) de {apercu?.nom || "ce membre"}</strong>
             <p className="muted" style={{ margin: "6px 0" }}>Avant de supprimer, vérifiez ce que ce membre porte. La suppression efface totalement le membre, son compte, ses demandes, documents, participations et fichiers. Irréversible.</p>

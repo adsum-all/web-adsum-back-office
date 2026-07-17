@@ -15,7 +15,7 @@ import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 
 function slugCle(v: string): string {
-  return v
+  const base = v
     .trim()
     .toLowerCase()
     .normalize("NFD")
@@ -23,6 +23,9 @@ function slugCle(v: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
+  // The backend key must start with a letter (^[a-z][a-z0-9_]{1,39}$): prefix a
+  // leading digit with 'n' so a label like "3e cycle" still yields a valid key.
+  return /^[0-9]/.test(base) ? `n${base}`.slice(0, 40) : base;
 }
 
 /**

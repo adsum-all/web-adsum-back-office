@@ -27,6 +27,7 @@ import { Terminaux } from "./components/Terminaux.js";
 import { GouvernanceAcces } from "./components/GouvernanceAcces.js";
 import { Utilisateurs } from "./components/Utilisateurs.js";
 import { MatricePermissions } from "./components/MatricePermissions.js";
+import { ProfilMenu } from "./components/ProfilMenu.js";
 import { EspacesCollab } from "./components/EspacesCollab.js";
 import { TechnicalAdmins } from "./components/TechnicalAdmins.js";
 
@@ -70,7 +71,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "inscriptions", label: "Inscriptions à valider", group: "MEMBRES", perm: "inscriptions.gerer" },
   { id: "engagement", label: "Engagement (invitations)", group: "MEMBRES", perm: "inscriptions.gerer" },
   { id: "demandes", label: "Demandes des membres", group: "MEMBRES", perm: "demandes.superviser" },
-  { id: "membres", label: "Annuaire des membres", group: "MEMBRES", perm: "membres.consulter" },
+  { id: "membres", label: "Annuaire des membres", group: "MEMBRES", perm: "membres.gerer" },
   { id: "doublons", label: "Détection de doublons", group: "MEMBRES", perm: "doublons.consulter" },
   { id: "commissions", label: "Commissions & missions", group: "ORGANISATION", perm: "commissions.consulter" },
   { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION", perm: "fonctions.consulter" },
@@ -210,7 +211,6 @@ export function App(): JSX.Element {
   // Deny-by-default: only ever land on a section the account may see.
   const current = visibleNav.find((n) => n.id === section) ?? visibleNav[0];
   const activeId = current?.id;
-  const initials = session.role.slice(0, 2).toUpperCase();
 
   return (
     <div className="shell">
@@ -270,9 +270,7 @@ export function App(): JSX.Element {
             <span className="event-dot" aria-hidden="true" />
             Aucun événement actif
           </span>
-          <span className="topbar-avatar" title={session.role}>
-            {initials}
-          </span>
+          <ProfilMenu token={session.token} onLogout={deconnexion} />
         </header>
         <div className="main-scroll">
           {activeId === "dashboard" && <Dashboard token={session.token} />}
@@ -280,26 +278,57 @@ export function App(): JSX.Element {
           {activeId === "participation" && <ParticipationStats token={session.token} />}
           {activeId === "inscriptions" && <Inscriptions token={session.token} />}
           {activeId === "engagement" && <EngagementAdmin token={session.token} />}
-          {activeId === "demandes" && <DemandesAdmin token={session.token} />}
-          {activeId === "membres" && <Membres token={session.token} />}
-          {activeId === "doublons" && <Doublons token={session.token} canStatuer={held.has("doublons.gerer")} />}
-          {activeId === "commissions" && <Commissions token={session.token} />}
+          {activeId === "demandes" && <DemandesAdmin token={session.token} canGerer={held.has("demandes.gerer")} />}
+          {activeId === "membres" && (
+            <Membres
+              token={session.token}
+              canAdministrer={held.has("membres.administrer")}
+              canAccesAdmin={held.has("acces.administrer")}
+            />
+          )}
+          {activeId === "doublons" && (
+            <Doublons
+              token={session.token}
+              canStatuer={held.has("doublons.gerer")}
+              canScanner={held.has("doublons.administrer")}
+            />
+          )}
+          {activeId === "commissions" && (
+            <Commissions
+              token={session.token}
+              canCreerCommission={held.has("commissions.administrer")}
+              canGererOrg={held.has("organisation.administrer")}
+            />
+          )}
           {activeId === "fonctions" && <Fonctions token={session.token} canGerer={held.has("fonctions.gerer")} />}
           {activeId === "niveaux" && <Niveaux token={session.token} canGerer={held.has("niveaux-engagement.gerer")} />}
-          {activeId === "organisation" && <Organisation token={session.token} />}
-          {activeId === "evenements" && <Evenements token={session.token} />}
-          {activeId === "types-evenements" && <TypesEvenements token={session.token} />}
+          {activeId === "organisation" && (
+            <Organisation
+              token={session.token}
+              canGerer={held.has("organisation.administrer")}
+              canGererTribus={held.has("tribus.administrer")}
+            />
+          )}
+          {activeId === "evenements" && (
+            <Evenements
+              token={session.token}
+              canGerer={held.has("evenements.gerer")}
+              canSuperviser={held.has("evenements.superviser")}
+              canParametres={held.has("parametres.gerer")}
+            />
+          )}
+          {activeId === "types-evenements" && <TypesEvenements token={session.token} canGerer={held.has("evenements.gerer")} />}
           {activeId === "anniversaires" && <Anniversaires token={session.token} />}
           {activeId === "comptage" && <ComptageVoletB token={session.token} />}
           {activeId === "gouvernance-acces" && <GouvernanceAcces token={session.token} />}
-          {activeId === "utilisateurs" && <Utilisateurs token={session.token} />}
+          {activeId === "utilisateurs" && <Utilisateurs token={session.token} canSysteme={held.has("acces.systeme")} />}
           {activeId === "permissions" && <MatricePermissions token={session.token} />}
-          {activeId === "espaces-collab" && <EspacesCollab token={session.token} />}
+          {activeId === "espaces-collab" && <EspacesCollab token={session.token} canSysteme={held.has("acces.systeme")} />}
           {activeId === "technical-admins" && <TechnicalAdmins token={session.token} />}
-          {activeId === "terminaux" && <Terminaux token={session.token} />}
-          {activeId === "integrations" && <Integrations token={session.token} />}
+          {activeId === "terminaux" && <Terminaux token={session.token} canGerer={held.has("terminaux.administrer")} />}
+          {activeId === "integrations" && <Integrations token={session.token} canAdministrer={held.has("integrations.administrer")} canGererNotifs={held.has("notifications.gerer")} />}
           {activeId === "reglages-ia" && <ReglagesIA token={session.token} />}
-          {activeId === "consentements" && <Consentements token={session.token} />}
+          {activeId === "consentements" && <Consentements token={session.token} canGerer={held.has("consentements.administrer")} />}
           {activeId === "attestations" && <Attestations token={session.token} />}
           {activeId === "audit" && <JournalAudit token={session.token} />}
           {!activeId && <p className="muted">Aucune rubrique accessible avec vos permissions.</p>}

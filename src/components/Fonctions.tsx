@@ -25,6 +25,19 @@ const EMPTY: FonctionCreateInput = {
   ordre: 0,
 };
 
+// Normalise the free-typed key to the backend pattern (^[a-z0-9_]+$): lowercase,
+// strip accents and turn every other run into a single underscore.
+function slugCle(v: string): string {
+  return v
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
 /** CRUD editor for the honorific-function catalogue (titles used before names). */
 export function Fonctions({ token, canGerer = true }: { token: string; canGerer?: boolean }): JSX.Element {
   const fonctions = useResource(() => getFonctions(token), [token]);
@@ -36,14 +49,19 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  const cle = slugCle(form.cle);
+
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
-    if (!form.cle.trim() || !form.libelle_h.trim() || !form.libelle_f.trim()) return;
+    if (!cle || !form.libelle_h.trim() || !form.libelle_f.trim()) {
+      setError("La clé doit contenir au moins une lettre ou un chiffre.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       await createFonction(token, {
-        cle: form.cle.trim(),
+        cle,
         libelle_h: form.libelle_h.trim(),
         libelle_f: form.libelle_f.trim(),
         libelle_n: form.libelle_n.trim() || form.libelle_h.trim(),
@@ -112,6 +130,9 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
             VIP (calendriers d'anniversaire)
           </label>
         </div>
+        {form.cle.trim() && form.cle.trim() !== cle && (
+          <p className="muted small">Clé technique : <span className="mono">{cle || "(invalide)"}</span></p>
+        )}
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>

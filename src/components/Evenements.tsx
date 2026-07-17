@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ApiError,
@@ -10,10 +10,12 @@ import {
   getCoordinations,
   getEvenements,
   getIntendances,
+  getMesPreferences,
   getQuestionnaireFenetre,
   getSemaineJourDebut,
   getTribus,
   getTypesEvenements,
+  setMesPreferences,
   setQuestionnaireFenetre,
   setSemaineJourDebut,
 } from "../api.js";
@@ -70,7 +72,33 @@ function addDaysLocal(local: string, days: number): string {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
 }
 
-export function Evenements({ token }: { token: string }): JSX.Element {
+// Personal display preference (calendar vs list) for the events section. It is a
+// per-account view choice, kept in localStorage so it persists for THIS operator on
+// THIS browser and never changes what anyone else sees. Calendar is the default.
+const VUE_PREF_KEY = "adsum.bo.evenements.vue";
+function loadVuePref(): "calendrier" | "liste" {
+  try {
+    const v = typeof localStorage !== "undefined" ? localStorage.getItem(VUE_PREF_KEY) : null;
+    return v === "liste" ? "liste" : "calendrier";
+  } catch {
+    return "calendrier";
+  }
+}
+
+export function Evenements({
+  token,
+  canGerer = false,
+  canSuperviser = false,
+  canParametres = false,
+}: {
+  token: string;
+  // evenements.gerer: create an activity and manage it (edit/session/tags/cancel/delete).
+  canGerer?: boolean;
+  // evenements.superviser: trigger the attendance survey on an activity.
+  canSuperviser?: boolean;
+  // parametres.gerer: change the questionnaire window and the week start (org settings).
+  canParametres?: boolean;
+}): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
   const semaineDebut = useResource(() => getSemaineJourDebut(token), [token]);
@@ -89,11 +117,13 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  // Two page tabs so the page is never one long scroll: the calendar (view and
-  // manage) and the creation form (data entry).
-  const [ongletPage, setOngletPage] = useState<"calendrier" | "saisie">("calendrier");
-  // Month calendar is the primary view; the flat list stays available as a fallback.
-  const [vue, setVue] = useState<"calendrier" | "liste">("calendrier");
+  // Three page sections so the page is never one long scroll and so the global
+  // organisation settings are never mixed into the creation form: the activities
+  // section (view and manage), the creation form (data entry) and the settings.
+  const [ongletPage, setOngletPage] = useState<"calendrier" | "saisie" | "parametres">("calendrier");
+  // Month calendar is the default display; the flat list stays available. The choice
+  // is a personal preference persisted per operator (see loadVuePref / choisirVue).
+  const [vue, setVue] = useState<"calendrier" | "liste">(loadVuePref);
   // Recurrence: how the activity repeats and over how many dates (1 = single).
   const [repetition, setRepetition] = useState<Repetition>("aucune");
   const [nbOccurrences, setNbOccurrences] = useState(1);
@@ -110,6 +140,30 @@ export function Evenements({ token }: { token: string }): JSX.Element {
   function saveFenetre(heures: number): void {
     setFenetreLocal(null);
     void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
+  }
+
+  // The server-side preference is authoritative (it follows the account across
+  // browsers); localStorage stays as an instant cache for the very first paint.
+  useEffect(() => {
+    let alive = true;
+    getMesPreferences(token)
+      .then((p) => {
+        if (alive && (p.vue_evenements === "calendrier" || p.vue_evenements === "liste")) setVue(p.vue_evenements);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [token]);
+
+  // Change the display mode and remember it for this operator only: instantly in
+  // this browser (localStorage) and durably on the account (server preference).
+  function choisirVue(v: "calendrier" | "liste"): void {
+    setVue(v);
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(VUE_PREF_KEY, v);
+    } catch {
+      /* private mode: the choice stays for this session only. */
+    }
+    void setMesPreferences(token, { vue_evenements: v }).catch(() => undefined);
   }
 
   function saveSemaineDebut(jour: number): void {
@@ -254,17 +308,24 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button type="button" className={`btn btn-inline ${ongletPage === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("calendrier")}>
-            Calendrier
+            Activités
           </button>
-          <button type="button" className={`btn btn-inline ${ongletPage === "saisie" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("saisie")}>
-            + Nouvelle activité
+          {canGerer && (
+            <button type="button" className={`btn btn-inline ${ongletPage === "saisie" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("saisie")}>
+              + Nouvelle activité
+            </button>
+          )}
+          <button type="button" className={`btn btn-inline ${ongletPage === "parametres" ? "btn-primary" : "btn-ghost"}`} onClick={() => setOngletPage("parametres")}>
+            Paramètres
           </button>
         </div>
       </header>
 
       {ongletPage === "saisie" && (
       <>
+      {canGerer ? (
       <form className="form-card" onSubmit={submit}>
+        <h2 className="card-title" style={{ marginTop: 0 }}>Créer une activité</h2>
         <div className="form-grid">
           <label className="full">
             <span>Titre *</span>
@@ -516,14 +577,32 @@ export function Evenements({ token }: { token: string }): JSX.Element {
         {error && <p className="banner banner-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-inline" disabled={busy}>
-            {busy ? "Création..." : "+ Nouvel événement"}
+            {busy ? "Création en cours..." : "Créer l'activité"}
           </button>
         </div>
       </form>
+      ) : (
+        <p className="banner banner-info small">
+          Création d'activité en lecture seule. La planification et la gestion des événements requièrent la permission
+          <span className="mono"> evenements.gerer</span>.
+        </p>
+      )}
+      </>
+      )}
+
+      {ongletPage === "parametres" && (
+      <>
+      <div className="page-head" style={{ marginBottom: 8 }}>
+        <div>
+          <h2 className="card-title" style={{ margin: 0 }}>Paramètres des événements</h2>
+          <p className="muted small">Réglages globaux de l'organisation. Ils s'appliquent à toutes les activités et ne sont jamais modifiés lors de la création d'une activité.</p>
+        </div>
+      </div>
 
       <section className="card">
         <h2 className="card-title">Fenêtre des questionnaires</h2>
         <p className="muted small">Durée, en heures après la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
+        {!canParametres && <p className="banner banner-info small">Lecture seule : modifier ce réglage requiert la permission de gestion des paramètres.</p>}
         <div className="toolbar">
           <input
             type="range"
@@ -531,6 +610,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
             max={72}
             step={1}
             value={fenetreValue}
+            disabled={!canParametres}
             onChange={(e) => setFenetreLocal(Number(e.target.value))}
             onPointerUp={(e) => saveFenetre(Number(e.currentTarget.value))}
             onKeyUp={(e) => saveFenetre(Number(e.currentTarget.value))}
@@ -551,6 +631,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
           <select
             className="search"
             value={semaineDebut.data?.jour ?? 0}
+            disabled={!canParametres}
             onChange={(e) => saveSemaineDebut(Number(e.target.value))}
           >
             {["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"].map((j, i) => (
@@ -568,18 +649,21 @@ export function Evenements({ token }: { token: string }): JSX.Element {
 
       <div className="toolbar" style={{ justifyContent: "space-between", alignItems: "center", margin: "6px 0 10px" }}>
         <h2 className="card-title" style={{ margin: 0 }}>Planning des activités</h2>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button type="button" className={`btn btn-inline ${vue === "calendrier" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("calendrier")}>
-            Calendrier
-          </button>
-          <button type="button" className={`btn btn-inline ${vue === "liste" ? "btn-primary" : "btn-ghost"}`} onClick={() => setVue("liste")}>
-            Liste
-          </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span className="muted small">Affichage</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" className={`btn btn-inline ${vue === "calendrier" ? "btn-primary" : "btn-ghost"}`} aria-pressed={vue === "calendrier"} onClick={() => choisirVue("calendrier")}>
+              Calendrier
+            </button>
+            <button type="button" className={`btn btn-inline ${vue === "liste" ? "btn-primary" : "btn-ghost"}`} aria-pressed={vue === "liste"} onClick={() => choisirVue("liste")}>
+              Liste
+            </button>
+          </div>
         </div>
       </div>
 
       {vue === "calendrier" ? (
-        <CalendrierEvenements token={token} evenements={evenements.data ?? []} onChanged={evenements.reload} />
+        <CalendrierEvenements token={token} evenements={evenements.data ?? []} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={evenements.reload} />
       ) : (
         <>
           {(evenements.data ?? []).map((ev) => (
@@ -607,7 +691,7 @@ export function Evenements({ token }: { token: string }): JSX.Element {
                   </button>
                 </div>
               </div>
-              {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={evenements.reload} />}
+              {openId === ev.id && <EvenementGestion token={token} evenement={ev} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={evenements.reload} />}
             </section>
           ))}
           {!evenements.loading && (evenements.data ?? []).length === 0 && (

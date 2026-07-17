@@ -11,7 +11,7 @@ import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 
 /** Editor for the legal documents members must read and sign at registration. */
-export function Consentements({ token }: { token: string }): JSX.Element {
+export function Consentements({ token, canGerer = false }: { token: string; canGerer?: boolean }): JSX.Element {
   const docs = useResource(() => getConsentDocsAdmin(token), [token]);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -34,6 +34,13 @@ export function Consentements({ token }: { token: string }): JSX.Element {
           </p>
         </div>
       </header>
+
+      {!canGerer && (
+        <p className="banner banner-info small">
+          Documents en lecture seule. La publication d'une nouvelle version requiert la permission
+          <span className="mono"> consentements.administrer</span>.
+        </p>
+      )}
 
       {docs.error && <p className="banner banner-error">{docs.error}</p>}
       {docs.loading && <p className="muted">Chargement...</p>}
@@ -65,6 +72,7 @@ export function Consentements({ token }: { token: string }): JSX.Element {
           key={current.cle}
           token={token}
           doc={current}
+          canGerer={canGerer}
           onPublished={() => docs.reload()}
         />
       )}
@@ -95,10 +103,12 @@ function toDraft(doc: ConsentDocAdmin): Draft {
 function DocEditor({
   token,
   doc,
+  canGerer,
   onPublished,
 }: {
   token: string;
   doc: ConsentDocAdmin;
+  canGerer: boolean;
   onPublished: () => void;
 }): JSX.Element {
   const [form, setForm] = useState<Draft>(() => toDraft(doc));
@@ -217,11 +227,15 @@ function DocEditor({
       {error && <p className="banner banner-error">{error}</p>}
       {note && <p className="banner banner-ok">{note}</p>}
 
-      <div className="form-actions">
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void publish()}>
-          {busy ? "Publication..." : "Publier une nouvelle version"}
-        </button>
-      </div>
+      {canGerer ? (
+        <div className="form-actions">
+          <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void publish()}>
+            {busy ? "Publication..." : "Publier une nouvelle version"}
+          </button>
+        </div>
+      ) : (
+        <p className="muted small">Lecture seule : la publication requiert la permission consentements.administrer.</p>
+      )}
     </section>
   );
 }

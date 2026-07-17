@@ -72,7 +72,11 @@ export function EditeurGroupes({
   }, [charger]);
 
   const groupeChoisi = catalogue.find((g) => g.id === groupeId);
-  const scopable = groupeChoisi ? !GLOBAL_ONLY_ROLES.has(groupeChoisi.role_accorde) : false;
+  // A permissions group only grants named permissions, never a platform role, so it
+  // can only be granted globally: never propose a scoped perimetre for it.
+  const scopable = groupeChoisi
+    ? groupeChoisi.mode !== "permissions" && !GLOBAL_ONLY_ROLES.has(groupeChoisi.role_accorde)
+    : false;
   const unites: UniteOrg[] =
     perimetres && porteeType !== "global" ? (perimetres[porteeType as keyof PerimetresDisponibles] ?? []) : [];
 
@@ -261,8 +265,16 @@ export function EditeurGroupes({
       </div>
       {groupeChoisi && (
         <p style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-          <span className="muted small">Ce groupe accorde le rôle {roleLabel(groupeChoisi.role_accorde)}</span>
-          <RisqueBadge risque={risqueDeGroupe(groupeChoisi)} />
+          {groupeChoisi.mode === "permissions" ? (
+            <span className="muted small">
+              Groupe de permissions ({groupeChoisi.permissions.length} permission{groupeChoisi.permissions.length > 1 ? "s" : ""})
+            </span>
+          ) : (
+            <>
+              <span className="muted small">Ce groupe accorde le rôle {roleLabel(groupeChoisi.role_accorde)}</span>
+              <RisqueBadge risque={risqueDeGroupe(groupeChoisi)} />
+            </>
+          )}
           {!scopable && <span className="muted small">, uniquement en global.</span>}
           {scopable && porteeType === "global" && <span className="muted small">, ici en GLOBAL (toute la base).</span>}
           {scopable && porteeType !== "global" && <span className="muted small">, borné à un périmètre (hermétique).</span>}

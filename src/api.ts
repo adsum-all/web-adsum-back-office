@@ -575,11 +575,20 @@ function messageForStatus(status: number, fallback: string): string {
 
 /** Read the server-provided reason (FastAPI `detail`) so an actionable message,
  * e.g. a 409 "still referenced" refusal, is shown instead of an opaque fallback.
- * Only surfaces string details; structured details fall back to the status text. */
+ * A plain string detail is surfaced as-is; a 422 validation error returns `detail`
+ * as a list of {loc, msg, type}, whose `msg` fields are concatenated so the reason
+ * is actionable; anything else falls back to the status-based message. */
 async function detailOr(res: Response, fallback: string): Promise<string> {
   try {
     const body = (await res.json()) as { detail?: unknown };
-    if (typeof body?.detail === "string" && body.detail.trim()) return body.detail;
+    const detail = body?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+      const msgs = detail
+        .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+        .filter((m) => m.trim());
+      if (msgs.length > 0) return msgs.join("; ");
+    }
   } catch {
     /* body not JSON: keep the status-based message */
   }
@@ -690,6 +699,18 @@ export async function loginVerify(email: string, password: string, code: string,
 
 export function getMe(token: string): Promise<Me> {
   return authedGet<Me>("/api/v1/auth/me", token, "Session indisponible");
+}
+
+/** Server-side personal display preferences of the signed-in account, so the choice
+ * follows the account across browsers instead of living in one browser only. */
+export interface PreferencesCompte {
+  vue_evenements: "calendrier" | "liste" | null;
+}
+export function getMesPreferences(token: string): Promise<PreferencesCompte> {
+  return authedGet<PreferencesCompte>("/api/v1/auth/me/preferences", token, "Préférences indisponibles");
+}
+export function setMesPreferences(token: string, input: Partial<PreferencesCompte>): Promise<PreferencesCompte> {
+  return authedSend<PreferencesCompte>("/api/v1/auth/me/preferences", token, "PUT", input, "Enregistrement impossible");
 }
 
 export function getMyPermissions(token: string): Promise<MyPermissions> {
@@ -1555,6 +1576,8 @@ export interface GroupeAcces {
   membres_count: number;
   systeme: boolean;
   actif: boolean;
+  /** Optional application this group serves (application.code), for per-app grouping. */
+  application_code: string | null;
 }
 
 export interface CreateGroupeInput {
@@ -1564,6 +1587,7 @@ export interface CreateGroupeInput {
   mode: "role" | "permissions";
   role_accorde?: string | null;
   permissions?: string[];
+  application_code?: string | null;
 }
 
 export interface UpdateGroupeInput {
@@ -1571,6 +1595,7 @@ export interface UpdateGroupeInput {
   description?: string | null;
   actif?: boolean;
   permissions?: string[];
+  application_code?: string | null;
 }
 
 export interface Appartenance {
@@ -1690,6 +1715,31 @@ export function getComptage(token: string, evenementId: string): Promise<Comptag
   return authedGet<ComptageResume>(`/api/v1/admin/comptage/${evenementId}`, token, "Comptage indisponible");
 }
 
+export interface EvenementEligible {
+  id: string;
+  titre: string;
+  debut: string | null;
+  lieu: string | null;
+  annule: boolean;
+}
+export interface EvenementsEligibles {
+  items: EvenementEligible[];
+  total: number;
+}
+/** Server-filtered, paginated list of the events eligible for volet B counting, so the
+ * selector stays fast and never downloads the whole history to the browser. */
+export function getEvenementsEligiblesComptage(
+  token: string,
+  opts: { q?: string; periode?: "pertinents" | "a_venir" | "passes" | "tous"; limit?: number; offset?: number } = {},
+): Promise<EvenementsEligibles> {
+  const p = new URLSearchParams();
+  if (opts.q) p.set("q", opts.q);
+  if (opts.periode) p.set("periode", opts.periode);
+  p.set("limit", String(opts.limit ?? 25));
+  p.set("offset", String(opts.offset ?? 0));
+  return authedGet<EvenementsEligibles>(`/api/v1/admin/comptage/evenements-eligibles?${p.toString()}`, token, "Événements indisponibles");
+}
+
 export function addComptage(
   token: string,
   input: { evenement_id: string; segment?: string; total_membres?: number; total_anonyme?: number },
@@ -1796,8 +1846,9 @@ export function setMembreApplication(token: string, membreId: string, code: stri
 }
 
 /** Suggest the next unused colour so a new type never collides with an existing one. */
-export function getCouleurSuggeree(token: string): Promise<{ couleur: string }> {
-  return authedGet<{ couleur: string }>("/api/v1/admin/types-evenements/couleur-suggeree", token, "Couleur indisponible");
+export function getCouleurSuggeree(token: string, eviter?: string): Promise<{ couleur: string }> {
+  const q = eviter ? `?eviter=${encodeURIComponent(eviter)}` : "";
+  return authedGet<{ couleur: string }>(`/api/v1/admin/types-evenements/couleur-suggeree${q}`, token, "Couleur indisponible");
 }
 
 export function createTypeEvenement(

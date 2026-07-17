@@ -32,10 +32,14 @@ function longDay(key: string): string {
 export function CalendrierEvenements({
   token,
   evenements,
+  canGerer = false,
+  canSuperviser = false,
   onChanged,
 }: {
   token: string;
   evenements: Evenement[];
+  canGerer?: boolean;
+  canSuperviser?: boolean;
   onChanged: () => void;
 }): JSX.Element {
   const now = useMemo(() => new Date(), []);
@@ -224,7 +228,7 @@ export function CalendrierEvenements({
                         </button>
                       </div>
                     </div>
-                    {openId === ev.id && <EvenementGestion token={token} evenement={ev} onChanged={onChanged} />}
+                    {openId === ev.id && <EvenementGestion token={token} evenement={ev} canGerer={canGerer} canSuperviser={canSuperviser} onChanged={onChanged} />}
                   </section>
                 ))
               )}

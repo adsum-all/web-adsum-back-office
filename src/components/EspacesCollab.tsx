@@ -65,7 +65,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 const ROLE_ORDRE = ["proprietaire", "admin", "membre", "observateur"];
 
-export function EspacesCollab({ token }: { token: string }): JSX.Element {
+export function EspacesCollab({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
   const [onglet, setOnglet] = useState("espaces");
   const espaces = useResource(() => listCollabEspaces(token), [token]);
   const comptes = useResource<CollabCompte[]>(() => listCollabComptes(token), [token]);
@@ -146,8 +146,14 @@ export function EspacesCollab({ token }: { token: string }): JSX.Element {
 
       {onglet === "bots" && (
         <div style={{ marginTop: 16 }}>
-          <BotDemandesPanel token={token} />
-          <BotsConfiguresPanel token={token} comptes={comptes.data ?? []} />
+          {!canSysteme && (
+            <p className="banner banner-info small">
+              Configuration et dissociation des bots en lecture seule. Ces actions requièrent la permission
+              <span className="mono"> acces.systeme</span>.
+            </p>
+          )}
+          <BotDemandesPanel token={token} canSysteme={canSysteme} />
+          <BotsConfiguresPanel token={token} comptes={comptes.data ?? []} canSysteme={canSysteme} />
           <BotFatherAide />
         </div>
       )}
@@ -424,7 +430,7 @@ export function ReglagesCollabPanel({ token }: { token: string }): JSX.Element {
   );
 }
 
-export function BotDemandesPanel({ token }: { token: string }): JSX.Element {
+export function BotDemandesPanel({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
   const [data, setData] = useState<BotDemandes | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const reload = (): void => { void getBotDemandes(token).then(setData).catch(() => setData({ etapes: [], espaces: [] })); };
@@ -445,14 +451,14 @@ export function BotDemandesPanel({ token }: { token: string }): JSX.Element {
       {data.espaces.length === 0 ? (
         <p className="muted small">Aucun espace en attente de configuration.</p>
       ) : (
-        data.espaces.map((e) => <BotDemandeRow key={e.id} token={token} espace={e} onDone={() => { reload(); setMsg(`Bot de « ${e.nom} » configuré.`); }} />)
+        data.espaces.map((e) => <BotDemandeRow key={e.id} token={token} espace={e} canSysteme={canSysteme} onDone={() => { reload(); setMsg(`Bot de « ${e.nom} » configuré.`); }} />)
       )}
       {msg && <p className="banner banner-ok small" style={{ marginTop: 6 }}>{msg}</p>}
     </section>
   );
 }
 
-function BotDemandeRow({ token, espace, onDone }: { token: string; espace: BotDemande; onDone: () => void }): JSX.Element {
+function BotDemandeRow({ token, espace, canSysteme = false, onDone }: { token: string; espace: BotDemande; canSysteme?: boolean; onDone: () => void }): JSX.Element {
   const [username, setUsername] = useState(espace.username ?? "");
   const [tok, setTok] = useState("");
   const [busy, setBusy] = useState(false);
@@ -471,15 +477,21 @@ function BotDemandeRow({ token, espace, onDone }: { token: string; espace: BotDe
           {espace.statut === "demande" ? "Configuration demandée" : "Non configuré"}
         </span>
       </div>
-      <input className="search" style={{ maxWidth: 200 }} placeholder="username du bot (sans @)" value={username} onChange={(e) => setUsername(e.target.value)} />
-      <input type="password" className="search" style={{ maxWidth: 240 }} placeholder="token BotFather (123:ABC...)" value={tok} onChange={(e) => setTok(e.target.value)} />
-      <button type="button" className="btn btn-primary btn-inline" disabled={busy || !username.trim() || !tok.trim()} onClick={() => void save()}>Configurer</button>
-      {err && <span className="muted small" style={{ color: "var(--adsum-danger)" }}>{err}</span>}
+      {canSysteme ? (
+        <>
+          <input className="search" style={{ maxWidth: 200 }} placeholder="username du bot (sans @)" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input type="password" className="search" style={{ maxWidth: 240 }} placeholder="token BotFather (123:ABC...)" value={tok} onChange={(e) => setTok(e.target.value)} />
+          <button type="button" className="btn btn-primary btn-inline" disabled={busy || !username.trim() || !tok.trim()} onClick={() => void save()}>Configurer</button>
+          {err && <span className="muted small" style={{ color: "var(--adsum-danger)" }}>{err}</span>}
+        </>
+      ) : (
+        <span className="muted small">Lecture seule</span>
+      )}
     </div>
   );
 }
 
-export function BotsConfiguresPanel({ token, comptes }: { token: string; comptes: CollabCompte[] }): JSX.Element {
+export function BotsConfiguresPanel({ token, comptes, canSysteme = false }: { token: string; comptes: CollabCompte[]; canSysteme?: boolean }): JSX.Element {
   const [data, setData] = useState<BotsConfigures | null>(null);
   const reload = (): void => { void getBotsConfigures(token).then(setData).catch(() => setData({ bots: [] })); };
   useEffect(reload, [token]);
@@ -495,13 +507,13 @@ export function BotsConfiguresPanel({ token, comptes }: { token: string; comptes
       {data.bots.length === 0 ? (
         <p className="muted small">Aucun bot d'instruction configuré pour l'instant.</p>
       ) : (
-        data.bots.map((b) => <BotConfigureRow key={b.espace_id} token={token} bot={b} comptes={comptes} onChanged={reload} />)
+        data.bots.map((b) => <BotConfigureRow key={b.espace_id} token={token} bot={b} comptes={comptes} canSysteme={canSysteme} onChanged={reload} />)
       )}
     </section>
   );
 }
 
-function BotConfigureRow({ token, bot, comptes, onChanged }: { token: string; bot: BotConfigure; comptes: CollabCompte[]; onChanged: () => void }): JSX.Element {
+function BotConfigureRow({ token, bot, comptes, canSysteme = false, onChanged }: { token: string; bot: BotConfigure; comptes: CollabCompte[]; canSysteme?: boolean; onChanged: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [confirme, setConfirme] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -524,7 +536,9 @@ function BotConfigureRow({ token, bot, comptes, onChanged }: { token: string; bo
           <strong>{bot.nom}</strong>{" "}
           {bot.username && <span className="badge badge-ok">@{bot.username}</span>}
         </div>
-        {!confirme ? (
+        {!canSysteme ? (
+          <span className="muted small">Lecture seule</span>
+        ) : !confirme ? (
           <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirme(true)}>
             Dissocier le bot
           </button>

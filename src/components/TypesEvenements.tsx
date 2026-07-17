@@ -11,6 +11,33 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 
+// Perceptual (CIELAB) colour distance, mirroring the server, so the form can warn when a
+// manually chosen colour is visually too close to an existing type and would be hard to
+// tell apart on the calendar. A CIE76 distance under ~22 reads as "almost the same colour".
+function hexToLab(hex: string): [number, number, number] | null {
+  const h = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  const lin = (i: number): number => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const r = lin(0);
+  const g = lin(2);
+  const b = lin(4);
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const f = (t: number): number => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(x);
+  const fy = f(y);
+  const fz = f(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function deltaE(a: [number, number, number], b: [number, number, number]): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+const SEUIL_PROCHE = 22;
+
 /**
  * Administrable catalogue of standard/recurring events. Each type carries a UNIQUE
  * colour (never duplicated) that distinguishes its events on the member calendar.
@@ -18,7 +45,7 @@ import { useResource } from "../useResource.js";
  * name/description/colour, publish/unpublish, delete. Nothing is hardcoded: the list
  * lives in the database and is what the planning dropdowns read.
  */
-export function TypesEvenements({ token }: { token: string }): JSX.Element {
+export function TypesEvenements({ token, canGerer = false }: { token: string; canGerer?: boolean }): JSX.Element {
   const types = useResource(() => getTypesEvenements(token), [token]);
   const [error, setError] = useState<string | null>(null);
   const [nom, setNom] = useState("");
@@ -56,6 +83,17 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
 
   const items = (types.data ?? []).filter((t) => match(t.nom, q) || match(t.code, q));
 
+  // Name of an existing type whose colour is visually too close to the chosen one, if any,
+  // so the operator is warned before creating a hard-to-distinguish type. The server also
+  // rejects an exact duplicate colour with a clear 409.
+  const labChoisie = hexToLab(couleur);
+  const procheDe = labChoisie
+    ? (types.data ?? []).find((t) => {
+        const lab = hexToLab(t.couleur);
+        return lab ? deltaE(labChoisie, lab) < SEUIL_PROCHE && t.couleur.toUpperCase() !== couleur.toUpperCase() : false;
+      })
+    : undefined;
+
   return (
     <div className="page">
       <header className="page-head">
@@ -69,7 +107,14 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
         </div>
       </header>
       {error && <p className="banner banner-error">{error}</p>}
+      {!canGerer && (
+        <p className="banner banner-info small">
+          Catalogue en lecture seule. La création et la modification des types d'événements requièrent la permission
+          <span className="mono"> evenements.gerer</span>.
+        </p>
+      )}
 
+      {canGerer && (
       <section className="card">
         <h2 className="card-title">Nouveau type d'événement</h2>
         <form className="form-card" onSubmit={ajouter}>
@@ -101,11 +146,17 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
                 <button
                   type="button"
                   className="btn btn-ghost btn-inline"
-                  onClick={() => getCouleurSuggeree(token).then((r) => setCouleur(r.couleur)).catch(() => undefined)}
+                  title="Proposer une couleur nettement différente de celles déjà utilisées"
+                  onClick={() => getCouleurSuggeree(token, couleur).then((r) => setCouleur(r.couleur)).catch(() => undefined)}
                 >
-                  Couleur libre
+                  Générer une autre couleur distincte
                 </button>
               </span>
+              {procheDe && (
+                <span className="small" style={{ display: "block", marginTop: 4, color: "#c0392b" }}>
+                  Cette couleur est très proche de celle du type « {procheDe.nom} ». Choisissez-en une plus distincte pour bien les différencier au calendrier.
+                </span>
+              )}
             </label>
           </div>
           <div className="form-actions">
@@ -113,6 +164,7 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
           </div>
         </form>
       </section>
+      )}
 
       <section className="card">
         <h2 className="card-title">Catalogue ({(types.data ?? []).length})</h2>
@@ -126,6 +178,7 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
               key={t.id}
               token={token}
               type={t}
+              canGerer={canGerer}
               editing={editId === t.id}
               onEdit={() => setEditId(t.id)}
               onClose={() => setEditId(null)}
@@ -143,6 +196,7 @@ export function TypesEvenements({ token }: { token: string }): JSX.Element {
 function TypeRow({
   token,
   type,
+  canGerer,
   editing,
   onEdit,
   onClose,
@@ -151,6 +205,7 @@ function TypeRow({
 }: {
   token: string;
   type: TypeEvenement;
+  canGerer: boolean;
   editing: boolean;
   onEdit: () => void;
   onClose: () => void;
@@ -218,6 +273,13 @@ function TypeRow({
         {type.description && <span className="muted">{type.description}</span>}
       </div>
       <div className="org-row-actions">
+        {!canGerer ? (
+          <>
+            <span className={`pill ${type.publie ? "pill-on" : "pill-off"}`}>{type.publie ? "Publié" : "Masqué"}</span>
+            <span className="muted small">Lecture seule</span>
+          </>
+        ) : (
+        <>
         <button
           type="button"
           className={`pill ${type.publie ? "pill-on" : "pill-off"}`}
@@ -243,6 +305,8 @@ function TypeRow({
           </>
         ) : (
           <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirmDelete(true)}>Supprimer</button>
+        )}
+        </>
         )}
       </div>
     </li>
