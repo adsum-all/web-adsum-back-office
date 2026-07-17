@@ -6,6 +6,7 @@ import {
   type Evenement,
   type EvenementCreateInput,
   type TypeDiffusion,
+  getCiblesActivite,
   getCommissions,
   getCoordinations,
   getIntendances,
@@ -25,18 +26,10 @@ import { Tabs } from "./Tabs.js";
 
 type EvtTab = "infos" | "destinataires" | "contenu" | "serie";
 
-const CIBLE_LABELS: Record<CibleType, string> = {
-  general: "Toute la communauté (général)",
-  coordination: "Coordination",
-  commission: "Commission / Mission",
-  intendance: "Intendance",
-  tribu: "Tribu",
-  bergers: "Les Bergers",
-  responsables: "Les responsables (avec fonction)",
-  liste: "Liste d'adresses e-mail (groupe ad hoc)",
-};
-
-const CIBLE_UNITES: CibleType[] = ["coordination", "commission", "intendance", "tribu"];
+// The destination list comes from the administrable referential
+// (GET /reference/cibles-activite): no hardcoded destination here. The current
+// (possibly deactivated) destination of the event stays selectable so an old
+// activity can be edited without being forced onto another audience.
 
 /** Compact edit form for an existing activity's core details, reachable from the
  * calendar. Reuses the create validation server-side (PUT sends a full payload).
@@ -88,15 +81,21 @@ export function EvenementEdition({
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
+  // Administrable destinations referential: single source of the target list.
+  const cibles = useResource(() => getCiblesActivite(token), [token]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
+  const cibleCourante = (cibles.data ?? []).find((c) => c.code === cibleType);
+  const besoinUnite = cibleCourante?.besoin_unite ?? false;
+  const estListe = cibleCourante?.type_regle === "liste";
+  const uniteTable = cibleCourante?.parametres.table ?? "";
   const cibleOptions: { id: string; nom: string }[] =
-    cibleType === "coordination" ? (coordinations.data ?? [])
-      : cibleType === "commission" ? (commissions.data ?? [])
-        : cibleType === "intendance" ? (intendances.data ?? [])
-          : cibleType === "tribu" ? (tribus.data ?? []) : [];
+    uniteTable === "coordination" ? (coordinations.data ?? [])
+      : uniteTable === "commission" ? (commissions.data ?? [])
+        : uniteTable === "intendance" ? (intendances.data ?? [])
+          : uniteTable === "tribu" ? (tribus.data ?? []) : [];
   // When the activity is part of a series, the admin can apply the details (not
   // the date) to every occurrence of the series at once.
   const estSerie = !!evenement.serie_id;
@@ -107,14 +106,14 @@ export function EvenementEdition({
       setError("Le titre et la date de début sont obligatoires.");
       return;
     }
-    if (CIBLE_UNITES.includes(cibleType) && !cibleId) {
+    if (besoinUnite && !cibleId) {
       setError("Choisissez l'unité ciblée ou repassez sur « général ».");
       return;
     }
-    const emails = cibleType === "liste"
+    const emails = estListe
       ? emailsTexte.split(/[\n,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
       : [];
-    if (cibleType === "liste" && emails.length === 0) {
+    if (estListe && emails.length === 0) {
       setError("Ajoutez au moins une adresse e-mail pour un ciblage par liste.");
       return;
     }
@@ -132,7 +131,7 @@ export function EvenementEdition({
         type_diffusion: diffusion,
         visibilite,
         cible_type: cibleType,
-        cible_id: CIBLE_UNITES.includes(cibleType) ? cibleId : null,
+        cible_id: besoinUnite ? cibleId : null,
         cible_genre: (cibleGenre || null) as EvenementCreateInput["cible_genre"],
         cible_age_min: ageMin ? Number(ageMin) : null,
         cible_age_max: ageMax ? Number(ageMax) : null,
@@ -265,10 +264,15 @@ export function EvenementEdition({
             <InfoTip title="Destinataires" text="Qui est concerné : toute la communauté, une unité (coordination, commission/mission, intendance, tribu), les Bergers, les responsables, ou une liste d'e-mails. Affinez ensuite par genre et âge. Modifiable à tout moment tant que l'activité n'a pas eu lieu." />
           </span>
           <select value={cibleType} onChange={(e) => { setCibleType(e.target.value as CibleType); setCibleId(null); }}>
-            {(Object.keys(CIBLE_LABELS) as CibleType[]).map((k) => <option key={k} value={k}>{CIBLE_LABELS[k]}</option>)}
+            {(cibles.data ?? []).map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
+            {/* An event may carry a destination that was deactivated since: keep it
+                selectable so editing does not silently retarget the audience. */}
+            {cibleCourante == null && (cibles.data ?? []).length > 0 && (
+              <option value={cibleType}>{cibleType} (destination désactivée)</option>
+            )}
           </select>
         </label>
-        {CIBLE_UNITES.includes(cibleType) && (
+        {besoinUnite && (
           <label>
             <span>Unité ciblée *</span>
             <select value={cibleId ?? ""} onChange={(e) => setCibleId(e.target.value || null)}>
@@ -277,7 +281,7 @@ export function EvenementEdition({
             </select>
           </label>
         )}
-        {cibleType === "liste" && (
+        {estListe && (
           <label className="full">
             <span>Adresses e-mail *</span>
             <textarea value={emailsTexte} onChange={(e) => setEmailsTexte(e.target.value)} rows={2} placeholder={"une adresse par ligne"} />

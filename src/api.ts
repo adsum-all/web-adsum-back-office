@@ -494,15 +494,59 @@ export function supprimerPieceEvenement(token: string, pieceId: string): Promise
   return request<void>(`/api/v1/admin/evenements/pieces/${pieceId}`, token, { method: "DELETE" }, "Suppression impossible");
 }
 
-export type CibleType =
-  | "general"
-  | "coordination"
-  | "commission"
-  | "intendance"
-  | "tribu"
-  | "bergers"
-  | "responsables"
-  | "liste";
+// Administrable destinations referential (cible_activite). The activity forms
+// load their destination list from here, so an administrator can add, rename,
+// reorder or deactivate a destination without any code change.
+export interface CibleActivite {
+  code: string;
+  libelle: string;
+  description: string | null;
+  categorie: string;
+  type_regle: string;
+  /** True when the destination targets one organisational unit (cible_id required). */
+  besoin_unite: boolean;
+  ordre: number;
+  statut: "actif" | "inactif" | "archive";
+  /** Safe rule template parameters (validated server-side, never free rules). */
+  parametres: { table?: string; attribut?: string; fonction_cles?: string[]; toutes_fonctions?: boolean };
+}
+export function getCiblesActivite(token: string): Promise<CibleActivite[]> {
+  return authedGet<CibleActivite[]>("/api/v1/reference/cibles-activite", token, "Destinations indisponibles");
+}
+export function getCiblesActiviteAdmin(token: string): Promise<CibleActivite[]> {
+  return authedGet<CibleActivite[]>("/api/v1/admin/cibles-activite", token, "Destinations indisponibles");
+}
+export function creerCibleActivite(
+  token: string,
+  payload: { code: string; libelle: string; description?: string | null; categorie?: string; fonction_cles: string[]; ordre?: number },
+): Promise<CibleActivite> {
+  return authedSend<CibleActivite>("/api/v1/admin/cibles-activite", token, "POST", payload, "Création impossible");
+}
+export function modifierCibleActivite(
+  token: string,
+  code: string,
+  payload: { libelle?: string; description?: string | null; ordre?: number; statut?: string; fonction_cles?: string[] },
+): Promise<CibleActivite> {
+  return authedSend<CibleActivite>(`/api/v1/admin/cibles-activite/${code}`, token, "PATCH", payload, "Modification impossible");
+}
+export function supprimerCibleActivite(token: string, code: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/v1/admin/cibles-activite/${code}`, token, { method: "DELETE" }, "Suppression impossible");
+}
+export interface ApercuCible {
+  code: string;
+  libelle: string;
+  nombre: number;
+  type_regle: string;
+}
+export function apercuCibleActivite(token: string, code: string, cibleId?: string | null): Promise<ApercuCible> {
+  const q = cibleId ? `?cible_id=${encodeURIComponent(cibleId)}` : "";
+  return authedGet<ApercuCible>(`/api/v1/admin/cibles-activite/${code}/apercu${q}`, token, "Aperçu indisponible");
+}
+
+/** Stable destination code from the administrable referential (cible_activite).
+ * The historical union is kept for readability but any referential code is valid,
+ * so the type is an open string: new destinations need no front change. */
+export type CibleType = string;
 /** Scope of a series operation: the clicked date only, or every date of the series. */
 export type PorteeSerie = "cette_occurrence" | "toute_la_serie";
 

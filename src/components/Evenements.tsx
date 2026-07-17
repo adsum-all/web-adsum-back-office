@@ -5,7 +5,9 @@ import {
   type CibleType,
   type EvenementCreateInput,
   ajouterPieceEvenement,
+  apercuCibleActivite,
   createEvenement,
+  getCiblesActivite,
   getCommissions,
   getCoordinations,
   getEvenements,
@@ -24,6 +26,7 @@ import { FUSEAUX } from "../lib/fuseaux.js";
 import { zonedToUtc } from "../lib/tz.js";
 import { useResource } from "../useResource.js";
 import { CalendrierEvenements } from "./CalendrierEvenements.js";
+import { DestinationsCiblage } from "./DestinationsCiblage.js";
 import { EvenementGestion } from "./EvenementGestion.js";
 import { PiecesACharger } from "./PiecesACharger.js";
 import { lireFichier } from "./PiecesEvenement.js";
@@ -44,19 +47,9 @@ const EMPTY: EvenementCreateInput = {
   fuseau_horaire: "Africa/Abidjan",
 };
 
-const CIBLE_LABELS: Record<CibleType, string> = {
-  general: "Toute la communauté (général)",
-  coordination: "Coordination",
-  commission: "Commission / Mission",
-  intendance: "Intendance",
-  tribu: "Tribu",
-  bergers: "Les Bergers",
-  responsables: "Les responsables (avec fonction)",
-  liste: "Liste d'adresses e-mail (groupe ad hoc)",
-};
-
-// Target types that need an organisational unit selected (a second dropdown).
-const CIBLE_UNITES: CibleType[] = ["coordination", "commission", "intendance", "tribu"];
+// The destination list (labels, order, unit requirement) comes from the
+// administrable referential (GET /reference/cibles-activite): an administrator
+// can add, rename, reorder or deactivate a destination without any code change.
 
 type Repetition = "aucune" | "quotidienne" | "hebdomadaire" | "dates_precises";
 type DatePrecise = { debut: string; mode: string };
@@ -108,6 +101,8 @@ export function Evenements({
   const commissions = useResource(() => getCommissions(token), [token]);
   const intendances = useResource(() => getIntendances(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
+  // Administrable destinations referential: single source of the target list.
+  const cibles = useResource(() => getCiblesActivite(token), [token]);
   const [form, setForm] = useState<EvenementCreateInput>(EMPTY);
   const [piecesAJoindre, setPiecesAJoindre] = useState<File[]>([]);
   const typesEvenements = useResource(() => getTypesEvenements(token), [token]);
@@ -174,15 +169,20 @@ export function Evenements({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  // Units matching the chosen target kind, for the second select.
+  // The chosen destination row from the referential drives everything: whether a
+  // unit must be picked (besoin_unite), which unit list to show (parametres.table)
+  // and whether the ad-hoc e-mail list applies (type_regle 'liste').
+  const cibleCourante = (cibles.data ?? []).find((c) => c.code === (form.cible_type ?? "general"));
+  const besoinUnite = cibleCourante?.besoin_unite ?? false;
+  const uniteTable = cibleCourante?.parametres.table ?? "";
   const cibleOptions: { id: string; nom: string }[] =
-    form.cible_type === "coordination"
+    uniteTable === "coordination"
       ? (coordinations.data ?? [])
-      : form.cible_type === "commission"
+      : uniteTable === "commission"
         ? (commissions.data ?? [])
-        : form.cible_type === "intendance"
+        : uniteTable === "intendance"
           ? (intendances.data ?? [])
-          : form.cible_type === "tribu"
+          : uniteTable === "tribu"
             ? (tribus.data ?? [])
             : [];
 
@@ -193,15 +193,16 @@ export function Evenements({
     setError(null);
     try {
       const cibleType = form.cible_type ?? "general";
-      if (CIBLE_UNITES.includes(cibleType) && !form.cible_id) {
+      if (besoinUnite && !form.cible_id) {
         setError("Choisissez l'unité ciblée ou repassez sur « général ».");
         setBusy(false);
         return;
       }
-      const emails = cibleType === "liste"
+      const estListe = cibleCourante?.type_regle === "liste";
+      const emails = estListe
         ? emailsTexte.split(/[\n,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
         : [];
-      if (cibleType === "liste" && emails.length === 0) {
+      if (estListe && emails.length === 0) {
         setError("Ajoutez au moins une adresse e-mail pour un ciblage par liste.");
         setBusy(false);
         return;
@@ -224,7 +225,7 @@ export function Evenements({
         type_diffusion: form.type_diffusion,
         visibilite: form.visibilite,
         cible_type: cibleType,
-        cible_id: CIBLE_UNITES.includes(cibleType) ? form.cible_id : null,
+        cible_id: besoinUnite ? form.cible_id : null,
         cible_genre: form.cible_genre ?? null,
         cible_age_min: form.cible_age_min ?? null,
         cible_age_max: form.cible_age_max ?? null,
@@ -468,12 +469,14 @@ export function Evenements({
                 set("cible_id", null);
               }}
             >
-              {(Object.keys(CIBLE_LABELS) as CibleType[]).map((k) => (
-                <option key={k} value={k}>{CIBLE_LABELS[k]}</option>
+              {(cibles.data ?? []).map((c) => (
+                <option key={c.code} value={c.code}>{c.libelle}</option>
               ))}
             </select>
+            {cibles.error && <span className="muted small">Destinations indisponibles : rechargez la page.</span>}
+            {cibleCourante?.description && <span className="muted small">{cibleCourante.description}</span>}
           </label>
-          {form.cible_type && CIBLE_UNITES.includes(form.cible_type) && (
+          {besoinUnite && (
             <label>
               <span>Unité ciblée *</span>
               <select value={form.cible_id ?? ""} onChange={(e) => set("cible_id", e.target.value || null)}>
@@ -484,7 +487,8 @@ export function Evenements({
               </select>
             </label>
           )}
-          {form.cible_type === "liste" && (
+          <ApercuAudience token={token} code={form.cible_type ?? "general"} cibleId={form.cible_id ?? null} besoinUnite={besoinUnite} typeRegle={cibleCourante?.type_regle ?? null} />
+          {cibleCourante?.type_regle === "liste" && (
             <label className="full">
               <span>
                 Adresses e-mail *
@@ -640,6 +644,8 @@ export function Evenements({
           </select>
         </div>
       </section>
+
+      <DestinationsCiblage token={token} canGerer={canParametres} />
       </>
       )}
 
@@ -702,5 +708,42 @@ export function Evenements({
       </>
       )}
     </div>
+  );
+}
+
+/** Live audience preview under the destination selector: how many active members
+ * the chosen destination currently reaches. Computed SERVER-SIDE with the same
+ * safe rule templates as the visibility engine, so the number is real, never a
+ * front-side guess. Hidden for 'liste' (its audience is the typed e-mails) and
+ * while a unit destination has no unit picked yet. */
+function ApercuAudience({ token, code, cibleId, besoinUnite, typeRegle }: {
+  token: string;
+  code: string;
+  cibleId: string | null;
+  besoinUnite: boolean;
+  typeRegle: string | null;
+}): JSX.Element | null {
+  const [nombre, setNombre] = useState<number | null>(null);
+  useEffect(() => {
+    setNombre(null);
+    if (!code || typeRegle === "liste" || (besoinUnite && !cibleId)) return;
+    let alive = true;
+    apercuCibleActivite(token, code, cibleId)
+      .then((a) => { if (alive) setNombre(a.nombre); })
+      .catch(() => { if (alive) setNombre(null); });
+    return () => { alive = false; };
+  }, [token, code, cibleId, besoinUnite, typeRegle]);
+  if (typeRegle === "liste" || nombre == null) return null;
+  if (nombre === 0) {
+    return (
+      <p className="banner banner-warn full" style={{ margin: 0 }}>
+        Attention : aucun membre actif ne correspond actuellement à cette destination. L'activité serait créée mais ne toucherait personne.
+      </p>
+    );
+  }
+  return (
+    <p className="muted small full" style={{ margin: 0 }}>
+      Aperçu : {nombre} membre{nombre > 1 ? "s" : ""} actif{nombre > 1 ? "s" : ""} concerné{nombre > 1 ? "s" : ""} (calcul serveur, doublons exclus).
+    </p>
   );
 }
