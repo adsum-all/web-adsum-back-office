@@ -54,9 +54,16 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
           <h1>Tableau de bord</h1>
           <p className="muted">Vue d'ensemble, sur les données réelles de la base.</p>
         </div>
-        <span className="badge badge-ok" title="Actualisation automatique toutes les 60 secondes">
-          En direct{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr-FR")}` : ""}
-        </span>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <span className="badge badge-ok" title="Actualisation automatique toutes les 60 secondes">
+            En direct{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr-FR")}` : ""}
+          </span>
+          {/* Browser print flow: prints EXACTLY the figures on screen (same data,
+              zero divergence) and doubles as PDF export via "Save as PDF". */}
+          <button type="button" className="btn btn-ghost btn-inline no-print" onClick={() => window.print()}>
+            Imprimer / PDF
+          </button>
+        </div>
       </header>
 
       {error && <p className="banner banner-error">{error}</p>}

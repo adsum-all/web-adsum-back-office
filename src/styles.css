@@ -1436,3 +1436,37 @@ h3 {
 @media (max-width: 720px) {
   .drawer-panel { width: 100vw; border-left: none; }
 }
+
+/* Print / PDF report mode: keep only the page content, in report-friendly ink.
+   Triggered by the "Imprimer / PDF" button (window.print), so the printed report
+   shows exactly the on-screen figures: no separate export path, no divergence. */
+@media print {
+  .sidebar,
+  .topbar,
+  nav,
+  .no-print,
+  button {
+    display: none !important;
+  }
+  body,
+  .page {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .page {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .card,
+  section.card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    break-inside: avoid;
+  }
+  .kpi-grid {
+    break-inside: avoid;
+  }
+  a[href]::after {
+    content: "";
+  }
+}
