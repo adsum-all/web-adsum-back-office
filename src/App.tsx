@@ -22,6 +22,7 @@ import { Membres } from "./components/Membres.js";
 import { ReglagesIA } from "./components/ReglagesIA.js";
 import { ParticipationStats } from "./components/ParticipationStats.js";
 import { Organisation } from "./components/Organisation.js";
+import { InformationsAdmin } from "./components/InformationsAdmin.js";
 import { Organigramme } from "./components/Organigramme.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
@@ -46,6 +47,7 @@ type Section =
   | "niveaux"
   | "organisation"
   | "organigramme"
+  | "informations"
   | "evenements"
   | "types-evenements"
   | "anniversaires"
@@ -80,6 +82,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION", perm: "niveaux-engagement.consulter" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "organigramme", label: "Organigramme hiérarchique", group: "ORGANISATION", perm: "organisation.consulter" },
+  { id: "informations", label: "Informations importantes", group: "COMMUNICATION", perm: "notifications.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "types-evenements", label: "Types d'événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS", perm: "anniversaires.gerer" },
@@ -315,6 +318,7 @@ export function App(): JSX.Element {
           {activeId === "organigramme" && (
             <Organigramme token={session.token} canAdministrer={held.has("organisation.administrer")} />
           )}
+          {activeId === "informations" && <InformationsAdmin token={session.token} />}
           {activeId === "evenements" && (
             <Evenements
               token={session.token}
