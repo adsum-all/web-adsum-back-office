@@ -4,17 +4,61 @@ import { type MembreProfile, getMembres } from "../api.js";
 
 /* eslint-disable react-hooks/exhaustive-deps */
 
-/** Common emojis, built from code points so the source stays ASCII (the project
- * bans literal emojis in code; member-facing CONTENT may of course carry them). */
-const EMOJI_POINTS: number[][] = [
-  [0x1f64f], [0x2764, 0xfe0f], [0x1f54a, 0xfe0f], [0x26ea], [0x1f4d6], [0x2728],
-  [0x1f525], [0x1f31f], [0x2b50], [0x1f308], [0x1f64c], [0x1f44f],
-  [0x1f44d], [0x1f91d], [0x1f4aa], [0x1f60a], [0x1f604], [0x1f642],
-  [0x1f607], [0x1f60d], [0x1f970], [0x1f389], [0x1f38a], [0x1f393],
-  [0x1f4e2], [0x1f4e3], [0x1f514], [0x26a0, 0xfe0f], [0x2757], [0x2705],
-  [0x1f4c5], [0x1f4cd], [0x1f551], [0x1f4dd], [0x1f4ce], [0x1f3b5],
+/** Rich emoji catalogue by category, with skin-tone support for hand/person
+ * emojis, built from code points so the source stays ASCII (the project bans
+ * literal emojis in code; member-facing CONTENT may of course carry them). */
+interface EmojiCat {
+  nom: string;
+  /** True when the category's emojis accept a skin-tone modifier. */
+  teintes: boolean;
+  points: number[][];
+}
+const EMOJI_CATS: EmojiCat[] = [
+  { nom: "Mains", teintes: true, points: [
+    [0x1f64f], [0x1f44d], [0x1f44e], [0x1f44f], [0x1f64c], [0x1f4aa], [0x270b], [0x270c],
+    [0x1f44b], [0x1f446], [0x1f447], [0x1f448], [0x1f449], [0x1f91f], [0x1f918], [0x1f590],
+    [0x1f470], [0x1f47c], [0x1f486], [0x1f487],
+  ] },
+  { nom: "Visages", teintes: false, points: [
+    [0x1f600], [0x1f603], [0x1f604], [0x1f601], [0x1f606], [0x1f642], [0x1f60a], [0x1f607],
+    [0x1f929], [0x1f970], [0x1f60d], [0x1f618], [0x1f917], [0x1f914], [0x1f92d], [0x1f644],
+    [0x1f622], [0x1f62d], [0x1f625], [0x1f614], [0x1f60c], [0x1f634], [0x1f637], [0x1f973], [0x1f60e],
+  ] },
+  { nom: "Coeurs", teintes: false, points: [
+    [0x2764, 0xfe0f], [0x1f9e1], [0x1f49b], [0x1f49a], [0x1f499], [0x1f49c], [0x1f90d], [0x1f5a4],
+    [0x1f494], [0x1f495], [0x1f496], [0x1f497], [0x1f49d], [0x1f49e], [0x1f4af],
+  ] },
+  { nom: "Spirituel", teintes: false, points: [
+    [0x1f54a, 0xfe0f], [0x26ea], [0x1f4d6], [0x1f56f, 0xfe0f], [0x1f4ff], [0x271d, 0xfe0f], [0x1f397, 0xfe0f], [0x1f549, 0xfe0f],
+  ] },
+  { nom: "Fete", teintes: false, points: [
+    [0x1f389], [0x1f38a], [0x1f388], [0x1f381], [0x1f382], [0x1f3c6], [0x1f947], [0x2728],
+    [0x1f31f], [0x2b50], [0x1f308], [0x1f386], [0x1f387], [0x1f393],
+  ] },
+  { nom: "Nature", teintes: false, points: [
+    [0x1f338], [0x1f33a], [0x1f33b], [0x1f337], [0x1f341], [0x1f343], [0x1f33f], [0x2600, 0xfe0f],
+    [0x1f319], [0x26c5], [0x1f4a7], [0x1f30d], [0x1f525],
+  ] },
+  { nom: "Objets", teintes: false, points: [
+    [0x1f4e2], [0x1f4e3], [0x1f514], [0x1f4c5], [0x1f4cd], [0x1f551], [0x1f4dd], [0x1f4ce],
+    [0x1f4bc], [0x1f4da], [0x1f3b5], [0x1f3b6], [0x1f399, 0xfe0f], [0x1f4f1], [0x1f4bb], [0x2709, 0xfe0f], [0x1f4e7],
+  ] },
+  { nom: "Symboles", teintes: false, points: [
+    [0x2705], [0x274c], [0x2757], [0x2753], [0x26a0, 0xfe0f], [0x1f4a1], [0x1f511], [0x1f512],
+    [0x1f513], [0x27a1, 0xfe0f], [0x2b06, 0xfe0f], [0x1f4cc], [0x1f4cb], [0x1f6a8], [0x1f4a5],
+  ] },
 ];
-export const EMOJIS: string[] = EMOJI_POINTS.map((pts) => String.fromCodePoint(...pts));
+/** Skin-tone modifiers (null = default yellow), like on a phone keyboard. */
+const TEINTES: (number | null)[] = [null, 0x1f3fb, 0x1f3fc, 0x1f3fd, 0x1f3fe, 0x1f3ff];
+
+function emojiDe(points: number[], teinte: number | null, teintable: boolean): string {
+  // A tone modifier replaces the FE0F presentation selector and only applies to
+  // tone-capable emojis (single-person/hand code points).
+  if (teintable && teinte && points.length === 1) return String.fromCodePoint(points[0] ?? 0, teinte);
+  return String.fromCodePoint(...points);
+}
+/** Flat default-tone list, kept for callers that only need a small set. */
+export const EMOJIS: string[] = EMOJI_CATS.flatMap((c) => c.points.map((p) => emojiDe(p, null, false)));
 
 /** Wrap the current textarea selection with markers (bold/italic/underline) or
  * insert a plain string at the caret, keeping focus and a sensible caret position. */
@@ -51,31 +95,80 @@ export function RichToolbar({
   onChange: (v: string) => void;
 }>): JSX.Element {
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [cat, setCat] = useState(0);
+  const [teinte, setTeinte] = useState<number | null>(null);
   const wrap = (b: string, a: string): void => applyToTextarea(textareaRef.current, value, onChange, b, a);
+  // Line-start formatting (title, bullet, quote): prefix every selected line.
+  const prefixLines = (prefix: string): void => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const debutLigne = value.lastIndexOf("\n", start - 1) + 1;
+    const bloc = value.slice(debutLigne, end);
+    const transforme = bloc.split("\n").map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : prefix + l)).join("\n");
+    const next = value.slice(0, debutLigne) + transforme + value.slice(end);
+    onChange(next);
+    window.setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(debutLigne, debutLigne + transforme.length);
+    }, 0);
+  };
+  const catCourante = EMOJI_CATS[cat] ?? EMOJI_CATS[0];
   return (
     <div className="rt-bar">
       <button type="button" className="rt-btn" title="Gras" aria-label="Mettre en gras" onClick={() => wrap("**", "**")}><b>G</b></button>
       <button type="button" className="rt-btn" title="Italique" aria-label="Mettre en italique" onClick={() => wrap("*", "*")}><i>I</i></button>
       <button type="button" className="rt-btn" title="Souligner" aria-label="Souligner" onClick={() => wrap("__", "__")}><u>S</u></button>
       <span className="rt-sep" aria-hidden="true" />
+      <button type="button" className="rt-btn" title="Titre de section" aria-label="Titre de section" onClick={() => prefixLines("## ")}>T</button>
+      <button type="button" className="rt-btn" title="Liste à puces" aria-label="Liste à puces" onClick={() => prefixLines("- ")}>{"•"}</button>
+      <button type="button" className="rt-btn" title="Citation" aria-label="Citation" onClick={() => prefixLines("> ")}>{"»"}</button>
+      <span className="rt-sep" aria-hidden="true" />
       <button type="button" className="rt-btn" aria-expanded={emojiOpen} aria-label="Insérer un émoji" onClick={() => setEmojiOpen((v) => !v)}>
-        {EMOJIS[15]}
+        {String.fromCodePoint(0x1f60a)}
       </button>
       {emojiOpen && (
-        <div className="rt-emojis" role="listbox" aria-label="Choisir un émoji">
-          {EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              className="rt-emoji"
-              onClick={() => {
-                applyToTextarea(textareaRef.current, value, onChange, e);
-                setEmojiOpen(false);
-              }}
-            >
-              {e}
-            </button>
-          ))}
+        <div className="rt-emojis rt-emojis-riche" role="dialog" aria-label="Choisir un émoji">
+          <div className="rt-cats">
+            {EMOJI_CATS.map((c, i) => (
+              <button key={c.nom} type="button" className={`rt-cat ${i === cat ? "is-on" : ""}`} onClick={() => setCat(i)}>{c.nom}</button>
+            ))}
+          </div>
+          {catCourante?.teintes && (
+            <div className="rt-tons" role="radiogroup" aria-label="Teinte de peau">
+              {TEINTES.map((t) => (
+                <button
+                  key={t ?? 0}
+                  type="button"
+                  role="radio"
+                  aria-checked={teinte === t}
+                  className={`rt-ton ${teinte === t ? "is-on" : ""}`}
+                  onClick={() => setTeinte(t)}
+                >
+                  {emojiDe([0x1f44b], t, true)}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="rt-grid">
+            {(catCourante?.points ?? []).map((p) => {
+              const e = emojiDe(p, teinte, catCourante?.teintes ?? false);
+              return (
+                <button
+                  key={e}
+                  type="button"
+                  className="rt-emoji"
+                  onClick={() => {
+                    applyToTextarea(textareaRef.current, value, onChange, e);
+                    setEmojiOpen(false);
+                  }}
+                >
+                  {e}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
