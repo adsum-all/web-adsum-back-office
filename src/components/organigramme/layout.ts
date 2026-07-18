@@ -27,7 +27,9 @@ function isParticularRoot(n: OrgNode): boolean {
 function childrenMap(links: OrgLink[]): Map<string, string[]> {
   const children = new Map<string, string[]>();
   for (const l of links) {
-    if (l.type_lien !== "hierarchique") continue;
+    // Tribal responsibility is a parent/child relation for the right column, so the
+    // Patriarchs subtree (tribes and their members) moves and folds as one branch.
+    if (l.type_lien !== "hierarchique" && l.type_lien !== "responsabilite_tribu") continue;
     const list = children.get(l.source_id) ?? [];
     list.push(l.cible_id);
     children.set(l.source_id, list);
@@ -124,9 +126,37 @@ export function computeLayout(nodes: OrgNode[], links: OrgLink[]): AutoLayout {
   const separatorX = left.width + gap;
   const rightX = separatorX + SEP_W + gap;
   for (const [id, p] of right.pos) positions.set(id, { x: p.x + rightX, y: p.y + topY });
-  // Kept moderate so the divider never inflates the fit-to-view bounds and shrinks
-  // the cards; it reads as a divider without having to span the whole height.
-  const separatorHeight = Math.min(Math.max(left.height, right.height, 300) + 48, 520);
+
+  // Vertically align the two particular branches with their real levels on the left,
+  // so the College of shepherds sits at the Mission-shepherd level (top) and the
+  // Patriarchs group sits at the Intendances/Coordinations level (much lower), never
+  // at the same height as the College. The patriarchs subtree (tribes, members) is
+  // shifted as a whole to keep its internal ranking.
+  const byCle = new Map<string, string>();
+  for (const n of nodes) if (n.cle) byCle.set(n.cle, n.id);
+  const leftY = (cle: string): number | undefined => {
+    const id = byCle.get(cle);
+    const p = id ? left.pos.get(id) : undefined;
+    return p ? p.y + topY : undefined;
+  };
+  const collegeId = byCle.get("college_bergers");
+  const yBerger = leftY("role:berger_missions");
+  if (collegeId && yBerger !== undefined) positions.set(collegeId, { x: rightX, y: yBerger });
+  const patrId = byCle.get("groupe_patriarches");
+  const yBlocs = leftY("bloc_intendances") ?? leftY("role:intendant_general");
+  if (patrId && yBlocs !== undefined) {
+    const cur = positions.get(patrId);
+    if (cur) {
+      const delta = yBlocs - cur.y;
+      const subtree = new Set<string>([patrId, ...descendantsOf(patrId, children)]);
+      for (const id of subtree) {
+        const p = positions.get(id);
+        if (p) positions.set(id, { x: p.x, y: p.y + delta });
+      }
+    }
+  }
+
+  const separatorHeight = Math.min(Math.max(left.height, right.height, 300) + 48, 640);
   separators.forEach((s, i) => positions.set(s.id, { x: separatorX + i * 28, y: topY - 24 }));
   return { positions, separatorHeight, separatorX };
 }
