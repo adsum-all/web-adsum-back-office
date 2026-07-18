@@ -3021,6 +3021,8 @@ export interface Information {
   contenu: string;
   priorite: InformationPriorite;
   auteur: string | null;
+  signature: string | null;
+  signature_url: string | null;
   statut: InformationStatut;
   requiert_accuse: boolean;
   lecture_vocale_auto: boolean;
@@ -3043,6 +3045,8 @@ export interface InformationInput {
   contenu: string;
   priorite: InformationPriorite;
   auteur?: string | null;
+  signature?: string | null;
+  signature_url?: string | null;
   requiert_accuse?: boolean;
   lecture_vocale_auto?: boolean;
   lien_url?: string | null;
