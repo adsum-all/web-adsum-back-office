@@ -104,6 +104,9 @@ function OrgCanvasInner({
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => defautReplie(contenu.noeuds));
   const [query, setQuery] = useState("");
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
+  // Undo stack for manual moves: the node's position captured at drag start, so a
+  // slip during layout is reverted in one click and re-persisted. Session-local.
+  const [moveHistory, setMoveHistory] = useState<{ id: string; x: number; y: number }[]>([]);
 
   const contentSig = useMemo(() => signatureOf(contenu), [contenu]);
   // Keyed on the content signature, not on object identity, so an identical poll is a no-op.
@@ -211,6 +214,18 @@ function OrgCanvasInner({
     [mode, onConnectLink],
   );
 
+  // Revert the last manual move: restore the pre-drag position on the canvas and
+  // persist it, so the undo survives a reload just like any deliberate move.
+  const annulerDeplacement = useCallback(() => {
+    setMoveHistory((prev) => {
+      const last = prev[prev.length - 1];
+      if (!last) return prev;
+      setNodes((nds) => nds.map((n) => (n.id === last.id ? { ...n, position: { x: last.x, y: last.y } } : n)));
+      onNodeMoved?.(last.id, last.x, last.y);
+      return prev.slice(0, -1);
+    });
+  }, [onNodeMoved, setNodes]);
+
   const editable = mode === "edition";
 
   // Centre on the selected node when the parent asks (click or the panel's button),
@@ -271,6 +286,15 @@ function OrgCanvasInner({
               <button
                 type="button"
                 className="btn btn-ghost btn-inline"
+                onClick={annulerDeplacement}
+                disabled={moveHistory.length === 0}
+                title="Annuler le dernier déplacement de nœud"
+              >
+                Annuler le déplacement
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-inline"
                 onClick={() => {
                   const auto = computeLayout(contenu.noeuds, contenu.liens).positions;
                   onAutoLayout?.(contenu.noeuds.map((n) => {
@@ -294,6 +318,12 @@ function OrgCanvasInner({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDragStart={(_, node) =>
+              setMoveHistory((prev) => [
+                ...prev.slice(-19),
+                { id: node.id, x: Math.round(node.position.x), y: Math.round(node.position.y) },
+              ])
+            }
             onNodeDragStop={(_, node) => onNodeMoved?.(node.id, Math.round(node.position.x), Math.round(node.position.y))}
             onNodeClick={(_, node) => {
               const found = contenu.noeuds.find((x) => x.id === node.id);
