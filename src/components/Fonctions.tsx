@@ -30,6 +30,11 @@ const CAT_VIDE: Record<string, string> = {
   fonction_particuliere: "Aucune fonction particulière.",
 };
 
+// A leading overview tab that shows every attribution of the four categories at
+// once, ordered by the numeric "ordre" field, so the whole catalogue is readable
+// on one screen; the per-category tabs remain for focused work.
+const TOUS = "tous";
+
 const DEFAULT_CAT = CATEGORIES_ATTRIBUTION[0]?.code ?? "titre";
 
 function emptyForm(categorie: string): FonctionCreateInput {
@@ -57,7 +62,7 @@ function slugCle(v: string): string {
  */
 export function Fonctions({ token, canGerer = true }: { token: string; canGerer?: boolean }): JSX.Element {
   const fonctions = useResource(() => getFonctions(token), [token]);
-  const [activeCat, setActiveCat] = useState<string>(DEFAULT_CAT);
+  const [activeCat, setActiveCat] = useState<string>(TOUS);
   const [form, setForm] = useState<FonctionCreateInput>(() => emptyForm(DEFAULT_CAT));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,10 +72,12 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
   }
 
   // Switching the tab also retargets the creation form on the tab's category and
-  // clears an abbreviation that no longer applies.
+  // clears an abbreviation that no longer applies. On the "Tout" overview tab the
+  // form keeps its own category (there is no single category to target).
   function changeTab(code: string): void {
     setActiveCat(code);
     setError(null);
+    if (code === TOUS) return;
     setForm((f) => ({
       ...f,
       categorie: code,
@@ -124,8 +131,17 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
   }
 
   const all = fonctions.data ?? [];
-  const visibles = all.filter((f) => f.categorie === activeCat);
-  const activeLabel = categorieLabel(activeCat);
+  const estTous = activeCat === TOUS;
+  // "Tout": the whole catalogue ordered by the numeric "ordre" (then key); a
+  // category tab: only its own attributions.
+  const visibles = estTous
+    ? [...all].sort((a, b) => a.ordre - b.ordre || a.cle.localeCompare(b.cle))
+    : all.filter((f) => f.categorie === activeCat);
+  const activeLabel = estTous ? categorieLabel(form.categorie) : categorieLabel(activeCat);
+  const tabs = [{ id: TOUS, label: "Tout" }, ...CATEGORIES_ATTRIBUTION.map((c) => ({ id: c.code, label: c.label }))];
+  const hint = estTous
+    ? "Vue d'ensemble de toutes les attributions, triées par ordre. Ouvrez un onglet de catégorie pour le détail."
+    : CAT_HINT[activeCat];
 
   return (
     <div className="page">
@@ -148,9 +164,9 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
         </p>
       )}
 
-      <Tabs tabs={CATEGORIES_ATTRIBUTION.map((c) => ({ id: c.code, label: c.label }))} active={activeCat} onChange={changeTab} />
+      <Tabs tabs={tabs} active={activeCat} onChange={changeTab} />
 
-      <p className="muted small">{CAT_HINT[activeCat]}</p>
+      <p className="muted small">{hint}</p>
 
       <p className="muted small">
         L'option VIP détermine si les membres portant cette attribution apparaissent par défaut dans les calendriers
@@ -254,7 +270,7 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
             {!fonctions.loading && visibles.length === 0 && (
               <tr>
                 <td colSpan={10} className="muted">
-                  {CAT_VIDE[activeCat] ?? "Aucune attribution dans cette catégorie."}
+                  {estTous ? "Aucune attribution au catalogue." : (CAT_VIDE[activeCat] ?? "Aucune attribution dans cette catégorie.")}
                 </td>
               </tr>
             )}
