@@ -1551,6 +1551,70 @@ export function declencherAnniversaires(token: string): Promise<{ ok: boolean; e
   return authedSend("/api/v1/admin/anniversaires/declencher", token, "POST", {}, "Déclenchement impossible");
 }
 
+export interface RetentionConfig {
+  retention_info_archive_mois: number;
+  retention_info_suppression_mois: number;
+  retention_notif_lues_jours: number;
+  retention_notif_nonlues_jours: number;
+  retention_notif_suppression_mois: number;
+  retention_auto_suppression: boolean;
+  telegram_retention_jours: number;
+}
+
+export interface TelegramCapacite {
+  retention_configuree_jours: number;
+  fenetre_suppression_bot_heures: number;
+  messages_eligibles: number;
+  note: string;
+}
+
+export interface RetentionEtat {
+  config: RetentionConfig;
+  telegram_capacite: TelegramCapacite;
+  derniere_execution: { execute_le: string | null; rapport: string | null; resultat: string | null } | null;
+}
+
+export interface RetentionRapport {
+  simulation: boolean;
+  acteur: string;
+  informations_archivees: number;
+  informations_protegees: number;
+  informations_supprimees: number;
+  notifications_archivees: number;
+  notifications_supprimees: number;
+  telegram_traites: number;
+  suppression_active: boolean;
+}
+
+export interface RetentionJournalItem {
+  type_element: string;
+  element_id: string | null;
+  titre: string | null;
+  regle: string | null;
+  acteur: string | null;
+  destinataires: number | null;
+  resultat: string;
+  motif_exclusion: string | null;
+  rapport: string | null;
+  execute_le: string | null;
+}
+
+export function getRetentionEtat(token: string): Promise<RetentionEtat> {
+  return authedGet<RetentionEtat>("/api/v1/admin/parametres/retention", token, "Paramètres de rétention indisponibles");
+}
+
+export function setRetentionConfig(token: string, config: RetentionConfig): Promise<void> {
+  return authedSend("/api/v1/admin/parametres/retention", token, "PUT", config, "Mise à jour impossible");
+}
+
+export function executerRetention(token: string, simulation: boolean): Promise<RetentionRapport> {
+  return authedSend(`/api/v1/admin/retention/executer?simulation=${simulation ? "true" : "false"}`, token, "POST", {}, "Exécution impossible");
+}
+
+export function getRetentionJournal(token: string, limit = 30, offset = 0): Promise<{ items: RetentionJournalItem[]; total: number }> {
+  return authedGet(`/api/v1/admin/retention/journal?limit=${limit}&offset=${offset}`, token, "Journal indisponible");
+}
+
 export function getQuestionnaireFenetre(token: string): Promise<{ heures: number }> {
   return authedGet<{ heures: number }>("/api/v1/admin/parametres/questionnaire-fenetre", token, "Paramètre indisponible");
 }
@@ -3023,6 +3087,8 @@ export interface Information {
   auteur: string | null;
   signature: string | null;
   signature_url: string | null;
+  protege: boolean;
+  institutionnelle: boolean;
   statut: InformationStatut;
   requiert_accuse: boolean;
   lecture_vocale_auto: boolean;
@@ -3047,6 +3113,8 @@ export interface InformationInput {
   auteur?: string | null;
   signature?: string | null;
   signature_url?: string | null;
+  protege?: boolean;
+  institutionnelle?: boolean;
   requiert_accuse?: boolean;
   lecture_vocale_auto?: boolean;
   lien_url?: string | null;

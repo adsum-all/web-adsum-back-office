@@ -1580,3 +1580,15 @@ h3 {
 .rt-ton { border: 1px solid transparent; background: none; font-size: 16px; border-radius: 7px; padding: 2px 4px; cursor: pointer; }
 .rt-ton.is-on { border-color: var(--adsum-acc); background: var(--adsum-bg); }
 .rt-grid { display: grid; grid-template-columns: repeat(9, 32px); gap: 3px; max-height: 180px; overflow-y: auto; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.switch-row { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.switch-row input { width: 18px; height: 18px; }
+.info-tg { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--adsum-line); border-radius: 10px; background: var(--adsum-bg); }
+.info-tg ul { margin: 6px 0; padding-left: 18px; }
+.row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.rapport { margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--adsum-acc); background: var(--adsum-bg); border-radius: 0 10px 10px 0; }
+.rapport ul { margin: 6px 0 0; padding-left: 18px; }
+.tag { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+.tag-archive { background: #eef2fb; color: #2a4fad; }
+.tag-supprime { background: #fdecec; color: #c0392b; }
+.tag-execute, .tag-simulation { background: #e7f6ec; color: #1a7a3a; }
