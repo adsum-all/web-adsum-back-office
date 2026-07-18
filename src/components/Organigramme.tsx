@@ -7,6 +7,7 @@ import {
   type OrgNode,
   type OrganigrammeVersion,
   addOrganigrammeLink,
+  addOrganigrammeNode,
   deleteOrganigrammeLink,
   deleteOrganigrammeNode,
   getOrganigrammePublie,
@@ -101,6 +102,21 @@ export function Organigramme({
 
   function persistMove(id: string, x: number, y: number): void {
     void patchOrganigrammeNode(token, id, { pos_x: x, pos_y: y }).catch(() => undefined);
+  }
+
+  function addSeparator(): void {
+    if (!selectedId) return;
+    void withAction(async () => {
+      await addOrganigrammeNode(token, selectedId, { nom: "Séparation", type_noeud: "separateur" });
+      contenu.reload();
+    });
+  }
+
+  function autoLayout(positions: { id: string; x: number; y: number }[]): void {
+    void withAction(async () => {
+      await Promise.all(positions.map((p) => patchOrganigrammeNode(token, p.id, { pos_x: p.x, pos_y: p.y })));
+      contenu.reload();
+    });
   }
 
   async function confirmDelete(): Promise<void> {
@@ -252,6 +268,8 @@ export function Organigramme({
             onDeleteNode={editing ? (n) => setPendingDelete({ kind: "node", node: n }) : undefined}
             onConnectLink={editing ? (source, target) => setPendingLink({ source, target }) : undefined}
             onDeleteLink={editing ? (id) => setPendingDelete({ kind: "link", id }) : undefined}
+            onAddSeparator={editing ? addSeparator : undefined}
+            onAutoLayout={editing ? autoLayout : undefined}
           />
         </div>
       ) : null}

@@ -2754,7 +2754,7 @@ export interface OrganigrammeVersion {
   publie_le: string | null;
 }
 
-export type OrgNodeType = "personne" | "structure" | "groupe";
+export type OrgNodeType = "personne" | "structure" | "groupe" | "separateur" | "note" | "zone";
 export type OrgCategorie = "titre" | "fonction_speciale" | "fonction" | "fonction_particuliere" | null;
 export type OrgUniteType = "commission" | "coordination" | "intendance" | "tribu" | "college" | "groupe" | null;
 export type OrgStatut = "actif" | "vacant" | "attente" | "archive";
@@ -2766,6 +2766,14 @@ export interface OrgNode {
   nom: string;
   sous_titre: string | null;
   membre_id: string | null;
+  /** Display name of the linked member, resolved server side. */
+  membre_nom: string | null;
+  /** Photo URL of the linked member, shown on the card when afficher_photo is on. */
+  photo_url: string | null;
+  /** When true, the card shows the member photo instead of the initials. */
+  afficher_photo: boolean;
+  /** Optional custom accent color (hex) overriding the status stripe. */
+  couleur: string | null;
   fonction_cle: string | null;
   categorie: OrgCategorie;
   unite_type: OrgUniteType;
@@ -2774,6 +2782,9 @@ export interface OrgNode {
   statut: OrgStatut;
   pos_x: number | null;
   pos_y: number | null;
+  /** Custom footprint, mostly used to size a separator node. */
+  largeur: number | null;
+  hauteur: number | null;
   ordre: number | null;
 }
 
@@ -2817,6 +2828,10 @@ export interface OrgNodeInput {
   unite_type?: OrgUniteType;
   unite_id?: string | null;
   statut?: OrgStatut;
+  couleur?: string | null;
+  afficher_photo?: boolean;
+  largeur?: number | null;
+  hauteur?: number | null;
   pos_x?: number | null;
   pos_y?: number | null;
 }
@@ -2826,8 +2841,22 @@ export interface OrgNodePatch {
   sous_titre?: string | null;
   membre_id?: string | null;
   statut?: OrgStatut;
+  couleur?: string | null;
+  afficher_photo?: boolean;
+  fonction_cle?: string | null;
+  categorie?: OrgCategorie;
+  unite_type?: OrgUniteType;
+  unite_id?: string | null;
+  largeur?: number | null;
+  hauteur?: number | null;
   pos_x?: number | null;
   pos_y?: number | null;
+}
+
+export interface OrgAffectationResult {
+  ok: boolean;
+  membre_nom: string | null;
+  profil_applique: boolean;
 }
 
 export interface OrgLinkInput {
@@ -2897,6 +2926,23 @@ export function addOrganigrammeLink(token: string, id: string, input: OrgLinkInp
 
 export function deleteOrganigrammeLink(token: string, linkId: string): Promise<void> {
   return authedSend(`/api/v1/admin/organigramme/links/${linkId}`, token, "DELETE", undefined, "Suppression du lien impossible");
+}
+
+/** Bind a member to a node and, when appliquer_au_profil is true, write the node's
+ * function or title onto the member profile (a confirmed membre_fonction, or the
+ * berger title). The card name is refreshed from the returned membre_nom. */
+export function affecterMembreNode(
+  token: string,
+  nodeId: string,
+  input: { membre_id: string; appliquer_au_profil: boolean },
+): Promise<OrgAffectationResult> {
+  return authedSend(
+    `/api/v1/admin/organigramme/nodes/${nodeId}/affecter`,
+    token,
+    "POST",
+    input,
+    "Affectation impossible",
+  );
 }
 
 export function validerOrganigramme(token: string, id: string): Promise<OrgValidation> {

@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { type CSSProperties, useContext } from "react";
 import { Handle, type NodeProps, Position, type Node } from "@xyflow/react";
 
 import type { OrgNode } from "../../api.js";
@@ -27,12 +27,21 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
   const collapsed = ctx?.collapsed.has(node.id) ?? false;
   const editable = ctx?.mode === "edition";
 
+  // The displayed name is the assigned member first (kept in sync when a member is
+  // affected to the node), otherwise the node's own label. The function/scope is
+  // the subtitle. When the photo is enabled and available, it replaces the initials.
+  const nomAffiche = node.membre_nom ?? node.nom;
+  const sousTitre = node.membre_nom && node.membre_nom !== node.nom ? node.nom : node.sous_titre;
+  const montrerPhoto = node.afficher_photo && !!node.photo_url;
+  const style = node.couleur ? ({ "--org-accent": node.couleur } as CSSProperties) : undefined;
+
   return (
     <div
       className={`org-node org-node-${node.statut} ${selected ? "is-selected" : ""} ${
         node.type_noeud === "personne" ? "" : "org-node-unit"
-      }`}
+      } ${node.couleur ? "org-node-colore" : ""}`}
       data-kind={node.type_noeud}
+      style={style}
     >
       <Handle id="t" type="target" position={Position.Top} className="org-h" />
       <Handle id="b" type="source" position={Position.Bottom} className="org-h" />
@@ -42,16 +51,20 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
       <Handle id="r-out" type="source" position={Position.Right} className="org-h" style={{ top: "62%" }} />
 
       <div className="org-node-top">
-        <span className="org-avatar" data-kind={node.type_noeud} aria-hidden="true">
-          {initiales(node.nom)}
-        </span>
-        <span className="org-node-body">
-          <span className="org-node-name" title={node.nom}>
-            {node.nom}
+        {montrerPhoto ? (
+          <img className="org-avatar org-avatar-photo" src={node.photo_url ?? ""} alt="" data-kind={node.type_noeud} />
+        ) : (
+          <span className="org-avatar" data-kind={node.type_noeud} aria-hidden="true">
+            {initiales(nomAffiche)}
           </span>
-          {node.sous_titre ? (
-            <span className="org-node-sub" title={node.sous_titre}>
-              {node.sous_titre}
+        )}
+        <span className="org-node-body">
+          <span className="org-node-name" title={nomAffiche}>
+            {nomAffiche}
+          </span>
+          {sousTitre ? (
+            <span className="org-node-sub" title={sousTitre}>
+              {sousTitre}
             </span>
           ) : (
             <span className="org-node-sub org-node-sub-mut">{TYPE_NOEUD_LABEL[node.type_noeud]}</span>

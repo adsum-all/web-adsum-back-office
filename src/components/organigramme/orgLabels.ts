@@ -20,7 +20,22 @@ export const TYPE_NOEUD_LABEL: Record<OrgNodeType, string> = {
   personne: "Personne",
   structure: "Structure",
   groupe: "Groupe",
+  separateur: "Séparateur",
+  note: "Note",
+  zone: "Zone",
 };
+
+/** Accessible accent palette offered by the colour tool. */
+export const PALETTE: { hex: string; nom: string }[] = [
+  { hex: "#2a4fad", nom: "Bleu marine" },
+  { hex: "#0f6b6b", nom: "Sarcelle" },
+  { hex: "#653597", nom: "Violet" },
+  { hex: "#1f8a5b", nom: "Vert" },
+  { hex: "#b6791b", nom: "Ambre" },
+  { hex: "#c0392b", nom: "Rouge" },
+  { hex: "#3d4047", nom: "Ardoise" },
+  { hex: "#5b82d8", nom: "Bleu clair" },
+];
 
 /** Full description of one link kind: label, the accessible signature used both
  * in the legend and on the edge (color, dash pattern, routing), so two kinds stay

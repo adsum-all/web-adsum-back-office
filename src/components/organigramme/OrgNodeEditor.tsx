@@ -9,10 +9,11 @@ import {
   type OrgNodeType,
   type OrgStatut,
   addOrganigrammeNode,
+  affecterMembreNode,
   getMembres,
   patchOrganigrammeNode,
 } from "../../api.js";
-import { STATUT_META, TYPE_NOEUD_LABEL } from "./orgLabels.js";
+import { PALETTE, STATUT_META, TYPE_NOEUD_LABEL } from "./orgLabels.js";
 
 function displayName(m: MembreProfile): string {
   return m.nom_affiche ?? m.nom_affichage ?? `${m.nom ?? ""} ${m.prenoms ?? ""}`.trim() ?? "";
@@ -130,7 +131,10 @@ export function OrgNodeEditor({ token, versionId, node, onClose, onSaved }: OrgN
   const [statut, setStatut] = useState<OrgStatut>(node?.statut ?? "actif");
   const [categorie, setCategorie] = useState<OrgCategorie>(node?.categorie ?? null);
   const [membreId, setMembreId] = useState<string | null>(node?.membre_id ?? null);
-  const [membreNom, setMembreNom] = useState<string | null>(node?.membre_id ? "membre lié" : null);
+  const [membreNom, setMembreNom] = useState<string | null>(node?.membre_nom ?? (node?.membre_id ? "membre lié" : null));
+  const [couleur, setCouleur] = useState<string | null>(node?.couleur ?? null);
+  const [afficherPhoto, setAfficherPhoto] = useState<boolean>(node?.afficher_photo ?? false);
+  const [appliquerProfil, setAppliquerProfil] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -149,7 +153,14 @@ export function OrgNodeEditor({ token, versionId, node, onClose, onSaved }: OrgN
           sous_titre: sousTitre.trim() || null,
           statut,
           membre_id: membreId,
+          couleur,
+          afficher_photo: afficherPhoto,
         });
+        // Optionally mirror the assignment onto the member's profile (grant the
+        // function/title) via the dedicated endpoint.
+        if (membreId && appliquerProfil) {
+          await affecterMembreNode(token, node.id, { membre_id: membreId, appliquer_au_profil: true });
+        }
       } else {
         await addOrganigrammeNode(token, versionId, {
           nom: nom.trim(),
@@ -158,6 +169,8 @@ export function OrgNodeEditor({ token, versionId, node, onClose, onSaved }: OrgN
           statut,
           categorie,
           membre_id: membreId,
+          couleur,
+          afficher_photo: afficherPhoto,
         });
       }
       onSaved();
@@ -238,8 +251,45 @@ export function OrgNodeEditor({ token, versionId, node, onClose, onSaved }: OrgN
               onClear={() => {
                 setMembreId(null);
                 setMembreNom(null);
+                setAppliquerProfil(false);
               }}
             />
+          </div>
+          {editing && membreId ? (
+            <label className="org-editor-check">
+              <input type="checkbox" checked={appliquerProfil} onChange={(e) => setAppliquerProfil(e.target.checked)} />
+              <span>
+                Appliquer au profil du membre
+                <span className="muted small"> (affecte réellement cette fonction ou ce titre au membre)</span>
+              </span>
+            </label>
+          ) : null}
+          <label className="org-editor-check">
+            <input type="checkbox" checked={afficherPhoto} onChange={(e) => setAfficherPhoto(e.target.checked)} />
+            <span>Afficher la photo du membre sur la carte</span>
+          </label>
+          <div className="org-editor-picker">
+            <span className="org-editor-picker-label">Couleur de la carte</span>
+            <div className="org-palette" role="group" aria-label="Couleur de la carte">
+              <button
+                type="button"
+                className={`org-swatch org-swatch-none ${couleur === null ? "is-active" : ""}`}
+                onClick={() => setCouleur(null)}
+                title="Aucune couleur"
+                aria-label="Aucune couleur"
+              />
+              {PALETTE.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  className={`org-swatch ${couleur === c.hex ? "is-active" : ""}`}
+                  style={{ background: c.hex }}
+                  onClick={() => setCouleur(c.hex)}
+                  title={c.nom}
+                  aria-label={c.nom}
+                />
+              ))}
+            </div>
           </div>
           {err ? <p className="banner banner-error">{err}</p> : null}
           <div className="form-actions">
