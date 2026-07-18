@@ -7,6 +7,7 @@ import {
   type InformationPriorite,
   type InformationStats,
   type InformationStatut,
+  type MonProfilAuteur,
   apercuDestinataires,
   archiveInformation,
   createInformation,
@@ -15,6 +16,8 @@ import {
   getCoordinations,
   getInformationStats,
   getIntendances,
+  getMonProfilAuteur,
+  getSousCommissions,
   getTribus,
   publishInformation,
   updateInformation,
@@ -78,6 +81,14 @@ export function InformationEditor({
   const [uniteType, setUniteType] = useState<UniteType>("coordination");
   const [uniteId, setUniteId] = useState("");
   const [unites, setUnites] = useState<Record<UniteType, UniteRow[]>>({ coordination: [], intendance: [], commission: [], tribu: [] });
+  const [sousGroupes, setSousGroupes] = useState<string[]>([]);
+  const [profil, setProfil] = useState<MonProfilAuteur | null>(null);
+  // True while a voice note is being recorded or encoded: saving would lose it.
+  const [mediaBusy, setMediaBusy] = useState(false);
+  // Crossed targeting picker: commission + container (intendance/coordination) + sub-group.
+  const [crCommission, setCrCommission] = useState("");
+  const [crConteneur, setCrConteneur] = useState("");
+  const [crGroupe, setCrGroupe] = useState("");
   const contenuRef = useRef<HTMLTextAreaElement>(null);
 
   const editable = statut === "brouillon" || statut === "programme";
@@ -86,7 +97,8 @@ export function InformationEditor({
     if (id && statut === "envoye") void getInformationStats(token, id).then(setStats).catch(() => undefined);
   }, [id, statut, token]);
 
-  // Unit lists for precise targeting, loaded once (real referential data).
+  // Unit lists for precise targeting, sub-groups and the connected profile (author
+  // prefill), loaded once (real referential data).
   useEffect(() => {
     void Promise.all([getCoordinations(token), getIntendances(token), getCommissions(token), getTribus(token)])
       .then(([co, it, cm, tr]) =>
@@ -98,7 +110,18 @@ export function InformationEditor({
         }),
       )
       .catch(() => undefined);
+    void getSousCommissions(token)
+      .then((rows) => setSousGroupes([...new Set(rows.map((r) => r.nom))].sort((a, b) => a.localeCompare(b))))
+      .catch(() => undefined);
+    void getMonProfilAuteur(token).then(setProfil).catch(() => undefined);
   }, [token]);
+
+  const monNom = (profil?.nom_affiche ?? `${profil?.prenoms ?? ""} ${profil?.nom ?? ""}`.trim()) || "";
+  const maFonction = (() => {
+    const principale = profil?.fonctions?.find((f) => f.principale) ?? profil?.fonctions?.[0];
+    const brute = principale?.libelle ?? principale?.cle ?? profil?.fonction_cle ?? "";
+    return brute ? brute.replace(/_/g, " ").replace(/^([a-z])/, (m) => m.toUpperCase()) : "";
+  })();
 
   const set = <K extends keyof InformationInput>(k: K, v: InformationInput[K]): void => setForm((f) => ({ ...f, [k]: v }));
 
@@ -175,12 +198,28 @@ export function InformationEditor({
             <span className="muted small">Mise en forme: **gras**, *italique*, __souligné__. Les émojis s'insèrent depuis la barre.</span>
           </div>
 
-          <label className="field"><span>Auteur / service émetteur</span><input value={form.auteur ?? ""} onChange={(e) => set("auteur", e.target.value)} maxLength={160} disabled={!editable} /></label>
+          <div className="field">
+            <span>Auteur / service émetteur</span>
+            <input value={form.auteur ?? ""} onChange={(e) => set("auteur", e.target.value)} maxLength={160} disabled={!editable} />
+            {editable && (monNom || maFonction) && (
+              <div className="info-auteur-btns">
+                {monNom && (
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("auteur", monNom)}>Mon nom</button>
+                )}
+                {maFonction && (
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("auteur", maFonction)}>Ma fonction</button>
+                )}
+                {monNom && maFonction && (
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("auteur", `${monNom}, ${maFonction}`)}>Nom + fonction</button>
+                )}
+              </div>
+            )}
+          </div>
 
           {editable && (
             <>
               <p className="field-group-title">Note vocale</p>
-              <VoiceRecorder existingUrl={audioActuel} onChange={(du) => setStaged((s) => ({ ...s, audio: du }))} />
+              <VoiceRecorder existingUrl={audioActuel} onChange={(du) => setStaged((s) => ({ ...s, audio: du }))} onBusyChange={setMediaBusy} />
 
               <p className="field-group-title">Image de couverture</p>
               {imageActuelle && <img src={imageActuelle} alt="Couverture" className="info-cover-preview" />}
@@ -263,6 +302,72 @@ export function InformationEditor({
                 </div>
               )}
 
+              <p className="field-group-title">Ciblage croisé (au plus fin)</p>
+              <p className="muted small">
+                Visez une commission À L'INTÉRIEUR d'une coordination ou d'une intendance, ou un sous-groupe précis.
+                Tous les critères choisis se cumulent.
+              </p>
+              <div className="info-unit-row">
+                <select value={crCommission} onChange={(e) => setCrCommission(e.target.value)} aria-label="Commission du croisement">
+                  <option value="">Commission: toutes</option>
+                  {unites.commission.map((u) => <option key={u.id} value={u.id}>{u.nom}</option>)}
+                </select>
+                <select value={crConteneur} onChange={(e) => setCrConteneur(e.target.value)} aria-label="Coordination ou intendance du croisement">
+                  <option value="">Partout</option>
+                  <optgroup label="Dans l'intendance">
+                    {unites.intendance.map((u) => <option key={`i-${u.id}`} value={`i:${u.id}`}>{u.nom}</option>)}
+                  </optgroup>
+                  <optgroup label="Dans la coordination">
+                    {unites.coordination.map((u) => <option key={`c-${u.id}`} value={`c:${u.id}`}>{u.nom}</option>)}
+                  </optgroup>
+                </select>
+                <select value={crGroupe} onChange={(e) => setCrGroupe(e.target.value)} aria-label="Sous-groupe du croisement">
+                  <option value="">Sous-groupe: tous</option>
+                  {sousGroupes.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-inline"
+                  disabled={!crCommission && !crConteneur && !crGroupe}
+                  onClick={() => {
+                    const croisement: { commission_id?: string; intendance_id?: string; coordination_id?: string; groupe?: string } = {};
+                    const morceaux: string[] = [];
+                    if (crCommission) {
+                      croisement.commission_id = crCommission;
+                      morceaux.push(unites.commission.find((u) => u.id === crCommission)?.nom ?? "Commission");
+                    }
+                    if (crConteneur.startsWith("i:")) {
+                      croisement.intendance_id = crConteneur.slice(2);
+                      morceaux.push(`dans ${unites.intendance.find((u) => u.id === crConteneur.slice(2))?.nom ?? "l'intendance"}`);
+                    }
+                    if (crConteneur.startsWith("c:")) {
+                      croisement.coordination_id = crConteneur.slice(2);
+                      morceaux.push(`dans ${unites.coordination.find((u) => u.id === crConteneur.slice(2))?.nom ?? "la coordination"}`);
+                    }
+                    if (crGroupe) {
+                      croisement.groupe = crGroupe;
+                      morceaux.push(`groupe ${crGroupe}`);
+                    }
+                    setForm((f) => ({ ...f, cibles: [...f.cibles, { code: "croisement", croisement, libelle: morceaux.join(" ") }] }));
+                    setCrCommission("");
+                    setCrConteneur("");
+                    setCrGroupe("");
+                  }}
+                >
+                  Ajouter
+                </button>
+              </div>
+              {form.cibles.some((c) => c.code === "croisement") && (
+                <div className="mp-chips">
+                  {form.cibles.filter((c) => c.code === "croisement").map((c, idx) => (
+                    <span key={`cr-${c.libelle ?? idx}`} className="mp-chip">
+                      {c.libelle ?? "Ciblage croisé"}
+                      <button type="button" aria-label="Retirer ce croisement" onClick={() => setForm((f) => ({ ...f, cibles: f.cibles.filter((x) => x !== c) }))}>&times;</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <p className="field-group-title">Sélection manuelle de membres</p>
               <MembrePicker token={token} selection={membres} onChange={setMembres} />
             </>
@@ -294,12 +399,12 @@ export function InformationEditor({
         <div className="drawer-foot info-editor-foot">
           {editable && (
             <>
-              <button type="button" className="btn btn-ghost btn-inline" disabled={busy || invalide} onClick={() => void run(async () => { await persister(); onSaved(); })}>Enregistrer</button>
-              <button type="button" className="btn btn-ghost btn-inline" disabled={busy || invalide} onClick={() => void run(async () => { const vid = await persister(); setApercu((await apercuDestinataires(token, vid)).destinataires_uniques); })}>Aperçu destinataires</button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy || mediaBusy || invalide} title={mediaBusy ? "Terminez d'abord la note vocale" : undefined} onClick={() => void run(async () => { await persister(); onSaved(); })}>Enregistrer</button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy || mediaBusy || invalide} onClick={() => void run(async () => { const vid = await persister(); setApercu((await apercuDestinataires(token, vid)).destinataires_uniques); })}>Aperçu destinataires</button>
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
-                disabled={busy || invalide}
+                disabled={busy || mediaBusy || invalide}
                 onClick={() => void run(async () => {
                   if (!window.confirm("Publier et diffuser cette information aux destinataires ?")) return;
                   const vid = await persister();
