@@ -22,6 +22,7 @@ import { Membres } from "./components/Membres.js";
 import { ReglagesIA } from "./components/ReglagesIA.js";
 import { ParticipationStats } from "./components/ParticipationStats.js";
 import { Organisation } from "./components/Organisation.js";
+import { Organigramme } from "./components/Organigramme.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
 import { GouvernanceAcces } from "./components/GouvernanceAcces.js";
@@ -44,6 +45,7 @@ type Section =
   | "fonctions"
   | "niveaux"
   | "organisation"
+  | "organigramme"
   | "evenements"
   | "types-evenements"
   | "anniversaires"
@@ -77,6 +79,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "fonctions", label: "Titres et fonctions", group: "ORGANISATION", perm: "fonctions.consulter" },
   { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION", perm: "niveaux-engagement.consulter" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
+  { id: "organigramme", label: "Organigramme hiérarchique", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "types-evenements", label: "Types d'événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS", perm: "anniversaires.gerer" },
@@ -99,7 +102,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
 // library is added: the hash is the single source of truth, validated against NAV.
 const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
-  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "evenements",
+  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "consentements", "attestations", "audit", "technical-admins",
 ]);
@@ -308,6 +311,9 @@ export function App(): JSX.Element {
               canGerer={held.has("organisation.administrer")}
               canGererTribus={held.has("tribus.administrer")}
             />
+          )}
+          {activeId === "organigramme" && (
+            <Organigramme token={session.token} canAdministrer={held.has("organisation.administrer")} />
           )}
           {activeId === "evenements" && (
             <Evenements

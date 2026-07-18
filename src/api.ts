@@ -2736,3 +2736,184 @@ export function deleteAiProvider(token: string, id: string): Promise<void> {
 export function testAiProvider(token: string, id: string): Promise<{ ok: boolean; detail: string }> {
   return authedSend(`/api/v1/admin/ai/providers/${id}/test`, token, "POST", undefined, "Test impossible");
 }
+
+// ---------------------------------------------------------------------------
+// Organigramme hiérarchique administrable
+// A draft (statut 'brouillon') is edited on a canvas, validated, then published.
+// Only the single published version is visible to members via /organigramme/publie.
+// ---------------------------------------------------------------------------
+
+export type OrgVersionStatut = "brouillon" | "publie" | "archive";
+
+export interface OrganigrammeVersion {
+  id: string;
+  libelle: string;
+  statut: OrgVersionStatut;
+  note: string | null;
+  cree_le: string;
+  publie_le: string | null;
+}
+
+export type OrgNodeType = "personne" | "structure" | "groupe";
+export type OrgCategorie = "titre" | "fonction_speciale" | "fonction" | "fonction_particuliere" | null;
+export type OrgUniteType = "commission" | "coordination" | "intendance" | "tribu" | "college" | "groupe" | null;
+export type OrgStatut = "actif" | "vacant" | "attente" | "archive";
+
+export interface OrgNode {
+  id: string;
+  cle: string;
+  type_noeud: OrgNodeType;
+  nom: string;
+  sous_titre: string | null;
+  membre_id: string | null;
+  fonction_cle: string | null;
+  categorie: OrgCategorie;
+  unite_type: OrgUniteType;
+  unite_id: string | null;
+  effectif: number | null;
+  statut: OrgStatut;
+  pos_x: number | null;
+  pos_y: number | null;
+  ordre: number | null;
+}
+
+export type OrgLinkType =
+  | "hierarchique"
+  | "coordination"
+  | "supervision"
+  | "suivi_transversal"
+  | "responsabilite_tribu"
+  | "assistance";
+
+export interface OrgLink {
+  id: string;
+  source_id: string;
+  cible_id: string;
+  type_lien: OrgLinkType;
+  libelle: string | null;
+}
+
+export interface OrgContenu {
+  version: OrganigrammeVersion;
+  noeuds: OrgNode[];
+  liens: OrgLink[];
+}
+
+export interface OrgValidation {
+  publiable: boolean;
+  bloquants: string[];
+  avertissements: string[];
+  noeuds: OrgNode[];
+  liens: OrgLink[];
+}
+
+export interface OrgNodeInput {
+  nom: string;
+  type_noeud: OrgNodeType;
+  sous_titre?: string | null;
+  membre_id?: string | null;
+  fonction_cle?: string | null;
+  categorie?: OrgCategorie;
+  unite_type?: OrgUniteType;
+  unite_id?: string | null;
+  statut?: OrgStatut;
+  pos_x?: number | null;
+  pos_y?: number | null;
+}
+
+export interface OrgNodePatch {
+  nom?: string;
+  sous_titre?: string | null;
+  membre_id?: string | null;
+  statut?: OrgStatut;
+  pos_x?: number | null;
+  pos_y?: number | null;
+}
+
+export interface OrgLinkInput {
+  source_id: string;
+  cible_id: string;
+  type_lien: OrgLinkType;
+  libelle?: string | null;
+}
+
+export interface OrgVersionCreateInput {
+  libelle: string;
+  /** 'reel' builds a first draft from the live data; 'publie' clones the published one. */
+  depuis?: "reel" | "publie";
+  note?: string;
+}
+
+/** Short server side summary returned after a build, e.g. counts by node kind. */
+export type OrgResume = Record<string, unknown> | string | null;
+
+export function listOrganigrammeVersions(token: string): Promise<OrganigrammeVersion[]> {
+  return authedGet("/api/v1/admin/organigramme/versions", token, "Versions de l'organigramme indisponibles");
+}
+
+export function createOrganigrammeVersion(
+  token: string,
+  input: OrgVersionCreateInput,
+): Promise<{ id: string; resume?: OrgResume }> {
+  return authedSend("/api/v1/admin/organigramme/versions", token, "POST", input, "Création du brouillon impossible");
+}
+
+export function getOrganigrammeVersion(token: string, id: string): Promise<OrgContenu> {
+  return authedGet(`/api/v1/admin/organigramme/versions/${id}`, token, "Version indisponible");
+}
+
+export function construireOrganigramme(
+  token: string,
+  id: string,
+): Promise<{ ok: boolean; resume?: OrgResume; noeuds: OrgNode[]; liens: OrgLink[] }> {
+  return authedSend(
+    `/api/v1/admin/organigramme/versions/${id}/construire`,
+    token,
+    "POST",
+    undefined,
+    "Reconstruction impossible",
+  );
+}
+
+export function deleteOrganigrammeVersion(token: string, id: string): Promise<void> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export function addOrganigrammeNode(token: string, id: string, input: OrgNodeInput): Promise<{ id: string }> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}/nodes`, token, "POST", input, "Ajout du nœud impossible");
+}
+
+export function patchOrganigrammeNode(token: string, nodeId: string, patch: OrgNodePatch): Promise<void> {
+  return authedSend(`/api/v1/admin/organigramme/nodes/${nodeId}`, token, "PATCH", patch, "Mise à jour du nœud impossible");
+}
+
+export function deleteOrganigrammeNode(token: string, nodeId: string): Promise<void> {
+  return authedSend(`/api/v1/admin/organigramme/nodes/${nodeId}`, token, "DELETE", undefined, "Suppression du nœud impossible");
+}
+
+export function addOrganigrammeLink(token: string, id: string, input: OrgLinkInput): Promise<{ id: string }> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}/links`, token, "POST", input, "Création du lien impossible");
+}
+
+export function deleteOrganigrammeLink(token: string, linkId: string): Promise<void> {
+  return authedSend(`/api/v1/admin/organigramme/links/${linkId}`, token, "DELETE", undefined, "Suppression du lien impossible");
+}
+
+export function validerOrganigramme(token: string, id: string): Promise<OrgValidation> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}/valider`, token, "POST", undefined, "Validation impossible");
+}
+
+export function publierOrganigramme(token: string, id: string): Promise<{ ok: boolean; publie: boolean }> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}/publier`, token, "POST", undefined, "Publication impossible");
+}
+
+export function restaurerOrganigramme(token: string, id: string): Promise<{ id: string; noeuds: OrgNode[] }> {
+  return authedSend(`/api/v1/admin/organigramme/versions/${id}/restaurer`, token, "POST", undefined, "Restauration impossible");
+}
+
+/** Published organigramme, the read only view offered to members and to the
+ * consultation mode. A 404 (nothing published yet) is surfaced as a typed error
+ * the page turns into an empty state. */
+export function getOrganigrammePublie(token: string): Promise<OrgContenu> {
+  return authedGet("/api/v1/organigramme/publie", token, "Organigramme publié indisponible");
+}
