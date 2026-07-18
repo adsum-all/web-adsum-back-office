@@ -36,7 +36,6 @@ export interface OrgCanvasProps {
   onEditNode?: (node: OrgNode) => void;
   onDeleteNode?: (node: OrgNode) => void;
   onConnectLink?: (source: string, target: string) => void;
-  onDeleteLink?: (linkId: string) => void;
   /** Open the link editor (type, label, endpoints, delete) on a click. */
   onEditLink?: (link: OrgContenu["liens"][number]) => void;
   /** Re-attach a link's endpoint by dragging it onto another node. */
@@ -403,7 +402,11 @@ function OrgCanvasInner({
             onReconnect={
               editable
                 ? (oldEdge, conn) => {
-                    if (conn.source && conn.target) onReconnectLink?.(oldEdge.id, conn.source, conn.target);
+                    // Ignore a self-drop (endpoint dropped on the node already at the other
+                    // end), consistent with onConnect, so it is silent rather than a 400.
+                    if (conn.source && conn.target && conn.source !== conn.target) {
+                      onReconnectLink?.(oldEdge.id, conn.source, conn.target);
+                    }
                   }
                 : undefined
             }

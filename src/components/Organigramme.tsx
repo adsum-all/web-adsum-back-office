@@ -40,7 +40,9 @@ async function loadPublieOrNull(token: string): Promise<OrgContenu | null> {
   }
 }
 
-type PendingDelete = { kind: "node"; node: OrgNode } | { kind: "link"; id: string } | null;
+// Node deletion asks for confirmation; link deletion is handled inline by the link
+// editor, so it is not part of this flow.
+type PendingDelete = { kind: "node"; node: OrgNode } | null;
 
 export function Organigramme({
   token,
@@ -133,8 +135,7 @@ export function Organigramme({
   async function confirmDelete(): Promise<void> {
     if (!pendingDelete) return;
     await withAction(async () => {
-      if (pendingDelete.kind === "node") await deleteOrganigrammeNode(token, pendingDelete.node.id);
-      else await deleteOrganigrammeLink(token, pendingDelete.id);
+      await deleteOrganigrammeNode(token, pendingDelete.node.id);
       setPendingDelete(null);
       contenu.reload();
     });
@@ -310,7 +311,14 @@ export function Organigramme({
             }
             onDeleteNode={editing ? (n) => setPendingDelete({ kind: "node", node: n }) : undefined}
             onConnectLink={editing ? (source, target) => setPendingLink({ source, target }) : undefined}
-            onEditLink={editing ? (link) => setEditingLink(link) : undefined}
+            onEditLink={
+              editing
+                ? (link) => {
+                    setActionErr(null);
+                    setEditingLink(link);
+                  }
+                : undefined
+            }
             onReconnectLink={editing ? reconnectLink : undefined}
             onAddSeparator={editing ? addSeparator : undefined}
             onAutoLayout={editing ? autoLayout : undefined}
@@ -400,11 +408,7 @@ export function Organigramme({
           <div className="org-modal-overlay" onClick={() => setPendingDelete(null)} aria-hidden="true" />
           <div className="org-modal">
             <h2 className="org-modal-title">Confirmer la suppression</h2>
-            <p>
-              {pendingDelete.kind === "node"
-                ? `Supprimer le nœud « ${pendingDelete.node.nom} » ? Ses liens seront retirés.`
-                : "Supprimer ce lien de l'organigramme ?"}
-            </p>
+            <p>{`Supprimer le nœud « ${pendingDelete.node.nom} » ? Ses liens seront retirés.`}</p>
             <div className="form-actions">
               <button type="button" className="btn btn-ghost btn-inline" onClick={() => setPendingDelete(null)}>
                 Annuler
