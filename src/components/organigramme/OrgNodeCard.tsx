@@ -88,7 +88,10 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
           <button
             type="button"
             className="org-mini-btn"
-            onClick={() => ctx?.onEdit(node)}
+            onClick={(e) => {
+              e.stopPropagation();
+              ctx?.onEdit(node);
+            }}
             title="Éditer ce nœud"
           >
             Éditer
@@ -96,7 +99,10 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
           <button
             type="button"
             className="org-mini-btn org-mini-danger"
-            onClick={() => ctx?.onDelete(node)}
+            onClick={(e) => {
+              e.stopPropagation();
+              ctx?.onDelete(node);
+            }}
             title="Supprimer ce nœud"
           >
             Supprimer
@@ -108,7 +114,12 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
         <button
           type="button"
           className={`org-collapse nodrag ${collapsed ? "is-collapsed" : ""}`}
-          onClick={() => ctx?.onToggleCollapse(node.id)}
+          onClick={(e) => {
+            // Folding must not also open the details drawer: stop the click from
+            // bubbling to the node's select handler.
+            e.stopPropagation();
+            ctx?.onToggleCollapse(node.id);
+          }}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Déplier ${hiddenCount} entité${hiddenCount > 1 ? "s" : ""} rattachée${hiddenCount > 1 ? "s" : ""}` : "Replier la branche"}
           title={collapsed ? `Déplier (${hiddenCount})` : "Replier la branche"}

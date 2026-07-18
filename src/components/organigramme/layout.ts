@@ -103,19 +103,24 @@ export interface AutoLayout {
 /** Two columns separated by a central divider, like the reference diagram: the
  * main functional chain on the LEFT (top to bottom), the particular branches
  * (shepherds college, patriarchs group, tribes) on the RIGHT. The separator node
- * spans the full height at the boundary; the secondary links cross it. */
-export function computeLayout(nodes: OrgNode[], links: OrgLink[]): AutoLayout {
+ * spans the full height at the boundary; the secondary links cross it.
+ *
+ * Only the currently VISIBLE nodes are laid out (a folded branch reserves no
+ * space), so the general view and every drill stay compact and readable whatever
+ * the full tree's size. Passing an empty ``hidden`` lays out everything. */
+export function computeLayout(nodes: OrgNode[], links: OrgLink[], hidden: ReadonlySet<string> = new Set()): AutoLayout {
+  const visible = hidden.size > 0 ? nodes.filter((n) => !hidden.has(n.id)) : nodes;
   const children = childrenMap(links);
   const rightSet = new Set<string>();
-  for (const n of nodes) {
+  for (const n of visible) {
     if (!isParticularRoot(n)) continue;
     rightSet.add(n.id);
     for (const d of descendantsOf(n.id, children)) rightSet.add(d);
   }
-  const separators = nodes.filter(isSeparator);
+  const separators = visible.filter(isSeparator);
   const sepSet = new Set(separators.map((n) => n.id));
-  const leftNodes = nodes.filter((n) => !sepSet.has(n.id) && !rightSet.has(n.id));
-  const rightNodes = nodes.filter((n) => !sepSet.has(n.id) && rightSet.has(n.id));
+  const leftNodes = visible.filter((n) => !sepSet.has(n.id) && !rightSet.has(n.id));
+  const rightNodes = visible.filter((n) => !sepSet.has(n.id) && rightSet.has(n.id));
 
   const left = dagreColumn(leftNodes, links);
   const right = dagreColumn(rightNodes, links);
@@ -164,8 +169,8 @@ export function computeLayout(nodes: OrgNode[], links: OrgLink[]): AutoLayout {
 /** Final on-canvas position of each node: an explicit stored position (an admin
  * dragged the card, the choice is persisted server side) always wins over the
  * automatic two-column coordinate, so a manual arrangement survives a reload. */
-export function resolvePositions(nodes: OrgNode[], links: OrgLink[]): { positions: Map<string, XY>; separatorHeight: number } {
-  const auto = computeLayout(nodes, links);
+export function resolvePositions(nodes: OrgNode[], links: OrgLink[], hidden: ReadonlySet<string> = new Set()): { positions: Map<string, XY>; separatorHeight: number } {
+  const auto = computeLayout(nodes, links, hidden);
   const positions = new Map<string, XY>();
   for (const n of nodes) {
     const stored = n.pos_x !== null && n.pos_x !== undefined && n.pos_y !== null && n.pos_y !== undefined;

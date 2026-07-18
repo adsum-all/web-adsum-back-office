@@ -21,7 +21,7 @@ import {
 
 import type { OrgContenu, OrgNode } from "../../api.js";
 import { computeLayout, NODE_H, NODE_W, resolvePositions } from "./layout.js";
-import { buildFlow } from "./mappers.js";
+import { buildFlow, buildHierarchy, hiddenIds } from "./mappers.js";
 import { OrgCanvasContext, type OrgMode } from "./orgContext.js";
 import { OrgLegende } from "./OrgLegende.js";
 import { OrgNodeCard } from "./OrgNodeCard.js";
@@ -73,15 +73,17 @@ const BLOCS_REPLIES = new Set([
   "bloc_intendances",
   "bloc_coordinations",
   "groupe_patriarches",
-  "respgrp_int",
-  "respgrp_coord",
 ]);
+// Every parent below the blocks is folded by default, so the first view shows only
+// the apex and the big blocks, and the reader drills one level at a time:
+// bloc -> unit -> responsibles group -> commission -> members.
+const PREFIXES_REPLIES = ["intendance:", "coordination:", "respgrp:", "commission:", "sousresp:", "tribu:"];
 
 function defautReplie(nodes: OrgContenu["noeuds"]): Set<string> {
   const out = new Set<string>();
   for (const n of nodes) {
     const c = n.cle ?? "";
-    if (BLOCS_REPLIES.has(c) || c.startsWith("tribu:") || c.startsWith("commission:")) out.add(n.id);
+    if (BLOCS_REPLIES.has(c) || PREFIXES_REPLIES.some((p) => c.startsWith(p))) out.add(n.id);
   }
   return out;
 }
@@ -109,9 +111,22 @@ function OrgCanvasInner({
   const [moveHistory, setMoveHistory] = useState<{ id: string; x: number; y: number }[]>([]);
 
   const contentSig = useMemo(() => signatureOf(contenu), [contenu]);
-  // Keyed on the content signature, not on object identity, so an identical poll is a no-op.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const layout = useMemo(() => resolvePositions(contenu.noeuds, contenu.liens), [contentSig]);
+  // The collapse signature (which parents are folded) drives a compact re-layout:
+  // only the visible nodes are placed, so a folded branch reserves no space and the
+  // view never zooms out to a thumbnail. Sorted so the memo key is stable per state.
+  const collapsedSig = useMemo(() => [...collapsed].sort().join(","), [collapsed]);
+  const hidden = useMemo(
+    () => hiddenIds(collapsed, buildHierarchy(contenu.liens)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contentSig, collapsedSig],
+  );
+  // Keyed on the content AND collapse signatures, not on object identity, so an
+  // identical poll is a no-op but folding recomputes a compact layout.
+  const layout = useMemo(
+    () => resolvePositions(contenu.noeuds, contenu.liens, hidden),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contentSig, hidden],
+  );
   const positions = layout.positions;
   const desired = useMemo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,15 +173,30 @@ function OrgCanvasInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [versionId]);
 
+  // The view buttons are EXPLICIT reframe commands, so after changing the collapse
+  // state they refit the view to the newly visible nodes. This differs from a
+  // per-node +/- toggle, which deliberately never recentres (the reader stays put).
+  // The delay lets React Flow re-render the new node set before framing it.
+  const reframe = useCallback(() => {
+    window.setTimeout(() => void rf.fitView({ padding: 0.18, duration: 400, minZoom: 0.05, maxZoom: 1 }), 120);
+  }, [rf]);
+
   // "Afficher tout": expand everything. "Réduire tout": fold every parent.
   // "Vue générale": back to the big-blocks synthetic view.
-  const toutAfficher = useCallback(() => setCollapsed(new Set<string>()), []);
+  const toutAfficher = useCallback(() => {
+    setCollapsed(new Set<string>());
+    reframe();
+  }, [reframe]);
   const toutReduire = useCallback(() => {
     const parents = new Set<string>();
     for (const l of contenu.liens) if (l.type_lien === "hierarchique") parents.add(l.source_id);
     setCollapsed(parents);
-  }, [contenu.liens]);
-  const vueGenerale = useCallback(() => setCollapsed(defautReplie(contenu.noeuds)), [contenu.noeuds]);
+    reframe();
+  }, [contenu.liens, reframe]);
+  const vueGenerale = useCallback(() => {
+    setCollapsed(defautReplie(contenu.noeuds));
+    reframe();
+  }, [contenu.noeuds, reframe]);
 
   const ctxValue = useMemo(
     () => ({
