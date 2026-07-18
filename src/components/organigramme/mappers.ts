@@ -9,10 +9,15 @@ export interface Hierarchy {
   children: Map<string, string[]>;
 }
 
+/** Links that define a fold-able parent/child relation. Hierarchical reporting is
+ * the backbone; tribal responsibility is included so folding the Patriarchs group
+ * also folds its twelve tribes (and their members), which otherwise stay pinned. */
+const LIENS_PARENTS = new Set<OrgLink["type_lien"]>(["hierarchique", "responsabilite_tribu"]);
+
 export function buildHierarchy(links: OrgLink[]): Hierarchy {
   const children = new Map<string, string[]>();
   for (const l of links) {
-    if (l.type_lien !== "hierarchique") continue;
+    if (!LIENS_PARENTS.has(l.type_lien)) continue;
     const list = children.get(l.source_id) ?? [];
     list.push(l.cible_id);
     children.set(l.source_id, list);
@@ -88,6 +93,9 @@ export function buildFlow(
           position: positions.get(n.id) ?? { x: 0, y: 0 },
           draggable: true,
           selectable: true,
+          // Behind the cards but above the background, so it reads as a divider
+          // without ever masking a node or blocking its selection.
+          zIndex: -1,
           data: { node: n, hauteur: n.hauteur ?? separatorHeight },
         };
       }

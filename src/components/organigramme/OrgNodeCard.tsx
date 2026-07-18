@@ -111,9 +111,9 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
           onClick={() => ctx?.onToggleCollapse(node.id)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Déplier ${hiddenCount} entité${hiddenCount > 1 ? "s" : ""} rattachée${hiddenCount > 1 ? "s" : ""}` : "Replier la branche"}
-          title={collapsed ? "Déplier la branche" : "Replier la branche"}
+          title={collapsed ? `Déplier (${hiddenCount})` : "Replier la branche"}
         >
-          {collapsed ? `+${hiddenCount}` : <span className="org-caret" aria-hidden="true" />}
+          {collapsed ? `+ ${hiddenCount}` : "−"}
         </button>
       ) : null}
     </div>

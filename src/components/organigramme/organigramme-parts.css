@@ -309,31 +309,58 @@
   border: 1px solid var(--adsum-line);
 }
 
-/* Free vertical separator between the functional chain and the particular branches. */
+/* Free vertical separator between the functional chain and the particular branches.
+   Thick and full height so it reads clearly as the central divider of the diagram. */
 .org-sep {
   position: relative;
-  width: 26px;
+  width: 40px;
   display: flex;
   justify-content: center;
+  pointer-events: all;
 }
 .org-sep-line {
-  width: 3px;
+  width: 6px;
   height: 100%;
-  border-radius: 3px;
-  opacity: 0.55;
+  border-radius: 6px;
+  opacity: 0.7;
+  box-shadow: 0 0 0 1px var(--adsum-panel);
 }
-.org-sep.is-selected .org-sep-line { opacity: 1; width: 4px; }
+.org-sep.is-selected .org-sep-line { opacity: 1; width: 8px; }
 .org-sep-label {
   position: absolute;
-  top: -22px;
+  top: -26px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) rotate(-90deg) translateX(0);
+  transform-origin: center;
   white-space: nowrap;
   font-family: var(--adsum-font-ui);
-  font-size: 10px;
-  letter-spacing: 0.4px;
+  font-size: 11px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 800;
+  background: var(--adsum-panel);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Column captions above the canvas. */
+.org-columns {
+  display: flex;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.org-col-cap {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--adsum-board);
+  border: 1px solid var(--adsum-line);
+  font-family: var(--adsum-font-ui);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--adsum-mut);
 }
 .org-sep-actions {
   position: absolute;
