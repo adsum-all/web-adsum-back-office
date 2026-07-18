@@ -37,6 +37,10 @@ export interface OrgCanvasProps {
   onDeleteNode?: (node: OrgNode) => void;
   onConnectLink?: (source: string, target: string) => void;
   onDeleteLink?: (linkId: string) => void;
+  /** Open the link editor (type, label, endpoints, delete) on a click. */
+  onEditLink?: (link: OrgContenu["liens"][number]) => void;
+  /** Re-attach a link's endpoint by dragging it onto another node. */
+  onReconnectLink?: (linkId: string, source: string, target: string) => void;
   onAddSeparator?: () => void;
   onAutoLayout?: (positions: { id: string; x: number; y: number }[]) => void;
   /** Opening the details panel: a click on a card reports the node here. */
@@ -95,7 +99,8 @@ function OrgCanvasInner({
   onEditNode,
   onDeleteNode,
   onConnectLink,
-  onDeleteLink,
+  onEditLink,
+  onReconnectLink,
   onAddSeparator,
   onAutoLayout,
   onSelectNode,
@@ -128,10 +133,11 @@ function OrgCanvasInner({
     [contentSig, hidden],
   );
   const positions = layout.positions;
+  const editable = mode === "edition";
   const desired = useMemo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    () => buildFlow(contenu.noeuds, contenu.liens, positions, collapsed, layout.separatorHeight),
-    [contentSig, positions, collapsed],
+    () => buildFlow(contenu.noeuds, contenu.liens, positions, collapsed, layout.separatorHeight, editable),
+    [contentSig, positions, collapsed, editable],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -286,8 +292,6 @@ function OrgCanvasInner({
     });
   }, [onNodeMoved, setNodes]);
 
-  const editable = mode === "edition";
-
   // Centre on the selected node when the parent asks (click or the panel's button):
   // reveal its ancestor path and centre on its fresh coordinate, so folding the
   // node's branch before pressing "Centrer" no longer jumps to the empty origin.
@@ -390,8 +394,19 @@ function OrgCanvasInner({
               if (found && found.type_noeud !== "separateur") onSelectNode?.(found);
             }}
             onEdgeClick={(_, edge) => {
-              if (editable) onDeleteLink?.(edge.id);
+              if (!editable) return;
+              // A click opens the link editor (type, label, endpoints, delete) instead
+              // of deleting outright, so a mis-placed but correct link can be corrected.
+              const link = contenu.liens.find((l) => l.id === edge.id);
+              if (link) onEditLink?.(link);
             }}
+            onReconnect={
+              editable
+                ? (oldEdge, conn) => {
+                    if (conn.source && conn.target) onReconnectLink?.(oldEdge.id, conn.source, conn.target);
+                  }
+                : undefined
+            }
             nodesDraggable={editable}
             nodesConnectable={editable}
             elementsSelectable
