@@ -295,3 +295,86 @@
   .org-canvas-wrap { height: auto !important; min-height: 80vh; border: none; }
   .org-legende { position: static; box-shadow: none; margin-top: 12px; }
 }
+
+/* --- Modeling tools: colour, member photo, separator, toolbar, palette --- */
+
+/* A configured colour paints the left accent band and the selection ring. */
+.org-node-colore::before { background: var(--org-accent, var(--adsum-acc)) !important; }
+.org-node-colore.is-selected { border-color: var(--org-accent, var(--adsum-acc)); }
+
+.org-avatar-photo {
+  object-fit: cover;
+  object-position: 50% 28%;
+  padding: 0;
+  border: 1px solid var(--adsum-line);
+}
+
+/* Free vertical separator between the functional chain and the particular branches. */
+.org-sep {
+  position: relative;
+  width: 26px;
+  display: flex;
+  justify-content: center;
+}
+.org-sep-line {
+  width: 3px;
+  height: 100%;
+  border-radius: 3px;
+  opacity: 0.55;
+}
+.org-sep.is-selected .org-sep-line { opacity: 1; width: 4px; }
+.org-sep-label {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--adsum-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.org-sep-actions {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+
+/* Modeling toolbar, centred at the top of the canvas in edit mode. */
+.org-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--adsum-panel);
+  border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-md, 10px);
+  box-shadow: var(--adsum-shadow-sm);
+}
+
+/* Colour palette in the node editor. */
+.org-palette { display: flex; flex-wrap: wrap; gap: 7px; }
+.org-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.org-swatch.is-active { border-color: var(--adsum-ink); box-shadow: 0 0 0 2px var(--adsum-panel), 0 0 0 4px var(--adsum-ink); }
+.org-swatch-none {
+  background: repeating-linear-gradient(45deg, var(--adsum-board) 0 5px, var(--adsum-line) 5px 10px);
+}
+
+.org-editor-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: var(--adsum-text-sm, 13px);
+  cursor: pointer;
+}
+.org-editor-check input { margin-top: 2px; }

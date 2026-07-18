@@ -9,6 +9,7 @@ import {
   Controls,
   type Edge,
   MiniMap,
+  type Node,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -19,13 +20,14 @@ import {
 } from "@xyflow/react";
 
 import type { OrgContenu, OrgNode } from "../../api.js";
-import { NODE_H, NODE_W, resolvePositions } from "./layout.js";
+import { computeLayout, NODE_H, NODE_W, resolvePositions } from "./layout.js";
 import { buildFlow } from "./mappers.js";
 import { OrgCanvasContext, type OrgMode } from "./orgContext.js";
 import { OrgLegende } from "./OrgLegende.js";
-import { OrgNodeCard, type OrgFlowNode } from "./OrgNodeCard.js";
+import { OrgNodeCard } from "./OrgNodeCard.js";
+import { OrgSeparator } from "./OrgSeparator.js";
 
-const nodeTypes: NodeTypes = { org: OrgNodeCard };
+const nodeTypes: NodeTypes = { org: OrgNodeCard, separateur: OrgSeparator };
 
 export interface OrgCanvasProps {
   contenu: OrgContenu;
@@ -35,6 +37,8 @@ export interface OrgCanvasProps {
   onDeleteNode?: (node: OrgNode) => void;
   onConnectLink?: (source: string, target: string) => void;
   onDeleteLink?: (linkId: string) => void;
+  onAddSeparator?: () => void;
+  onAutoLayout?: (positions: { id: string; x: number; y: number }[]) => void;
 }
 
 const noop = (): void => undefined;
@@ -60,6 +64,8 @@ function OrgCanvasInner({
   onDeleteNode,
   onConnectLink,
   onDeleteLink,
+  onAddSeparator,
+  onAutoLayout,
 }: OrgCanvasProps): JSX.Element {
   const rf = useReactFlow();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set<string>());
@@ -69,14 +75,15 @@ function OrgCanvasInner({
   const contentSig = useMemo(() => signatureOf(contenu), [contenu]);
   // Keyed on the content signature, not on object identity, so an identical poll is a no-op.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const positions = useMemo(() => resolvePositions(contenu.noeuds, contenu.liens), [contentSig]);
+  const layout = useMemo(() => resolvePositions(contenu.noeuds, contenu.liens), [contentSig]);
+  const positions = layout.positions;
   const desired = useMemo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    () => buildFlow(contenu.noeuds, contenu.liens, positions, collapsed),
+    () => buildFlow(contenu.noeuds, contenu.liens, positions, collapsed, layout.separatorHeight),
     [contentSig, positions, collapsed],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<OrgFlowNode>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Re-sync the canvas only when structure, positions or collapse state change:
@@ -186,6 +193,32 @@ function OrgCanvasInner({
           nodeColor={() => "#c3cde6"}
           maskColor="rgba(16, 18, 24, 0.08)"
         />
+        {editable ? (
+          <Panel position="top-center">
+            <div className="org-toolbar" role="toolbar" aria-label="Outils de modélisation">
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => onAddSeparator?.()} title="Ajouter un trait de séparation">
+                + Séparateur
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-inline"
+                onClick={() => {
+                  const auto = computeLayout(contenu.noeuds, contenu.liens).positions;
+                  onAutoLayout?.(contenu.noeuds.map((n) => {
+                    const p = auto.get(n.id) ?? { x: 0, y: 0 };
+                    return { id: n.id, x: Math.round(p.x), y: Math.round(p.y) };
+                  }));
+                }}
+                title="Recalculer la disposition en deux colonnes et l'enregistrer"
+              >
+                Disposition automatique
+              </button>
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => void rf.fitView({ padding: 0.2, duration: 400 })} title="Recentrer la vue">
+                Recentrer
+              </button>
+            </div>
+          </Panel>
+        ) : null}
         <Panel position="top-left">
           <form
             className="org-search"
