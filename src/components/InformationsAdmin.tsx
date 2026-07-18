@@ -156,8 +156,19 @@ function Editor({
             <>
               <button type="button" className="btn btn-ghost btn-inline" disabled={busy || invalide} onClick={() => void enregistrer()}>Enregistrer</button>
               <button type="button" className="btn btn-ghost btn-inline" disabled={busy || !id} onClick={() => void run(async () => { if (id) setApercu((await apercuDestinataires(token, id)).destinataires_uniques); })}>Aperçu destinataires</button>
-              <button type="button" className="btn btn-primary btn-inline" disabled={busy || !id || invalide}
-                onClick={() => void run(async () => { if (!id) return; if (!window.confirm("Publier et diffuser cette information aux destinataires ?")) return; const r = await publishInformation(token, id); setStatut("envoye"); setApercu(r.destinataires); onSaved(); })}>
+              <button type="button" className="btn btn-primary btn-inline" disabled={busy || invalide}
+                onClick={() => void run(async () => {
+                  if (!window.confirm("Publier et diffuser cette information aux destinataires ?")) return;
+                  // Always persist the on-screen form FIRST, so the published content and
+                  // targeting are exactly what the admin sees, never a stale saved draft.
+                  let vid = id;
+                  if (vid) await updateInformation(token, vid, form);
+                  else { const created = await createInformation(token, form); vid = created.id; setId(created.id); }
+                  const r = await publishInformation(token, vid);
+                  setStatut("envoye");
+                  setApercu(r.destinataires);
+                  onSaved();
+                })}>
                 Publier
               </button>
             </>
@@ -165,7 +176,7 @@ function Editor({
           {statut === "envoye" && (
             <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void run(async () => { if (id) { await archiveInformation(token, id); setStatut("archive"); onSaved(); } })}>Archiver</button>
           )}
-          {id && statut !== "envoye" && (
+          {id && (statut === "brouillon" || statut === "programme") && (
             <button type="button" className="btn btn-danger btn-inline" disabled={busy} onClick={() => void run(async () => { if (id && window.confirm("Supprimer ce brouillon ?")) { await deleteInformation(token, id); onSaved(); onClose(); } })}>Supprimer</button>
           )}
         </div>
