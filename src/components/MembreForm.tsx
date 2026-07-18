@@ -15,6 +15,7 @@ import { PAYS as PAYS_REF } from "../countries.js";
 import { uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 import { PaysCombo } from "./PaysCombo.js";
+import { PerimetreSelect } from "./PerimetreSelect.js";
 import { Tabs } from "./Tabs.js";
 
 type MembreTab = "identite" | "coordonnees" | "rattachement" | "parcours" | "situation";
@@ -199,8 +200,8 @@ export function MembreForm({ token, onDone, onCancel }: MembreFormProps): JSX.El
           </Field>
         </div>
         <div data-tab="coordonnees" className="form-grid" hidden={tab !== "coordonnees"}>
-          <Field label="Fonction : perimetre" hint="Portee de la fonction, ex : Commission Communication.">
-            <input value={form.fonction_perimetre ?? ""} onChange={(e) => set("fonction_perimetre", e.target.value || undefined)} placeholder="Ex : Commission Communication" />
+          <Field label="Fonction : perimetre" hint="Portee de la fonction, choisie dans le referentiel (commission, coordination, intendance, tribu). Aucune saisie libre.">
+            <PerimetreSelect token={token} value={form.fonction_perimetre ?? ""} onChange={(v) => set("fonction_perimetre", v || undefined)} />
           </Field>
           <Field label="Telephone">
             <input value={form.telephone ?? ""} onChange={(e) => set("telephone", e.target.value)} placeholder="+225..." />

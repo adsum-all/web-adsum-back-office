@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import { ApiError, type MembreProfile, type MembreUpdateInput, updateMembre } from "../api.js";
+import { PAYS as PAYS_REF } from "../countries.js";
+import { PaysCombo } from "./PaysCombo.js";
 
 const CHAMPS: { key: keyof MembreUpdateInput; label: string; from: keyof MembreProfile }[] = [
   { key: "nom", label: "Nom de famille", from: "nom" },
@@ -37,6 +39,12 @@ export function MembreCorrectionIdentite({
 
   const modifie = CHAMPS.filter((c) => vals[c.key] !== ((membre[c.from] as string | null) ?? ""));
 
+  // Country is stored as a name; the combo works with codes. These helpers keep the
+  // JSX shallow (no deep nesting) while enforcing a controlled country value.
+  const paysCode = PAYS_REF.find((p) => p.nom === (vals.pays ?? ""))?.code ?? "";
+  const changerPays = (code: string): void => setVals((prev) => ({ ...prev, pays: PAYS_REF.find((p) => p.code === code)?.nom ?? "" }));
+  const changerChamp = (key: string, valeur: string): void => setVals((prev) => ({ ...prev, [key]: valeur }));
+
   async function enregistrer(): Promise<void> {
     if (modifie.length === 0) return;
     setBusy(true);
@@ -67,11 +75,17 @@ export function MembreCorrectionIdentite({
         {CHAMPS.map((c) => (
           <label key={String(c.key)}>
             <span>{c.label}</span>
-            <input
-              value={vals[c.key] ?? ""}
-              onChange={(e) => setVals((prev) => ({ ...prev, [c.key]: e.target.value }))}
-              style={c.key === "nom" || c.key === "code_membre" ? { textTransform: "uppercase" } : undefined}
-            />
+            {c.key === "pays" ? (
+              // Country is a controlled referential, never free text: pick from the
+              // list so the stored value stays consistent for statistics.
+              <PaysCombo value={paysCode} onChange={changerPays} placeholder="Pays (tapez pour filtrer)" />
+            ) : (
+              <input
+                value={vals[c.key] ?? ""}
+                onChange={(e) => changerChamp(String(c.key), e.target.value)}
+                style={c.key === "nom" || c.key === "code_membre" ? { textTransform: "uppercase" } : undefined}
+              />
+            )}
           </label>
         ))}
       </div>
