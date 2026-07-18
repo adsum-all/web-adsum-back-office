@@ -1572,3 +1572,11 @@ h3 {
 }
 .mp-chip button { border: none; background: none; cursor: pointer; font-size: 14px; color: var(--adsum-mut); padding: 0; }
 .info-auteur-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.rt-emojis-riche { grid-template-columns: none; display: flex; flex-direction: column; gap: 6px; width: 320px; }
+.rt-cats { display: flex; gap: 4px; flex-wrap: wrap; }
+.rt-cat { border: 1px solid var(--adsum-line); background: var(--adsum-bg); border-radius: 999px; font-size: 10.5px; padding: 3px 8px; cursor: pointer; }
+.rt-cat.is-on { background: var(--adsum-acc); color: #fff; border-color: var(--adsum-acc); }
+.rt-tons { display: flex; gap: 3px; }
+.rt-ton { border: 1px solid transparent; background: none; font-size: 16px; border-radius: 7px; padding: 2px 4px; cursor: pointer; }
+.rt-ton.is-on { border-color: var(--adsum-acc); background: var(--adsum-bg); }
+.rt-grid { display: grid; grid-template-columns: repeat(9, 32px); gap: 3px; max-height: 180px; overflow-y: auto; }

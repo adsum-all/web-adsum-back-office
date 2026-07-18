@@ -45,7 +45,7 @@ interface UniteRow {
 }
 
 function emptyInput(): InformationInput {
-  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", requiert_accuse: false, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", cibles: [] };
+  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", cibles: [] };
 }
 
 /** Staged media: undefined = untouched, null = clear, string = new data URL. */
@@ -64,7 +64,7 @@ export function InformationEditor({
 }: Readonly<{ token: string; info: Information | null; cibles: CibleReference[]; onClose: () => void; onSaved: () => void }>): JSX.Element {
   const [form, setForm] = useState<InformationInput>(() =>
     info
-      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
+      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
       : emptyInput(),
   );
   const [id, setId] = useState<string | null>(info?.id ?? null);
@@ -216,6 +216,20 @@ export function InformationEditor({
             )}
           </div>
 
+
+          <div className="field">
+            <span>Signature (facultative)</span>
+            <input value={form.signature ?? ""} onChange={(e) => set("signature", e.target.value)} maxLength={200} disabled={!editable} placeholder="Ex : La Modératrice" />
+            {editable && (
+              <div className="info-auteur-btns">
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "La Modératrice")}>La Modératrice</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Fondateur")}>Le Fondateur</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "L'Administration")}>L'Administration</button>
+                {monNom && <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", monNom)}>Mon nom</button>}
+              </div>
+            )}
+          </div>
+          <label className="field"><span>Lien de signature (site officiel, facultatif)</span><input value={form.signature_url ?? ""} onChange={(e) => set("signature_url", e.target.value)} placeholder="https://sacerdoceroyal.info" disabled={!editable} /></label>
           {editable && (
             <>
               <p className="field-group-title">Note vocale</p>
@@ -309,11 +323,11 @@ export function InformationEditor({
               </p>
               <div className="info-unit-row">
                 <select value={crCommission} onChange={(e) => setCrCommission(e.target.value)} aria-label="Commission du croisement">
-                  <option value="">Commission: toutes</option>
+                  <option value="">Commission: choisir...</option>
                   {unites.commission.map((u) => <option key={u.id} value={u.id}>{u.nom}</option>)}
                 </select>
                 <select value={crConteneur} onChange={(e) => setCrConteneur(e.target.value)} aria-label="Coordination ou intendance du croisement">
-                  <option value="">Partout</option>
+                  <option value="">Coordination / intendance: choisir...</option>
                   <optgroup label="Dans l'intendance">
                     {unites.intendance.map((u) => <option key={`i-${u.id}`} value={`i:${u.id}`}>{u.nom}</option>)}
                   </optgroup>
@@ -322,7 +336,7 @@ export function InformationEditor({
                   </optgroup>
                 </select>
                 <select value={crGroupe} onChange={(e) => setCrGroupe(e.target.value)} aria-label="Sous-groupe du croisement">
-                  <option value="">Sous-groupe: tous</option>
+                  <option value="">Sous-groupe: choisir...</option>
                   {sousGroupes.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
                 <button
