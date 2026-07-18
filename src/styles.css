@@ -1571,3 +1571,4 @@ h3 {
   border-radius: 999px; background: #eef3fc; border: 1px solid var(--adsum-acc); font-size: 12px;
 }
 .mp-chip button { border: none; background: none; cursor: pointer; font-size: 14px; color: var(--adsum-mut); padding: 0; }
+.info-auteur-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }

@@ -95,13 +95,17 @@ function formatDuree(s: number): string {
 export function VoiceRecorder({
   existingUrl,
   onChange,
+  onBusyChange,
 }: Readonly<{
   /** Currently stored voice note (data URL) or null. */
   existingUrl: string | null;
   /** null clears; a data URL replaces. Called only on explicit user actions. */
   onChange: (dataUrl: string | null) => void;
+  /** True while recording or encoding: the editor blocks save/publish so a note
+   * being finalised can never be silently lost. */
+  onBusyChange?: (busy: boolean) => void;
 }>): JSX.Element {
-  const [etat, setEtat] = useState<"idle" | "rec" | "pause">("idle");
+  const [etat, setEtat] = useState<"idle" | "rec" | "pause" | "encodage">("idle");
   const [duree, setDuree] = useState(0);
   const [preview, setPreview] = useState<string | null>(existingUrl);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -137,6 +141,13 @@ export function VoiceRecorder({
           const du = String(reader.result || "");
           setPreview(du);
           onChange(du);
+          setEtat("idle");
+          onBusyChange?.(false);
+        };
+        reader.onerror = () => {
+          setErreur("Encodage de la note impossible: réessayez.");
+          setEtat("idle");
+          onBusyChange?.(false);
         };
         reader.readAsDataURL(blob);
       };
@@ -144,6 +155,7 @@ export function VoiceRecorder({
       rec.start();
       setDuree(0);
       setEtat("rec");
+      onBusyChange?.(true);
       tick(true);
     } catch {
       setErreur("Microphone indisponible: autorisez l'accès au micro puis réessayez.");
@@ -151,9 +163,12 @@ export function VoiceRecorder({
   }
 
   function stop(): void {
-    recRef.current?.stop();
-    setEtat("idle");
+    // Encoding runs until the data URL is ready (onstop -> reader.onload): the
+    // editor stays blocked meanwhile so a click on Enregistrer/Publier right after
+    // "Terminer" can never lose the note.
+    setEtat("encodage");
     tick(false);
+    recRef.current?.stop();
   }
 
   function basculerPause(): void {
@@ -170,15 +185,16 @@ export function VoiceRecorder({
     }
   }
 
-  const enCours = etat !== "idle";
+  const enCours = etat === "rec" || etat === "pause";
   return (
     <div className="vr-box">
       <div className="vr-row">
-        {!enCours && (
+        {etat === "idle" && (
           <button type="button" className="btn btn-ghost btn-inline" onClick={() => void demarrer()}>
             {preview ? "Réenregistrer" : "Enregistrer une note vocale"}
           </button>
         )}
+        {etat === "encodage" && <span className="muted small">Encodage de la note vocale...</span>}
         {enCours && (
           <>
             <span className={`vr-dot ${etat === "rec" ? "is-rec" : ""}`} aria-hidden="true" />
@@ -191,7 +207,7 @@ export function VoiceRecorder({
             </button>
           </>
         )}
-        {preview && !enCours && (
+        {preview && etat === "idle" && (
           <button
             type="button"
             className="btn btn-danger btn-inline"
@@ -204,7 +220,7 @@ export function VoiceRecorder({
           </button>
         )}
       </div>
-      {preview && !enCours && <audio controls src={preview} className="vr-audio" />}
+      {preview && etat === "idle" && <audio controls src={preview} className="vr-audio" />}
       {erreur && <p className="banner banner-error">{erreur}</p>}
     </div>
   );
