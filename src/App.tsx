@@ -74,7 +74,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "membres", label: "Annuaire des membres", group: "MEMBRES", perm: "membres.gerer" },
   { id: "doublons", label: "Détection de doublons", group: "MEMBRES", perm: "doublons.consulter" },
   { id: "commissions", label: "Commissions & missions", group: "ORGANISATION", perm: "commissions.consulter" },
-  { id: "fonctions", label: "Fonctions & titres", group: "ORGANISATION", perm: "fonctions.consulter" },
+  { id: "fonctions", label: "Titres et fonctions", group: "ORGANISATION", perm: "fonctions.consulter" },
   { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION", perm: "niveaux-engagement.consulter" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
