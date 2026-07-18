@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   ApiError,
+  CATEGORIES_ATTRIBUTION,
   addMembreFonction,
   deleteMembreFonction,
   getFonctions,
@@ -9,8 +10,13 @@ import {
   updateMembreFonction,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { CategorieBadge } from "./CategorieBadge.js";
 import { InfoTip } from "./InfoTip.js";
 import { PerimetreSelect } from "./PerimetreSelect.js";
+
+// Titles (categorie 'titre') are consecrations assigned through the member sheet
+// via est_berger, never added as a held function here.
+const CATEGORIES_ASSIGNABLES = CATEGORIES_ATTRIBUTION.filter((c) => c.code !== "titre");
 
 /**
  * Manage the SEVERAL functions a member can hold at once (head of a commission,
@@ -29,6 +35,7 @@ export function MembreFonctions({
 }): JSX.Element {
   const fonctions = useResource(() => getMembreFonctions(token, membreId), [token, membreId]);
   const types = useResource(() => getFonctions(token), [token]);
+  const [filtreCat, setFiltreCat] = useState("");
   const [cle, setCle] = useState("");
   const [perimetre, setPerimetre] = useState("");
   const [principale, setPrincipale] = useState(false);
@@ -62,7 +69,11 @@ export function MembreFonctions({
   }
 
   const items = fonctions.data ?? [];
-  const typeOptions = (types.data ?? []).filter((t) => !["berger", "bergere"].includes(t.cle.toLowerCase()));
+  // Never offer a title here (it is a consecration handled elsewhere); optionally
+  // narrow the remaining choices to a single category.
+  const typeOptions = (types.data ?? [])
+    .filter((t) => t.categorie !== "titre")
+    .filter((t) => !filtreCat || t.categorie === filtreCat);
 
   return (
     <section className="card">
@@ -83,8 +94,10 @@ export function MembreFonctions({
           <li key={f.id} className="list-row" style={{ alignItems: "center", gap: 10 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
               <strong>{f.libelle}</strong>
+              {f.abreviation ? <span className="muted mono"> ({f.abreviation})</span> : null}
               {f.perimetre ? <span className="muted"> - {f.perimetre}</span> : null}
               <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                <CategorieBadge code={f.categorie} />
                 {f.principale && <span className="badge badge-ok">Principale</span>}
                 <span className={`badge ${f.confirmee ? "badge-ok" : "badge-warn"}`}>{f.confirmee ? "Confirmée" : "À valider"}</span>
                 {!f.actif && <span className="badge badge-warn">Inactive</span>}
@@ -113,6 +126,24 @@ export function MembreFonctions({
       </ul>
 
       <div className="form-grid">
+        <label>
+          <span>Catégorie</span>
+          <select
+            value={filtreCat}
+            disabled={busy}
+            onChange={(e) => {
+              setFiltreCat(e.target.value);
+              setCle("");
+            }}
+          >
+            <option value="">Toutes les catégories</option>
+            {CATEGORIES_ASSIGNABLES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>
           <span>Ajouter une fonction</span>
           <select value={cle} disabled={busy} onChange={(e) => setCle(e.target.value)}>

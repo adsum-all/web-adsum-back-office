@@ -1007,6 +1007,8 @@ export interface MembreFonctionItem {
   id: string;
   fonction_cle: string;
   libelle: string;
+  categorie: string;
+  abreviation: string | null;
   perimetre: string | null;
   confirmee: boolean;
   actif: boolean;
@@ -1153,11 +1155,32 @@ export function envoyerSondagePointage(
   return authedSend(`/api/v1/admin/evenements/${id}/sondage`, token, "POST", {}, "Envoi du sondage impossible");
 }
 
+/** One of the four attribution categories carried by every catalogue function. */
+export interface CategorieAttribution {
+  code: string;
+  label: string;
+}
+
+/**
+ * The four ordered attribution categories, from the consecration title down to
+ * the transversal particular roles. The `code` matches the ASCII enum stored on
+ * each function's `categorie` field; the `label` is the accented French wording
+ * shown in the interface.
+ */
+export const CATEGORIES_ATTRIBUTION: readonly CategorieAttribution[] = [
+  { code: "titre", label: "Titre" },
+  { code: "fonction_speciale", label: "Fonction spéciale" },
+  { code: "fonction", label: "Fonction" },
+  { code: "fonction_particuliere", label: "Fonction particulière" },
+];
+
 export interface FonctionHonorifique {
   cle: string;
   libelle_h: string;
   libelle_f: string;
   libelle_n: string;
+  categorie: string;
+  abreviation: string | null;
   est_vip: boolean;
   ordre: number;
   actif: boolean;
@@ -1168,6 +1191,8 @@ export interface FonctionCreateInput {
   libelle_h: string;
   libelle_f: string;
   libelle_n: string;
+  categorie: string;
+  abreviation?: string | null;
   est_vip: boolean;
   ordre: number;
 }
@@ -1176,6 +1201,8 @@ export interface FonctionUpdateInput {
   libelle_h?: string;
   libelle_f?: string;
   libelle_n?: string;
+  categorie?: string;
+  abreviation?: string | null;
   est_vip?: boolean;
   ordre?: number;
   actif?: boolean;
@@ -2164,7 +2191,7 @@ export interface DossierMembre {
   promotion?: string | null;
   berger_declare?: boolean;
   berger_nom_declare?: string | null;
-  fonctions?: { libelle: string | null; perimetre: string | null; confirmee: boolean }[];
+  fonctions?: { libelle: string | null; perimetre: string | null; confirmee: boolean; categorie?: string | null }[];
   statut?: string;
   statut_inscription: string;
   verifie: boolean;

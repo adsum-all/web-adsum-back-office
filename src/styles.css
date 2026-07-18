@@ -645,6 +645,24 @@ h3 {
   background: var(--adsum-danger-bg);
   color: var(--adsum-danger);
 }
+/* Attribution categories: one distinct, accessible pastel tone per category,
+   aligned with the light-first badge palette above. */
+.badge-cat-titre {
+  background: #f6edd3;
+  color: #7a5a12;
+}
+.badge-cat-speciale {
+  background: #e5ecfb;
+  color: #26408f;
+}
+.badge-cat-fonction {
+  background: #daf0ee;
+  color: #0f6b6b;
+}
+.badge-cat-particuliere {
+  background: #efe6f7;
+  color: #653597;
+}
 
 /* Forms */
 .form-card {
