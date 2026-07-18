@@ -2986,6 +2986,10 @@ export type InformationStatut = "brouillon" | "programme" | "envoye" | "archive"
 export interface InfoCibleRef {
   code: string;
   cible_id?: string | null;
+  /** Manual selection: explicit member ids, used with the reserved code "selection". */
+  membre_ids?: string[];
+  /** Display label kept client side (unit or member names) so chips stay readable. */
+  libelle?: string;
 }
 
 export interface Information {
@@ -3001,6 +3005,9 @@ export interface Information {
   lien_url: string | null;
   action_label: string | null;
   action_url: string | null;
+  audio_url: string | null;
+  image_url: string | null;
+  document_url: string | null;
   expire_le: string | null;
   epingle_jusqu: string | null;
   cibles: InfoCibleRef[];
@@ -3077,6 +3084,17 @@ export function getInformationStats(token: string, id: string): Promise<Informat
 
 export function getCiblesReference(token: string): Promise<CibleReference[]> {
   return authedGet("/api/v1/reference/cibles-activite", token, "Destinations indisponibles");
+}
+
+/** Attach (or clear with an empty data URL) a voice note, cover image or document
+ * on an Information draft. The payload is a base64 data URL, stored inline. */
+export function uploadInformationMedia(
+  token: string,
+  id: string,
+  kind: "audio" | "image" | "document",
+  dataUrl: string,
+): Promise<Information> {
+  return authedSend(`/api/v1/admin/informations/${id}/media`, token, "POST", { kind, data_url: dataUrl }, "Envoi du média impossible");
 }
 
 export interface OrgAnomalie {
