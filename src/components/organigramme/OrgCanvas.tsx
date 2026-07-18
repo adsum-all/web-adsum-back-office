@@ -59,22 +59,23 @@ function signatureOf(c: OrgContenu): string {
 /** Parents whose sub-branches are folded by default, so the first view is a
  * readable synthetic one: the deep commission branches and the tribe members are
  * hidden until the reader expands them. */
+/** The general view keeps only the big blocks: the functional chain down to the
+ * general steward, then the folded "Intendances", "Coordinations" and "Patriarchs"
+ * blocks (each with its count), plus the College. Everything deeper is folded so the
+ * reader expands one level at a time, horizontally then vertically. */
+const BLOCS_REPLIES = new Set([
+  "bloc_intendances",
+  "bloc_coordinations",
+  "groupe_patriarches",
+  "respgrp_int",
+  "respgrp_coord",
+]);
+
 function defautReplie(nodes: OrgContenu["noeuds"]): Set<string> {
   const out = new Set<string>();
   for (const n of nodes) {
     const c = n.cle ?? "";
-    // Fold the wide operational level (many intendances and coordinations at one
-    // rank) and the deep branches, so the first view is a compact vertical chain
-    // the reader expands step by step.
-    if (
-      c === "role:intendant_general" ||
-      c === "responsables_group" ||
-      c === "groupe_patriarches" ||
-      c.startsWith("tribu:") ||
-      c.startsWith("commission:")
-    ) {
-      out.add(n.id);
-    }
+    if (BLOCS_REPLIES.has(c) || c.startsWith("tribu:") || c.startsWith("commission:")) out.add(n.id);
   }
   return out;
 }
@@ -145,12 +146,14 @@ function OrgCanvasInner({
   }, [versionId]);
 
   // "Afficher tout": expand everything. "Réduire tout": fold every parent.
+  // "Vue générale": back to the big-blocks synthetic view.
   const toutAfficher = useCallback(() => setCollapsed(new Set<string>()), []);
   const toutReduire = useCallback(() => {
     const parents = new Set<string>();
     for (const l of contenu.liens) if (l.type_lien === "hierarchique") parents.add(l.source_id);
     setCollapsed(parents);
   }, [contenu.liens]);
+  const vueGenerale = useCallback(() => setCollapsed(defautReplie(contenu.noeuds)), [contenu.noeuds]);
 
   const ctxValue = useMemo(
     () => ({
@@ -227,6 +230,9 @@ function OrgCanvasInner({
             <button type="submit" className="btn btn-primary btn-inline">Centrer</button>
           </form>
           <span className="org-bar-sep" aria-hidden="true" />
+          <button type="button" className="btn btn-ghost btn-inline" onClick={vueGenerale} title="Afficher uniquement les grands blocs">
+            Vue générale
+          </button>
           <button type="button" className="btn btn-ghost btn-inline" onClick={toutAfficher} title="Déplier toutes les branches">
             Afficher tout
           </button>
