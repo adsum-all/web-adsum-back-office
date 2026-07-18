@@ -2963,3 +2963,37 @@ export function restaurerOrganigramme(token: string, id: string): Promise<{ id: 
 export function getOrganigrammePublie(token: string): Promise<OrgContenu> {
   return authedGet("/api/v1/organigramme/publie", token, "Organigramme publié indisponible");
 }
+
+export interface OrgAnomalie {
+  code: string;
+  libelle: string;
+  nombre: number;
+}
+
+/** Live counters for the organisation, computed server side from the real data,
+ * never hand-entered. ``effectif_unique`` counts distinct members holding an active
+ * responsibility; ``affectations_actives`` counts the responsibilities themselves,
+ * so the gap measures the cumul. Structural placement is reported apart. */
+export interface OrgStatistiques {
+  affectations: {
+    effectif_unique: number;
+    affectations_actives: number;
+    membres_en_cumul: number;
+    ecart_cumul: number;
+    principales: number;
+    secondaires: number;
+  };
+  placement: {
+    membres_places: number;
+    intendances: number;
+    coordinations: number;
+    commissions: number;
+    tribus: number;
+    bergers: number;
+  };
+  anomalies: OrgAnomalie[];
+}
+
+export function getOrganigrammeStatistiques(token: string): Promise<OrgStatistiques> {
+  return authedGet("/api/v1/organigramme/statistiques", token, "Statistiques de l'organisation indisponibles");
+}

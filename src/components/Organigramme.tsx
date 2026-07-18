@@ -5,12 +5,14 @@ import {
   type OrgContenu,
   type OrgLinkType,
   type OrgNode,
+  type OrgStatistiques,
   type OrganigrammeVersion,
   addOrganigrammeLink,
   addOrganigrammeNode,
   deleteOrganigrammeLink,
   deleteOrganigrammeNode,
   getOrganigrammePublie,
+  getOrganigrammeStatistiques,
   getOrganigrammeVersion,
   listOrganigrammeVersions,
   patchOrganigrammeNode,
@@ -59,6 +61,7 @@ export function Organigramme({
   const editing = mode === "edition" && canAdministrer;
 
   const publie = useResource<OrgContenu | null>(() => loadPublieOrNull(token), [token]);
+  const stats = useResource<OrgStatistiques>(() => getOrganigrammeStatistiques(token), [token]);
   const versions = useResource<OrganigrammeVersion[]>(
     () => (editing ? listOrganigrammeVersions(token) : Promise.resolve([])),
     [token, editing],
@@ -287,6 +290,7 @@ export function Organigramme({
           {detailNode ? (
             <OrgDetailPanel
               node={detailNode}
+              stats={stats.data ?? null}
               canEdit={editing}
               onClose={() => setDetailNode(null)}
               onCenter={() => setCenterToken((t) => t + 1)}
