@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ApiError,
   type OrgContenu,
+  type OrgLink,
+  type OrgLinkPatch,
   type OrgLinkType,
   type OrgNode,
   type OrgStatistiques,
@@ -15,11 +17,13 @@ import {
   getOrganigrammeStatistiques,
   getOrganigrammeVersion,
   listOrganigrammeVersions,
+  patchOrganigrammeLink,
   patchOrganigrammeNode,
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { OrgCanvas } from "./organigramme/OrgCanvas.js";
 import { OrgDetailPanel } from "./organigramme/OrgDetailPanel.js";
+import { OrgLinkEditor } from "./organigramme/OrgLinkEditor.js";
 import { OrgNodeEditor } from "./organigramme/OrgNodeEditor.js";
 import { OrgVersionsBar } from "./organigramme/OrgVersionsBar.js";
 import { LINK_META, LINK_ORDER } from "./organigramme/orgLabels.js";
@@ -53,6 +57,7 @@ export function Organigramme({
   const [linkType, setLinkType] = useState<OrgLinkType>("hierarchique");
   const [linkLibelle, setLinkLibelle] = useState("");
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  const [editingLink, setEditingLink] = useState<OrgLink | null>(null);
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [detailNode, setDetailNode] = useState<OrgNode | null>(null);
@@ -150,6 +155,32 @@ export function Organigramme({
     });
   }
 
+  async function saveLink(patch: OrgLinkPatch): Promise<void> {
+    if (!editingLink) return;
+    await withAction(async () => {
+      await patchOrganigrammeLink(token, editingLink.id, patch);
+      setEditingLink(null);
+      contenu.reload();
+    });
+  }
+
+  async function deleteEditingLink(): Promise<void> {
+    if (!editingLink) return;
+    await withAction(async () => {
+      await deleteOrganigrammeLink(token, editingLink.id);
+      setEditingLink(null);
+      contenu.reload();
+    });
+  }
+
+  // Drag-reconnect: re-attach a link's endpoint to another node, then reload.
+  function reconnectLink(linkId: string, source: string, target: string): void {
+    void withAction(async () => {
+      await patchOrganigrammeLink(token, linkId, { source_id: source, cible_id: target });
+      contenu.reload();
+    });
+  }
+
   const active = editing ? contenu.data : publie.data;
   const loading = editing ? contenu.loading || versions.loading : publie.loading;
   const loadError = editing ? versions.error ?? contenu.error : publie.error;
@@ -227,9 +258,11 @@ export function Organigramme({
           Imprimer / Exporter en PDF
         </button>
         {editing && selectedId ? (
-          <span className="muted small">
-            Glissez un nœud pour le repositionner. Tirez d'un bord à l'autre pour créer un lien. Cliquez un lien pour le
-            supprimer.
+          <span className="muted small org-edit-hint">
+            <strong>Nœuds</strong> : glissez pour déplacer, le bouton +/− plie ou déplie la branche, Éditer et Supprimer
+            sont sur la carte. <strong>Liens</strong> : tirez d'un bord de carte à un autre pour en créer un ; cliquez un
+            trait pour le modifier (type, libellé, source, cible) ou glissez son extrémité vers un autre nœud pour le
+            reconnecter, sans le supprimer.
           </span>
         ) : null}
       </div>
@@ -277,7 +310,8 @@ export function Organigramme({
             }
             onDeleteNode={editing ? (n) => setPendingDelete({ kind: "node", node: n }) : undefined}
             onConnectLink={editing ? (source, target) => setPendingLink({ source, target }) : undefined}
-            onDeleteLink={editing ? (id) => setPendingDelete({ kind: "link", id }) : undefined}
+            onEditLink={editing ? (link) => setEditingLink(link) : undefined}
+            onReconnectLink={editing ? reconnectLink : undefined}
             onAddSeparator={editing ? addSeparator : undefined}
             onAutoLayout={editing ? autoLayout : undefined}
             onSelectNode={(n) => {
@@ -311,6 +345,21 @@ export function Organigramme({
           node={editorNode}
           onClose={() => setEditorOpen(false)}
           onSaved={() => contenu.reload()}
+        />
+      ) : null}
+
+      {editingLink && editing && active ? (
+        <OrgLinkEditor
+          link={editingLink}
+          nodes={active.noeuds}
+          busy={actionBusy}
+          error={actionErr}
+          onSave={(patch) => void saveLink(patch)}
+          onDelete={() => void deleteEditingLink()}
+          onClose={() => {
+            setEditingLink(null);
+            setActionErr(null);
+          }}
         />
       ) : null}
 

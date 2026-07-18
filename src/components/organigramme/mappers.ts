@@ -78,6 +78,7 @@ export function buildFlow(
   positions: Map<string, XY>,
   collapsed: ReadonlySet<string>,
   separatorHeight = 360,
+  editable = false,
 ): FlowData {
   const h = buildHierarchy(links);
   const hidden = hiddenIds(collapsed, h);
@@ -127,6 +128,10 @@ export function buildFlow(
       type: meta.routing,
       label: l.libelle ?? undefined,
       deletable: false,
+      // In edit mode an endpoint can be dragged onto another node to re-attach the
+      // link (React Flow reconnection); in consultation mode links are inert.
+      reconnectable: editable,
+      focusable: editable,
       markerEnd: {
         type: solid ? MarkerType.ArrowClosed : MarkerType.Arrow,
         color: meta.color,
