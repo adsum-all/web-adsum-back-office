@@ -1,8 +1,10 @@
 import { type ReactNode, useState } from "react";
 
 import {
+  CATEGORIES_ATTRIBUTION,
   type CorrectionItem,
   type DossierInscription,
+  type DossierMembre,
   type InscriptionFiltre,
   type InscriptionItem,
   decisionInscription,
@@ -12,6 +14,35 @@ import {
   getInscriptions,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+
+type DossierFonction = NonNullable<DossierMembre["fonctions"]>[number];
+
+// Group the dossier functions under their attribution category (Titre, Fonction
+// spéciale, Fonction, Fonction particulière), keeping the [à confirmer] marker for
+// unconfirmed items. Any function whose category is unknown falls back to a plain
+// group so nothing is silently dropped.
+function DossierFonctions({ fonctions }: { fonctions: DossierFonction[] }): JSX.Element {
+  const rendu = (f: DossierFonction): string =>
+    `${f.libelle ?? ""}${f.perimetre ? ` (${f.perimetre})` : ""}${f.confirmee ? "" : " [à confirmer]"}`;
+
+  const groupes = CATEGORIES_ATTRIBUTION
+    .map((cat) => ({ cat: cat.label, items: fonctions.filter((f) => (f.categorie ?? "") === cat.code) }))
+    .filter((g) => g.items.length > 0);
+  const connus = new Set(CATEGORIES_ATTRIBUTION.map((c) => c.code));
+  const autres = fonctions.filter((f) => !f.categorie || !connus.has(f.categorie));
+  if (autres.length > 0) groupes.push({ cat: "Non classé", items: autres });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {groupes.map((g) => (
+        <div key={g.cat}>
+          <span className="muted small" style={{ textTransform: "uppercase", letterSpacing: 0.3, fontSize: 10 }}>{g.cat}</span>
+          <div>{g.items.map((f) => rendu(f)).join(", ")}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const DOC_TYPES: Record<string, string> = {
   piece_identite: "Pièce d'identité",
@@ -321,12 +352,10 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
                 }
               />
               <Champ
-                label="Fonctions"
+                label="Titres et fonctions"
                 value={
                   dossier.membre.fonctions && dossier.membre.fonctions.length > 0
-                    ? dossier.membre.fonctions
-                        .map((f) => `${f.libelle ?? ""}${f.perimetre ? ` (${f.perimetre})` : ""}${f.confirmee ? "" : " [à confirmer]"}`)
-                        .join(", ")
+                    ? <DossierFonctions fonctions={dossier.membre.fonctions} />
                     : null
                 }
               />
