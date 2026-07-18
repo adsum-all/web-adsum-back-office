@@ -18,13 +18,13 @@ export function OrgSeparator({ data, selected }: NodeProps<OrgSeparatorFlowNode>
   const ctx = useContext(OrgCanvasContext);
   const { node, hauteur } = data;
   const editable = ctx?.mode === "edition";
-  const couleur = node.couleur ?? "var(--adsum-line)";
   const h = node.hauteur ?? hauteur;
 
+  const teinte = node.couleur ?? "var(--adsum-acc)";
   return (
     <div className={`org-sep ${selected ? "is-selected" : ""}`} style={{ height: h }}>
-      <div className="org-sep-line" style={{ background: couleur }} aria-hidden="true" />
-      {node.nom ? <span className="org-sep-label" style={{ color: couleur }}>{node.nom}</span> : null}
+      <div className="org-sep-line" style={{ background: teinte }} aria-hidden="true" />
+      <span className="org-sep-label" style={{ color: teinte }}>{node.nom || "Séparation"}</span>
       {editable ? (
         <div className="org-sep-actions nodrag">
           <button type="button" className="org-mini-btn" onClick={() => ctx?.onEdit(node)} title="Renommer ce séparateur">

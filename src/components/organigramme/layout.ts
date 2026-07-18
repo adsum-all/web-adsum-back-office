@@ -59,12 +59,16 @@ interface Column {
 function dagreColumn(nodes: OrgNode[], links: OrgLink[]): Column {
   if (nodes.length === 0) return { pos: new Map(), width: 0, height: 0 };
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "TB", nodesep: 46, ranksep: 92, marginx: 0, marginy: 0 });
+  g.setGraph({ rankdir: "TB", nodesep: 40, ranksep: 64, marginx: 0, marginy: 0 });
   g.setDefaultEdgeLabel(() => ({}));
   const ids = new Set(nodes.map((n) => n.id));
   for (const n of nodes) g.setNode(n.id, { width: NODE_W, height: NODE_H });
+  // Rank within a column on the reporting links AND the tribal-responsibility links,
+  // so the twelve tribes stack under the Patriarchs group instead of sitting in one
+  // flat row. Cross-column links (coordination, supervision) never rank a column.
   for (const l of links) {
-    if (l.type_lien === "hierarchique" && ids.has(l.source_id) && ids.has(l.cible_id)) g.setEdge(l.source_id, l.cible_id);
+    const ranking = l.type_lien === "hierarchique" || l.type_lien === "responsabilite_tribu";
+    if (ranking && ids.has(l.source_id) && ids.has(l.cible_id)) g.setEdge(l.source_id, l.cible_id);
   }
   dagre.layout(g);
   let minX = Infinity;
@@ -120,7 +124,9 @@ export function computeLayout(nodes: OrgNode[], links: OrgLink[]): AutoLayout {
   const separatorX = left.width + gap;
   const rightX = separatorX + SEP_W + gap;
   for (const [id, p] of right.pos) positions.set(id, { x: p.x + rightX, y: p.y + topY });
-  const separatorHeight = Math.max(left.height, right.height, 320) + 64;
+  // Kept moderate so the divider never inflates the fit-to-view bounds and shrinks
+  // the cards; it reads as a divider without having to span the whole height.
+  const separatorHeight = Math.min(Math.max(left.height, right.height, 300) + 48, 520);
   separators.forEach((s, i) => positions.set(s.id, { x: separatorX + i * 28, y: topY - 24 }));
   return { positions, separatorHeight, separatorX };
 }

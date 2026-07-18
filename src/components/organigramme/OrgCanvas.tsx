@@ -56,6 +56,29 @@ function signatureOf(c: OrgContenu): string {
   return `${c.version.id}#${n}#${l}`;
 }
 
+/** Parents whose sub-branches are folded by default, so the first view is a
+ * readable synthetic one: the deep commission branches and the tribe members are
+ * hidden until the reader expands them. */
+function defautReplie(nodes: OrgContenu["noeuds"]): Set<string> {
+  const out = new Set<string>();
+  for (const n of nodes) {
+    const c = n.cle ?? "";
+    // Fold the wide operational level (many intendances and coordinations at one
+    // rank) and the deep branches, so the first view is a compact vertical chain
+    // the reader expands step by step.
+    if (
+      c === "role:intendant_general" ||
+      c === "responsables_group" ||
+      c === "groupe_patriarches" ||
+      c.startsWith("tribu:") ||
+      c.startsWith("commission:")
+    ) {
+      out.add(n.id);
+    }
+  }
+  return out;
+}
+
 function OrgCanvasInner({
   contenu,
   mode,
@@ -68,7 +91,7 @@ function OrgCanvasInner({
   onAutoLayout,
 }: OrgCanvasProps): JSX.Element {
   const rf = useReactFlow();
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => defautReplie(contenu.noeuds));
   const [query, setQuery] = useState("");
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
 
@@ -98,7 +121,9 @@ function OrgCanvasInner({
   const structureKey = desired.flowNodes.map((n) => n.id).join(",");
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.2, duration: 400 });
+      // Cap the zoom so cards stay readable when only a few nodes are visible
+      // (a sparse synthetic view would otherwise zoom out until cards are tiny).
+      void rf.fitView({ padding: 0.18, duration: 400, minZoom: 0.4, maxZoom: 1 });
     }, 60);
     return () => window.clearTimeout(handle);
   }, [structureKey, rf]);
@@ -111,6 +136,21 @@ function OrgCanvasInner({
       return next;
     });
   }, []);
+
+  // Reset to the synthetic default whenever the version changes (not on a poll).
+  const versionId = contenu.version.id;
+  useEffect(() => {
+    setCollapsed(defautReplie(contenu.noeuds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versionId]);
+
+  // "Afficher tout": expand everything. "Réduire tout": fold every parent.
+  const toutAfficher = useCallback(() => setCollapsed(new Set<string>()), []);
+  const toutReduire = useCallback(() => {
+    const parents = new Set<string>();
+    for (const l of contenu.liens) if (l.type_lien === "hierarchique") parents.add(l.source_id);
+    setCollapsed(parents);
+  }, [contenu.liens]);
 
   const ctxValue = useMemo(
     () => ({
@@ -162,64 +202,10 @@ function OrgCanvasInner({
 
   return (
     <OrgCanvasContext.Provider value={ctxValue}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={(_, node) => onNodeMoved?.(node.id, Math.round(node.position.x), Math.round(node.position.y))}
-        onEdgeClick={(_, edge) => {
-          if (editable) onDeleteLink?.(edge.id);
-        }}
-        nodesDraggable={editable}
-        nodesConnectable={editable}
-        elementsSelectable
-        deleteKeyCode={null}
-        minZoom={0.2}
-        maxZoom={2}
-        fitView
-        proOptions={{ hideAttribution: true }}
-        aria-label="Organigramme hiérarchique"
-      >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--adsum-dot)" />
-        <Controls position="bottom-left" showInteractive={editable} />
-        <MiniMap
-          position="bottom-right"
-          pannable
-          zoomable
-          ariaLabel="Vue d'ensemble de l'organigramme"
-          nodeColor={() => "#c3cde6"}
-          maskColor="rgba(16, 18, 24, 0.08)"
-        />
-        {editable ? (
-          <Panel position="top-center">
-            <div className="org-toolbar" role="toolbar" aria-label="Outils de modélisation">
-              <button type="button" className="btn btn-ghost btn-inline" onClick={() => onAddSeparator?.()} title="Ajouter un trait de séparation">
-                + Séparateur
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-inline"
-                onClick={() => {
-                  const auto = computeLayout(contenu.noeuds, contenu.liens).positions;
-                  onAutoLayout?.(contenu.noeuds.map((n) => {
-                    const p = auto.get(n.id) ?? { x: 0, y: 0 };
-                    return { id: n.id, x: Math.round(p.x), y: Math.round(p.y) };
-                  }));
-                }}
-                title="Recalculer la disposition en deux colonnes et l'enregistrer"
-              >
-                Disposition automatique
-              </button>
-              <button type="button" className="btn btn-ghost btn-inline" onClick={() => void rf.fitView({ padding: 0.2, duration: 400 })} title="Recentrer la vue">
-                Recentrer
-              </button>
-            </div>
-          </Panel>
-        ) : null}
-        <Panel position="top-left">
+      <div className="org-canvas-inner">
+        {/* A real toolbar ABOVE the canvas, so tools are always visible and never
+            covered by the cards or hidden behind the flow. */}
+        <div className="org-bar">
           <form
             className="org-search"
             onSubmit={(e) => {
@@ -238,16 +224,81 @@ function OrgCanvasInner({
               placeholder="Rechercher un nom, une fonction..."
               aria-label="Rechercher un nœud dans l'organigramme"
             />
-            <button type="submit" className="btn btn-primary btn-inline">
-              Centrer
-            </button>
-            {searchMsg ? <span className="org-search-msg">{searchMsg}</span> : null}
+            <button type="submit" className="btn btn-primary btn-inline">Centrer</button>
           </form>
-        </Panel>
-        <Panel position="top-right">
-          <OrgLegende />
-        </Panel>
-      </ReactFlow>
+          <span className="org-bar-sep" aria-hidden="true" />
+          <button type="button" className="btn btn-ghost btn-inline" onClick={toutAfficher} title="Déplier toutes les branches">
+            Afficher tout
+          </button>
+          <button type="button" className="btn btn-ghost btn-inline" onClick={toutReduire} title="Replier toutes les branches">
+            Réduire tout
+          </button>
+          <button type="button" className="btn btn-ghost btn-inline" onClick={() => void rf.fitView({ padding: 0.18, duration: 400, maxZoom: 1 })} title="Adapter à l'écran">
+            Adapter à l'écran
+          </button>
+          {editable ? (
+            <>
+              <span className="org-bar-sep" aria-hidden="true" />
+              <button type="button" className="btn btn-ghost btn-inline" onClick={() => onAddSeparator?.()} title="Ajouter un trait de séparation">
+                + Séparateur
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-inline"
+                onClick={() => {
+                  const auto = computeLayout(contenu.noeuds, contenu.liens).positions;
+                  onAutoLayout?.(contenu.noeuds.map((n) => {
+                    const p = auto.get(n.id) ?? { x: 0, y: 0 };
+                    return { id: n.id, x: Math.round(p.x), y: Math.round(p.y) };
+                  }));
+                }}
+                title="Recalculer la disposition en deux colonnes et l'enregistrer"
+              >
+                Disposition automatique
+              </button>
+            </>
+          ) : null}
+          {searchMsg ? <span className="org-search-msg">{searchMsg}</span> : null}
+        </div>
+        <div className="org-flow">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDragStop={(_, node) => onNodeMoved?.(node.id, Math.round(node.position.x), Math.round(node.position.y))}
+            onEdgeClick={(_, edge) => {
+              if (editable) onDeleteLink?.(edge.id);
+            }}
+            nodesDraggable={editable}
+            nodesConnectable={editable}
+            elementsSelectable
+            deleteKeyCode={null}
+            minZoom={0.2}
+            maxZoom={2}
+            fitView
+            fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
+            proOptions={{ hideAttribution: true }}
+            aria-label="Organigramme hiérarchique"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--adsum-dot)" />
+            <Controls position="bottom-left" showInteractive={editable} />
+            <MiniMap
+              position="bottom-right"
+              pannable
+              zoomable
+              ariaLabel="Vue d'ensemble de l'organigramme"
+              nodeColor={() => "#c3cde6"}
+              maskColor="rgba(16, 18, 24, 0.08)"
+            />
+            <Panel position="top-right">
+              <OrgLegende />
+            </Panel>
+          </ReactFlow>
+        </div>
+      </div>
     </OrgCanvasContext.Provider>
   );
 }

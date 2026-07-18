@@ -252,6 +252,10 @@ export function Organigramme({
         </div>
       ) : active ? (
         <div className="org-canvas-wrap">
+          <div className="org-columns" aria-hidden="true">
+            <span className="org-col-cap">Chaîne fonctionnelle principale</span>
+            <span className="org-col-cap">Branches particulières reliées</span>
+          </div>
           <OrgCanvas
             key={editing ? `draft-${active.version.id}` : "publie"}
             contenu={active}
