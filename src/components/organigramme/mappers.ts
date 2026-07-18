@@ -1,9 +1,8 @@
-import { type Edge, MarkerType } from "@xyflow/react";
+import { type Edge, MarkerType, type Node } from "@xyflow/react";
 
 import type { OrgLink, OrgNode } from "../../api.js";
 import { LINK_META } from "./orgLabels.js";
-import type { XY } from "./layout.js";
-import type { OrgFlowNode } from "./OrgNodeCard.js";
+import { isSeparator, type XY } from "./layout.js";
 
 export interface Hierarchy {
   /** parent id -> ordered child ids, built from the hierarchical links only. */
@@ -61,7 +60,7 @@ function handlesFor(
 }
 
 export interface FlowData {
-  flowNodes: OrgFlowNode[];
+  flowNodes: Node[];
   flowEdges: Edge[];
 }
 
@@ -73,14 +72,25 @@ export function buildFlow(
   links: OrgLink[],
   positions: Map<string, XY>,
   collapsed: ReadonlySet<string>,
+  separatorHeight = 360,
 ): FlowData {
   const h = buildHierarchy(links);
   const hidden = hiddenIds(collapsed, h);
   const present = new Set(nodes.map((n) => n.id));
 
-  const flowNodes: OrgFlowNode[] = nodes
+  const flowNodes: Node[] = nodes
     .filter((n) => !hidden.has(n.id))
     .map((n) => {
+      if (isSeparator(n)) {
+        return {
+          id: n.id,
+          type: "separateur" as const,
+          position: positions.get(n.id) ?? { x: 0, y: 0 },
+          draggable: true,
+          selectable: true,
+          data: { node: n, hauteur: n.hauteur ?? separatorHeight },
+        };
+      }
       const kids = h.children.get(n.id) ?? [];
       return {
         id: n.id,
