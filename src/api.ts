@@ -2978,6 +2978,107 @@ export function getOrganigrammePublie(token: string): Promise<OrgContenu> {
   return authedGet("/api/v1/organigramme/publie", token, "Organigramme publié indisponible");
 }
 
+// --- Informations (internal communication) ---------------------------------
+
+export type InformationPriorite = "normale" | "importante" | "urgente";
+export type InformationStatut = "brouillon" | "programme" | "envoye" | "archive";
+
+export interface InfoCibleRef {
+  code: string;
+  cible_id?: string | null;
+}
+
+export interface Information {
+  id: string;
+  titre: string;
+  sous_titre: string | null;
+  contenu: string;
+  priorite: InformationPriorite;
+  auteur: string | null;
+  statut: InformationStatut;
+  requiert_accuse: boolean;
+  lecture_vocale_auto: boolean;
+  lien_url: string | null;
+  action_label: string | null;
+  action_url: string | null;
+  expire_le: string | null;
+  epingle_jusqu: string | null;
+  cibles: InfoCibleRef[];
+  cree_le: string | null;
+  envoye_le: string | null;
+}
+
+export interface InformationInput {
+  titre: string;
+  sous_titre?: string | null;
+  contenu: string;
+  priorite: InformationPriorite;
+  auteur?: string | null;
+  requiert_accuse?: boolean;
+  lecture_vocale_auto?: boolean;
+  lien_url?: string | null;
+  action_label?: string | null;
+  action_url?: string | null;
+  expire_le?: string | null;
+  epingle_jusqu?: string | null;
+  cibles: InfoCibleRef[];
+}
+
+export interface InformationStats {
+  destinataires: number;
+  lus: number;
+  confirmes: number;
+  non_lus: number;
+  taux_lecture: number;
+  taux_confirmation: number;
+}
+
+/** A reusable targeting segment from the shared destination referential. */
+export interface CibleReference {
+  code: string;
+  libelle: string;
+  description: string | null;
+  categorie: string | null;
+  type_regle: string;
+}
+
+export function listInformations(token: string, statut?: InformationStatut): Promise<Information[]> {
+  const q = statut ? `?statut=${statut}` : "";
+  return authedGet(`/api/v1/admin/informations${q}`, token, "Informations indisponibles");
+}
+
+export function createInformation(token: string, input: InformationInput): Promise<Information> {
+  return authedSend("/api/v1/admin/informations", token, "POST", input, "Création de l'information impossible");
+}
+
+export function updateInformation(token: string, id: string, input: Partial<InformationInput>): Promise<Information> {
+  return authedSend(`/api/v1/admin/informations/${id}`, token, "PATCH", input, "Modification impossible");
+}
+
+export function deleteInformation(token: string, id: string): Promise<void> {
+  return authedSend(`/api/v1/admin/informations/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export function publishInformation(token: string, id: string): Promise<{ ok: boolean; destinataires: number }> {
+  return authedSend(`/api/v1/admin/informations/${id}/publier`, token, "POST", undefined, "Publication impossible");
+}
+
+export function archiveInformation(token: string, id: string): Promise<Information> {
+  return authedSend(`/api/v1/admin/informations/${id}/archiver`, token, "POST", undefined, "Archivage impossible");
+}
+
+export function apercuDestinataires(token: string, id: string): Promise<{ destinataires_uniques: number; segments: number }> {
+  return authedSend(`/api/v1/admin/informations/${id}/apercu-destinataires`, token, "POST", undefined, "Aperçu impossible");
+}
+
+export function getInformationStats(token: string, id: string): Promise<InformationStats> {
+  return authedGet(`/api/v1/admin/informations/${id}/statistiques`, token, "Statistiques indisponibles");
+}
+
+export function getCiblesReference(token: string): Promise<CibleReference[]> {
+  return authedGet("/api/v1/reference/cibles-activite", token, "Destinations indisponibles");
+}
+
 export interface OrgAnomalie {
   code: string;
   libelle: string;
