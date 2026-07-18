@@ -2983,13 +2983,35 @@ export function getOrganigrammePublie(token: string): Promise<OrgContenu> {
 export type InformationPriorite = "normale" | "importante" | "urgente";
 export type InformationStatut = "brouillon" | "programme" | "envoye" | "archive";
 
+export interface InfoCroisement {
+  commission_id?: string | null;
+  intendance_id?: string | null;
+  coordination_id?: string | null;
+  groupe?: string | null;
+}
+
 export interface InfoCibleRef {
   code: string;
   cible_id?: string | null;
   /** Manual selection: explicit member ids, used with the reserved code "selection". */
   membre_ids?: string[];
+  /** Crossed targeting (commission inside a coordination/stewardship, sub-group). */
+  croisement?: InfoCroisement;
   /** Display label kept client side (unit or member names) so chips stay readable. */
   libelle?: string;
+}
+
+/** Connected account's own member profile, used to prefill the author field. */
+export interface MonProfilAuteur {
+  nom_affiche?: string | null;
+  prenoms?: string | null;
+  nom?: string | null;
+  fonction_cle?: string | null;
+  fonctions?: { cle: string; libelle?: string | null; principale?: boolean }[];
+}
+
+export function getMonProfilAuteur(token: string): Promise<MonProfilAuteur> {
+  return authedGet("/api/v1/membres/me", token, "Profil indisponible");
 }
 
 export interface Information {
