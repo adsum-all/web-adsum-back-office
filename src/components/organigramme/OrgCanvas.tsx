@@ -209,6 +209,41 @@ function OrgCanvasInner({
     [mode, collapsed, onToggleCollapse, onEditNode, onDeleteNode],
   );
 
+  // Parent lookup (hierarchical + tribal), to reveal a node's ancestors before
+  // centring on it. Stable per content.
+  const parentOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of contenu.liens) {
+      if (l.type_lien === "hierarchique" || l.type_lien === "responsabilite_tribu") m.set(l.cible_id, l.source_id);
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentSig]);
+
+  // Reveal a node (expand its whole ancestor chain) and centre on it, using a FRESH
+  // layout for the revealed state, never the memoised positions: with the compact
+  // layout a folded node has no real coordinate, so reading the stale map would jump
+  // the viewport to the origin (0,0) instead of the target. This backs both the
+  // search box and the details panel's "Centrer" button.
+  const revealAndCenter = useCallback(
+    (id: string, zoom: number) => {
+      const next = new Set(collapsed);
+      let cur = parentOf.get(id);
+      while (cur) {
+        next.delete(cur);
+        cur = parentOf.get(cur);
+      }
+      setCollapsed(next);
+      const fresh = resolvePositions(contenu.noeuds, contenu.liens, hiddenIds(next, buildHierarchy(contenu.liens)));
+      const pos = fresh.positions.get(id);
+      window.setTimeout(() => {
+        if (pos) void rf.setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom, duration: 500 });
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === id })));
+      }, 130);
+    },
+    [collapsed, parentOf, contenu.noeuds, contenu.liens, rf, setNodes],
+  );
+
   const runSearch = useCallback(
     (raw: string) => {
       const q = normalize(raw.trim());
@@ -224,15 +259,10 @@ function OrgCanvasInner({
         return;
       }
       setSearchMsg(null);
-      // Un-collapse everything so a match hidden inside a folded branch is revealed.
-      setCollapsed(new Set<string>());
-      const pos = positions.get(found.id);
-      window.setTimeout(() => {
-        if (pos) void rf.setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 1.15, duration: 500 });
-        setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === found.id })));
-      }, 90);
+      // Reveal the path to the match and centre on its real, freshly computed position.
+      revealAndCenter(found.id, 1.15);
     },
-    [contenu.noeuds, positions, rf, setNodes],
+    [contenu.noeuds, revealAndCenter],
   );
 
   const onConnect = useCallback(
@@ -258,13 +288,13 @@ function OrgCanvasInner({
 
   const editable = mode === "edition";
 
-  // Centre on the selected node when the parent asks (click or the panel's button),
-  // and mark it as selected. This is an EXPLICIT recentre, never on fold/expand.
+  // Centre on the selected node when the parent asks (click or the panel's button):
+  // reveal its ancestor path and centre on its fresh coordinate, so folding the
+  // node's branch before pressing "Centrer" no longer jumps to the empty origin.
+  // This is an EXPLICIT recentre, never triggered by a plain fold/expand.
   useEffect(() => {
     if (!centerToken || !selectedNodeId) return;
-    const pos = positions.get(selectedNodeId);
-    if (pos) void rf.setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 1, duration: 450 });
-    setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === selectedNodeId })));
+    revealAndCenter(selectedNodeId, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerToken]);
 
@@ -366,12 +396,16 @@ function OrgCanvasInner({
             nodesConnectable={editable}
             elementsSelectable
             deleteKeyCode={null}
-            minZoom={0.2}
+            minZoom={0.02}
             maxZoom={2}
             fitView
             fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
             proOptions={{ hideAttribution: true }}
             aria-label="Organigramme hiérarchique"
+            // Virtualise the DOM: with the full tree expanded (~604 cards, each with
+            // several handles) only the nodes inside the viewport are mounted, so a
+            // large expansion no longer floods the DOM with thousands of elements.
+            onlyRenderVisibleElements
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--adsum-dot)" />
             <Controls position="bottom-left" showInteractive={editable} />
