@@ -45,7 +45,7 @@ interface UniteRow {
 }
 
 function emptyInput(): InformationInput {
-  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", cibles: [] };
+  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", cibles: [] };
 }
 
 /** Staged media: undefined = untouched, null = clear, string = new data URL. */
@@ -64,7 +64,7 @@ export function InformationEditor({
 }: Readonly<{ token: string; info: Information | null; cibles: CibleReference[]; onClose: () => void; onSaved: () => void }>): JSX.Element {
   const [form, setForm] = useState<InformationInput>(() =>
     info
-      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
+      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
       : emptyInput(),
   );
   const [id, setId] = useState<string | null>(info?.id ?? null);
@@ -389,6 +389,8 @@ export function InformationEditor({
 
           <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.requiert_accuse} onChange={(e) => set("requiert_accuse", e.target.checked)} /><span>Demander une confirmation de lecture</span></label>
           <label className="field-check"><input type="checkbox" disabled={!editable} checked={form.lecture_vocale_auto !== false} onChange={(e) => set("lecture_vocale_auto", e.target.checked)} /><span>Autoriser la lecture vocale du texte</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.protege} onChange={(e) => set("protege", e.target.checked)} /><span>Conservation protégée (jamais archivée ni supprimée automatiquement)</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.institutionnelle} onChange={(e) => set("institutionnelle", e.target.checked)} /><span>Information institutionnelle (conservée durablement)</span></label>
 
           <label className="field"><span>Lien externe (facultatif)</span><input value={form.lien_url ?? ""} onChange={(e) => set("lien_url", e.target.value)} placeholder="https://..." disabled={!editable} /></label>
           <div className="info-two">
