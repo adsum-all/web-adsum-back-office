@@ -2928,6 +2928,20 @@ export function deleteOrganigrammeLink(token: string, linkId: string): Promise<v
   return authedSend(`/api/v1/admin/organigramme/links/${linkId}`, token, "DELETE", undefined, "Suppression du lien impossible");
 }
 
+export interface OrgLinkPatch {
+  source_id?: string;
+  cible_id?: string;
+  type_lien?: OrgLinkType;
+  libelle?: string | null;
+}
+
+/** Move, re-type or re-label a link without deleting it. Only the provided fields
+ * change; reconnecting an endpoint (source_id/cible_id) is how a mis-placed link is
+ * corrected. A hierarchical result that closes a loop is refused (409). */
+export function patchOrganigrammeLink(token: string, linkId: string, patch: OrgLinkPatch): Promise<OrgLink> {
+  return authedSend(`/api/v1/admin/organigramme/links/${linkId}`, token, "PATCH", patch, "Modification du lien impossible");
+}
+
 /** Bind a member to a node and, when appliquer_au_profil is true, write the node's
  * function or title onto the member profile (a confirmed membre_fonction, or the
  * berger title). The card name is refreshed from the returned membre_nom. */

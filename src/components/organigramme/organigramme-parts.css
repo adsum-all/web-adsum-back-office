@@ -227,6 +227,29 @@
   font-weight: 500;
   margin-bottom: 12px;
 }
+/* Link editor: destructive action on the left, confirm/cancel on the right, so
+   deletion is one clearly-separated option and never the default gesture. */
+.org-modal-actions-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.org-modal-actions-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.org-edit-hint {
+  line-height: 1.5;
+  max-width: 900px;
+}
+.org-edit-hint strong {
+  color: var(--adsum-ink);
+  font-weight: 700;
+}
 .org-modal-field input,
 .org-modal-field select {
   padding: 10px 12px;
