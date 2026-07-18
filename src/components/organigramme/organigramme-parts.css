@@ -405,3 +405,81 @@
   cursor: pointer;
 }
 .org-editor-check input { margin-top: 2px; }
+
+/* --- Node details drawer (right side, over the canvas) --- */
+.org-detail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 92%);
+  background: var(--adsum-panel);
+  border-left: 1px solid var(--adsum-line);
+  box-shadow: var(--adsum-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  overflow: hidden;
+}
+.org-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--adsum-line);
+}
+.org-detail-title { font-size: var(--adsum-text-sm, 14px); font-weight: 800; margin: 0; }
+.org-detail-hero {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--adsum-line);
+}
+.org-detail-avatar,
+.org-detail-photo {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 800;
+  background: var(--adsum-acc);
+}
+.org-detail-name { font-weight: 800; font-size: 15px; }
+.org-detail-sub { color: var(--adsum-mut); font-size: 12.5px; margin: 2px 0 4px; }
+.org-detail-body { padding: 14px; overflow-y: auto; flex: 1; }
+.org-detail-section {
+  font-family: var(--adsum-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--adsum-acc);
+  font-weight: 800;
+  margin: 14px 0 8px;
+}
+.org-detail-section:first-child { margin-top: 0; }
+.org-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--adsum-line);
+  font-size: 13px;
+}
+.org-detail-key { color: var(--adsum-mut); }
+.org-detail-val { text-align: right; font-weight: 600; }
+.org-detail-note { color: var(--adsum-mut); font-size: 12.5px; line-height: 1.5; }
+.org-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--adsum-line);
+}
+@media (max-width: 720px) {
+  .org-detail { width: 100%; }
+}

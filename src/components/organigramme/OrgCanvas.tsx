@@ -39,6 +39,12 @@ export interface OrgCanvasProps {
   onDeleteLink?: (linkId: string) => void;
   onAddSeparator?: () => void;
   onAutoLayout?: (positions: { id: string; x: number; y: number }[]) => void;
+  /** Opening the details panel: a click on a card reports the node here. */
+  onSelectNode?: (node: OrgNode) => void;
+  /** Id of the node whose details are open, highlighted on the canvas. */
+  selectedNodeId?: string | null;
+  /** Incrementing counter that asks the canvas to centre on selectedNodeId. */
+  centerToken?: number;
 }
 
 const noop = (): void => undefined;
@@ -90,6 +96,9 @@ function OrgCanvasInner({
   onDeleteLink,
   onAddSeparator,
   onAutoLayout,
+  onSelectNode,
+  selectedNodeId,
+  centerToken,
 }: OrgCanvasProps): JSX.Element {
   const rf = useReactFlow();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => defautReplie(contenu.noeuds));
@@ -118,16 +127,17 @@ function OrgCanvasInner({
     setEdges(desired.flowEdges);
   }, [desired, setNodes, setEdges]);
 
-  // Frame the whole graph whenever the visible set of nodes changes.
-  const structureKey = desired.flowNodes.map((n) => n.id).join(",");
+  // Frame the whole graph ONLY when the version first loads. Expanding or folding a
+  // branch must NOT recentre the canvas: the reader keeps looking where they were,
+  // and the newly revealed cards appear in place. Re-framing is available on demand
+  // through the "Adapter à l'écran" button.
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      // Cap the zoom so cards stay readable when only a few nodes are visible
-      // (a sparse synthetic view would otherwise zoom out until cards are tiny).
-      void rf.fitView({ padding: 0.18, duration: 400, minZoom: 0.4, maxZoom: 1 });
-    }, 60);
+      void rf.fitView({ padding: 0.18, duration: 400, minZoom: 0.35, maxZoom: 1 });
+    }, 80);
     return () => window.clearTimeout(handle);
-  }, [structureKey, rf]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contenu.version.id, rf]);
 
   const onToggleCollapse = useCallback((id: string) => {
     setCollapsed((prev) => {
@@ -203,6 +213,16 @@ function OrgCanvasInner({
 
   const editable = mode === "edition";
 
+  // Centre on the selected node when the parent asks (click or the panel's button),
+  // and mark it as selected. This is an EXPLICIT recentre, never on fold/expand.
+  useEffect(() => {
+    if (!centerToken || !selectedNodeId) return;
+    const pos = positions.get(selectedNodeId);
+    if (pos) void rf.setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 1, duration: 450 });
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === selectedNodeId })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerToken]);
+
   return (
     <OrgCanvasContext.Provider value={ctxValue}>
       <div className="org-canvas-inner">
@@ -275,6 +295,10 @@ function OrgCanvasInner({
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeDragStop={(_, node) => onNodeMoved?.(node.id, Math.round(node.position.x), Math.round(node.position.y))}
+            onNodeClick={(_, node) => {
+              const found = contenu.noeuds.find((x) => x.id === node.id);
+              if (found && found.type_noeud !== "separateur") onSelectNode?.(found);
+            }}
             onEdgeClick={(_, edge) => {
               if (editable) onDeleteLink?.(edge.id);
             }}

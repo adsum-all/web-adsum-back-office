@@ -17,6 +17,7 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { OrgCanvas } from "./organigramme/OrgCanvas.js";
+import { OrgDetailPanel } from "./organigramme/OrgDetailPanel.js";
 import { OrgNodeEditor } from "./organigramme/OrgNodeEditor.js";
 import { OrgVersionsBar } from "./organigramme/OrgVersionsBar.js";
 import { LINK_META, LINK_ORDER } from "./organigramme/orgLabels.js";
@@ -52,6 +53,8 @@ export function Organigramme({
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [detailNode, setDetailNode] = useState<OrgNode | null>(null);
+  const [centerToken, setCenterToken] = useState(0);
 
   const editing = mode === "edition" && canAdministrer;
 
@@ -274,7 +277,26 @@ export function Organigramme({
             onDeleteLink={editing ? (id) => setPendingDelete({ kind: "link", id }) : undefined}
             onAddSeparator={editing ? addSeparator : undefined}
             onAutoLayout={editing ? autoLayout : undefined}
+            onSelectNode={(n) => {
+              setDetailNode(n);
+              setCenterToken((t) => t + 1);
+            }}
+            selectedNodeId={detailNode?.id ?? null}
+            centerToken={centerToken}
           />
+          {detailNode ? (
+            <OrgDetailPanel
+              node={detailNode}
+              canEdit={editing}
+              onClose={() => setDetailNode(null)}
+              onCenter={() => setCenterToken((t) => t + 1)}
+              onEdit={(n) => {
+                setEditorNode(n);
+                setEditorOpen(true);
+                setDetailNode(null);
+              }}
+            />
+          ) : null}
         </div>
       ) : null}
 
