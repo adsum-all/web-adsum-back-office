@@ -185,20 +185,20 @@ export function App(): JSX.Element {
     if (!session) return undefined;
     const token = session.token;
     const avaitPerms = session.permissions !== undefined;
+    const actuel = session.permissions ?? [];
     let cancelled = false;
     void getMyPermissions(token)
       .then((p) => {
         if (cancelled) return;
-        setSession((prev) => {
-          if (!prev || prev.token !== token) return prev;
-          const actuel = prev.permissions ?? [];
-          const suivant = p.permissions;
-          const identique = actuel.length === suivant.length && suivant.every((x) => actuel.includes(x));
-          if (identique && avaitPerms) return prev;
-          const hydrated: Session = { ...prev, permissions: suivant };
-          saveSession(hydrated);
-          return hydrated;
-        });
+        const suivant = p.permissions;
+        const identique = actuel.length === suivant.length && suivant.every((x) => actuel.includes(x));
+        if (identique && avaitPerms) return;
+        // Persist first, then update state: a plain sequence (never a side effect inside
+        // the state updater, which React may run more than once and would leave the cache
+        // out of sync with the committed state).
+        const hydrated: Session = { ...session, permissions: suivant };
+        saveSession(hydrated);
+        setSession(hydrated);
       })
       .catch(() => {
         // On the initial load (no cached permissions) an invalid token signs out rather
