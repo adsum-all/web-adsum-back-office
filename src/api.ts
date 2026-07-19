@@ -1626,6 +1626,26 @@ export interface DateInstitutionnelle {
 
 export type DateInstitInput = Omit<DateInstitutionnelle, "id">;
 
+export interface CentreDiffusion {
+  informations_actives: number;
+  informations_expirant_48h: number;
+  informations_brouillons: number;
+  informations_programmees: number;
+  informations_archivees: number;
+  taux_lecture: number;
+  lus: number;
+  destinataires_90j: number;
+  informations_non_lues: number;
+  telegram_relais_30j: number;
+  echecs_envoi: number;
+  derniere_retention: { execute_le: string | null; rapport: string | null } | null;
+  expirant_bientot: { id: string; titre: string | null; priorite: string; expire_le: string | null }[];
+}
+
+export function getCentreDiffusion(token: string): Promise<CentreDiffusion> {
+  return authedGet<CentreDiffusion>("/api/v1/admin/communication/centre-diffusion", token, "Centre de diffusion indisponible");
+}
+
 export function getIdentiteInstitutionnelle(token: string): Promise<IdentiteInstitutionnelle> {
   return authedGet<IdentiteInstitutionnelle>("/api/v1/admin/parametres/identite-institutionnelle", token, "Identité indisponible");
 }
