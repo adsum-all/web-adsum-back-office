@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { type Session, getMyPermissions, logoutSession } from "./api.js";
+import { type Session, getMyPermissions, getMesPreferences, logoutSession } from "./api.js";
+import { applyTheme, saveTheme } from "./lib/theme.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
@@ -33,6 +34,8 @@ import { GouvernanceAcces } from "./components/GouvernanceAcces.js";
 import { Utilisateurs } from "./components/Utilisateurs.js";
 import { MatricePermissions } from "./components/MatricePermissions.js";
 import { ProfilMenu } from "./components/ProfilMenu.js";
+import { ProfilPage } from "./components/ProfilPage.js";
+import { roleLabel } from "./components/utilisateursShared.js";
 import { EspacesCollab } from "./components/EspacesCollab.js";
 import { TechnicalAdmins } from "./components/TechnicalAdmins.js";
 
@@ -68,7 +71,8 @@ type Section =
   | "reglages-ia"
   | "consentements"
   | "attestations"
-  | "audit";
+  | "audit"
+  | "profil";
 
 // Each section is shown only to an account that holds its permission. The key is
 // the read/consult permission the section's primary endpoint requires, so the
@@ -117,6 +121,7 @@ const SECTION_IDS = new Set<string>([
   "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "informations", "centre-diffusion", "retention", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
+  "profil",
 ]);
 function sectionFromHash(): Section | null {
   if (typeof window === "undefined") return null;
@@ -215,6 +220,23 @@ export function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token]);
 
+  // Apply the account's server-side theme on load, so the choice follows the account
+  // across browsers and devices (localStorage only gives an instant, per-browser apply).
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    void getMesPreferences(session.token)
+      .then((p) => {
+        if (!alive) return;
+        if (p.theme === "light" || p.theme === "dark" || p.theme === "system") {
+          applyTheme(p.theme);
+          saveTheme(p.theme);
+        }
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [session?.token]);
+
   const held = useMemo(() => new Set(session?.permissions ?? []), [session]);
   const visibleNav = useMemo(() => NAV.filter((n) => held.has(n.perm)), [held]);
 
@@ -223,6 +245,9 @@ export function App(): JSX.Element {
   // or is empty, rewrite it so a further refresh is stable and never lands elsewhere.
   useEffect(() => {
     if (!session || session.permissions === undefined) return;
+    // "profil" is a permission-free account page reachable from the top bar and the
+    // sidebar; it is not part of the permission-gated NAV, so never realign away from it.
+    if (section === "profil") return;
     const first = visibleNav[0];
     if (!first) return;
     const shown = visibleNav.find((n) => n.id === section)?.id ?? first.id;
@@ -240,9 +265,13 @@ export function App(): JSX.Element {
   }
 
   const groups = Array.from(new Set(visibleNav.map((n) => n.group)));
-  // Deny-by-default: only ever land on a section the account may see.
-  const current = visibleNav.find((n) => n.id === section) ?? visibleNav[0];
-  const activeId = current?.id;
+  const onProfil = section === "profil";
+  // Deny-by-default: only ever land on a section the account may see (except the
+  // permission-free profile page, handled separately below).
+  const current = onProfil ? null : (visibleNav.find((n) => n.id === section) ?? visibleNav[0]);
+  const activeId: Section = onProfil ? "profil" : (current?.id ?? "dashboard");
+  const crumb = onProfil ? "MON COMPTE" : current?.group;
+  const titre = onProfil ? "Mon profil" : current?.label;
 
   return (
     <div className="shell">
@@ -276,7 +305,10 @@ export function App(): JSX.Element {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className="muted small">{session.role}</span>
+          <button type="button" className={`link link-strong nav-profil-foot${onProfil ? " is-active" : ""}`} onClick={() => go("profil")}>
+            Mon profil
+          </button>
+          <span className="muted small">{roleLabel(session.role)}</span>
           <button type="button" className="link" onClick={deconnexion}>
             Déconnexion
           </button>
@@ -285,8 +317,8 @@ export function App(): JSX.Element {
       <main className="main">
         <header className="topbar-app">
           <div className="topbar-title">
-            <p className="topbar-crumb">{current?.group}</p>
-            <h1 className="topbar-h1">{current?.label}</h1>
+            <p className="topbar-crumb">{crumb}</p>
+            <h1 className="topbar-h1">{titre}</h1>
           </div>
           <label className="search-global">
             <span className="search-ico" aria-hidden="true">
@@ -302,9 +334,10 @@ export function App(): JSX.Element {
             <span className="event-dot" aria-hidden="true" />
             Aucun événement actif
           </span>
-          <ProfilMenu token={session.token} onLogout={deconnexion} />
+          <ProfilMenu token={session.token} onLogout={deconnexion} onOpenProfil={() => go("profil")} />
         </header>
         <div className="main-scroll">
+          {activeId === "profil" && <ProfilPage token={session.token} onLogout={deconnexion} />}
           {activeId === "dashboard" && <Dashboard token={session.token} />}
           {activeId === "statistiques" && <Statistiques token={session.token} />}
           {activeId === "participation" && <ParticipationStats token={session.token} />}
