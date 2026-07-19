@@ -1601,3 +1601,4 @@ h3 {
 .plan-chip.is-on { opacity: 1; text-decoration: none; border-color: var(--adsum-acc); color: var(--adsum-acc); font-weight: 600; }
 .plan-resume { border-top: 1px dashed var(--adsum-line); padding-top: 8px; }
 .plan-liste { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+.info-canaux { display: flex; flex-direction: column; gap: 4px; }
