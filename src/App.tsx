@@ -22,6 +22,7 @@ import { Membres } from "./components/Membres.js";
 import { ReglagesIA } from "./components/ReglagesIA.js";
 import { ParticipationStats } from "./components/ParticipationStats.js";
 import { Organisation } from "./components/Organisation.js";
+import { IdentiteInstitutionnelle } from "./components/IdentiteInstitutionnelle.js";
 import { InformationsAdmin } from "./components/InformationsAdmin.js";
 import { RetentionArchivage } from "./components/RetentionArchivage.js";
 import { Organigramme } from "./components/Organigramme.js";
@@ -50,6 +51,7 @@ type Section =
   | "organigramme"
   | "informations"
   | "retention"
+  | "identite-institutionnelle"
   | "evenements"
   | "types-evenements"
   | "anniversaires"
@@ -98,6 +100,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME", perm: "terminaux.consulter" },
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
   { id: "reglages-ia", label: "Fournisseurs IA (transcription)", group: "SYSTÈME", perm: "integrations.administrer" },
+  { id: "identite-institutionnelle", label: "Identité institutionnelle", group: "SYSTÈME", perm: "parametres.consulter" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
   { id: "attestations", label: "Attestations & pays", group: "SYSTÈME", perm: "attestations.gerer" },
   { id: "audit", label: "Journal d'audit", group: "SYSTÈME", perm: "audit.administrer" },
@@ -110,7 +113,7 @@ const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
   "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "informations", "retention", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
-  "integrations", "reglages-ia", "consentements", "attestations", "audit", "technical-admins",
+  "integrations", "reglages-ia", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
 ]);
 function sectionFromHash(): Section | null {
   if (typeof window === "undefined") return null;
@@ -323,6 +326,7 @@ export function App(): JSX.Element {
           )}
           {activeId === "informations" && <InformationsAdmin token={session.token} />}
           {activeId === "retention" && <RetentionArchivage token={session.token} canGerer={held.has("parametres.gerer")} />}
+          {activeId === "identite-institutionnelle" && <IdentiteInstitutionnelle token={session.token} canGerer={held.has("parametres.gerer")} />}
           {activeId === "evenements" && (
             <Evenements
               token={session.token}
