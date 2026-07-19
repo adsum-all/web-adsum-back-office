@@ -23,11 +23,11 @@ import {
 import { useResource } from "../useResource.js";
 import { OrgCanvas } from "./organigramme/OrgCanvas.js";
 import { OrgDetailPanel } from "./organigramme/OrgDetailPanel.js";
+import { OrgGouvernance } from "./organigramme/OrgGouvernance.js";
 import { OrgLinkEditor } from "./organigramme/OrgLinkEditor.js";
 import { OrgNodeEditor } from "./organigramme/OrgNodeEditor.js";
 import { OrgVersionsBar } from "./organigramme/OrgVersionsBar.js";
 import { LINK_META, LINK_ORDER } from "./organigramme/orgLabels.js";
-import type { OrgMode } from "./organigramme/orgContext.js";
 
 /** Load the published organigramme, turning "nothing published yet" (404) into an
  * explicit empty state instead of an error banner. */
@@ -51,7 +51,7 @@ export function Organigramme({
   token: string;
   canAdministrer?: boolean;
 }): JSX.Element {
-  const [mode, setMode] = useState<OrgMode>("consultation");
+  const [tab, setTab] = useState<"consultation" | "edition" | "gouvernance">("consultation");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorNode, setEditorNode] = useState<OrgNode | null>(null);
@@ -65,7 +65,8 @@ export function Organigramme({
   const [detailNode, setDetailNode] = useState<OrgNode | null>(null);
   const [centerToken, setCenterToken] = useState(0);
 
-  const editing = mode === "edition" && canAdministrer;
+  const editing = tab === "edition" && canAdministrer;
+  const gouvernance = tab === "gouvernance" && canAdministrer;
 
   const publie = useResource<OrgContenu | null>(() => loadPublieOrNull(token), [token]);
   const stats = useResource<OrgStatistiques>(() => getOrganigrammeStatistiques(token), [token]);
@@ -202,25 +203,38 @@ export function Organigramme({
             <button
               type="button"
               role="tab"
-              aria-selected={mode === "consultation"}
-              className={`org-mode-btn ${mode === "consultation" ? "is-active" : ""}`}
-              onClick={() => setMode("consultation")}
+              aria-selected={tab === "consultation"}
+              className={`org-mode-btn ${tab === "consultation" ? "is-active" : ""}`}
+              onClick={() => setTab("consultation")}
             >
               Consultation
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={mode === "edition"}
-              className={`org-mode-btn ${mode === "edition" ? "is-active" : ""}`}
-              onClick={() => setMode("edition")}
+              aria-selected={tab === "edition"}
+              className={`org-mode-btn ${tab === "edition" ? "is-active" : ""}`}
+              onClick={() => setTab("edition")}
             >
               Édition
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "gouvernance"}
+              className={`org-mode-btn ${tab === "gouvernance" ? "is-active" : ""}`}
+              onClick={() => setTab("gouvernance")}
+            >
+              Gouvernance
             </button>
           </div>
         ) : null}
       </header>
 
+      {gouvernance ? <OrgGouvernance token={token} /> : null}
+
+      {gouvernance ? null : (
+        <>
       {editing ? (
         <OrgVersionsBar
           token={token}
@@ -420,6 +434,8 @@ export function Organigramme({
           </div>
         </div>
       ) : null}
+        </>
+      )}
     </div>
   );
 }
