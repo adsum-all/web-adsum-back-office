@@ -15,11 +15,13 @@ import {
   getMesPreferences,
   getQuestionnaireFenetreMinutes,
   getSemaineJourDebut,
+  getHebdoHeureEnvoi,
   getTribus,
   getTypesEvenements,
   setMesPreferences,
   setQuestionnaireFenetreMinutes,
   setSemaineJourDebut,
+  setHebdoHeureEnvoi,
 } from "../api.js";
 import { formatDate } from "../format.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
@@ -83,6 +85,7 @@ export function Evenements({
   const evenements = useResource(() => getEvenements(token), [token]);
   const fenetre = useResource(() => getQuestionnaireFenetreMinutes(token), [token]);
   const semaineDebut = useResource(() => getSemaineJourDebut(token), [token]);
+  const hebdoHeure = useResource(() => getHebdoHeureEnvoi(token), [token]);
   // Units available as an activity target. Loaded once; the second select only
   // shows the list matching the chosen target kind.
   const coordinations = useResource(() => getCoordinations(token), [token]);
@@ -150,6 +153,9 @@ export function Evenements({
 
   function saveSemaineDebut(jour: number): void {
     void setSemaineJourDebut(token, jour).then(() => semaineDebut.reload()).catch(() => undefined);
+  }
+  function saveHebdoHeure(heure: number): void {
+    void setHebdoHeureEnvoi(token, heure).then(() => hebdoHeure.reload()).catch(() => undefined);
   }
 
   function set<K extends keyof EvenementCreateInput>(key: K, value: EvenementCreateInput[K]): void {
@@ -548,6 +554,20 @@ export function Evenements({
             {["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"].map((j, i) => (
               <option key={j} value={i}>{j}</option>
             ))}
+          </select>
+        </div>
+        <p className="muted small" style={{ marginTop: 14 }}>
+          Heure d'envoi du récapitulatif et de l'agenda, à l'heure LOCALE de chaque membre (Côte d'Ivoire, France, Canada,
+          États-Unis... chacun le reçoit à cette heure chez lui). La semaine va du premier jour choisi à 00:00 au dernier jour à 23:59:59.
+        </p>
+        <div className="toolbar">
+          <select
+            className="search"
+            value={hebdoHeure.data?.heure ?? 8}
+            disabled={!canParametres}
+            onChange={(e) => saveHebdoHeure(Number(e.target.value))}
+          >
+            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00 (heure locale)</option>)}
           </select>
         </div>
       </section>

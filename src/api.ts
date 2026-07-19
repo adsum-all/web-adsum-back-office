@@ -1699,6 +1699,13 @@ export function setQuestionnaireFenetreMinutes(token: string, minutes: number): 
   return authedSend("/api/v1/admin/parametres/questionnaire-fenetre-minutes", token, "PUT", { minutes }, "Mise à jour impossible");
 }
 
+export function getHebdoHeureEnvoi(token: string): Promise<{ heure: number }> {
+  return authedGet<{ heure: number }>("/api/v1/admin/parametres/hebdo-heure-envoi", token, "Paramètre indisponible");
+}
+export function setHebdoHeureEnvoi(token: string, heure: number): Promise<{ heure: number }> {
+  return authedSend("/api/v1/admin/parametres/hebdo-heure-envoi", token, "PUT", { heure }, "Mise à jour impossible");
+}
+
 export function getSemaineJourDebut(token: string): Promise<{ jour: number }> {
   return authedGet<{ jour: number }>("/api/v1/admin/parametres/semaine-jour-debut", token, "Paramètre indisponible");
 }
