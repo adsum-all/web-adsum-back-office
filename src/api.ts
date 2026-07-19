@@ -752,6 +752,7 @@ export function getMe(token: string): Promise<Me> {
  * follows the account across browsers instead of living in one browser only. */
 export interface PreferencesCompte {
   vue_evenements: "calendrier" | "liste" | null;
+  theme?: "light" | "dark" | "system" | null;
 }
 export function getMesPreferences(token: string): Promise<PreferencesCompte> {
   return authedGet<PreferencesCompte>("/api/v1/auth/me/preferences", token, "Préférences indisponibles");
