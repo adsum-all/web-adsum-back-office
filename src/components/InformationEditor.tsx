@@ -23,6 +23,7 @@ import {
   updateInformation,
   uploadInformationMedia,
 } from "../api.js";
+import { DiffusionControls } from "./InformationDiffusionControls.js";
 import { MembrePicker, RichToolbar, VoiceRecorder, fileToDataUrl } from "./InformationsEditorParts.js";
 
 const PRIO_OPTIONS: { value: InformationPriorite; label: string }[] = [
@@ -45,8 +46,9 @@ interface UniteRow {
 }
 
 function emptyInput(): InformationInput {
-  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", cibles: [] };
+  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, canaux: ["application", "telegram"], requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", expire_le: new Date(Date.now() + 24 * 3600 * 1000).toISOString(), cibles: [] };
 }
+
 
 /** Staged media: undefined = untouched, null = clear, string = new data URL. */
 type Staged = { audio?: string | null; image?: string | null; document?: string | null };
@@ -64,9 +66,11 @@ export function InformationEditor({
 }: Readonly<{ token: string; info: Information | null; cibles: CibleReference[]; onClose: () => void; onSaved: () => void }>): JSX.Element {
   const [form, setForm] = useState<InformationInput>(() =>
     info
-      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
+      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, canaux: info.canaux ?? ["application", "telegram"], requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
       : emptyInput(),
   );
+  // Mandatory display duration: pick a preset (which computes expire_le) or a precise date.
+  const [duree, setDuree] = useState<string>(info?.expire_le ? "date" : "24h");
   const [id, setId] = useState<string | null>(info?.id ?? null);
   const [statut, setStatut] = useState<InformationStatut>(info?.statut ?? "brouillon");
   const [busy, setBusy] = useState(false);
@@ -387,6 +391,16 @@ export function InformationEditor({
             </>
           )}
 
+          <DiffusionControls
+            editable={editable}
+            expireLe={form.expire_le ?? undefined}
+            duree={duree}
+            onDuree={setDuree}
+            onExpire={(iso) => set("expire_le", iso)}
+            canaux={form.canaux ?? []}
+            onCanaux={(next) => set("canaux", next)}
+          />
+
           <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.requiert_accuse} onChange={(e) => set("requiert_accuse", e.target.checked)} /><span>Demander une confirmation de lecture</span></label>
           <label className="field-check"><input type="checkbox" disabled={!editable} checked={form.lecture_vocale_auto !== false} onChange={(e) => set("lecture_vocale_auto", e.target.checked)} /><span>Autoriser la lecture vocale du texte</span></label>
           <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.protege} onChange={(e) => set("protege", e.target.checked)} /><span>Conservation protégée (jamais archivée ni supprimée automatiquement)</span></label>
@@ -420,7 +434,8 @@ export function InformationEditor({
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
-                disabled={busy || mediaBusy || invalide}
+                disabled={busy || mediaBusy || invalide || !form.expire_le}
+                title={!form.expire_le ? "Choisissez d'abord une durée d'affichage" : undefined}
                 onClick={() => void run(async () => {
                   if (!window.confirm("Publier et diffuser cette information aux destinataires ?")) return;
                   const vid = await persister();
