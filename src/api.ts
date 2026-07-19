@@ -1600,17 +1600,9 @@ export interface RetentionJournalItem {
   execute_le: string | null;
 }
 
-export interface IdentiteInstitutionnelle {
-  org_nom: string;
-  org_nom_court: string;
-  org_site: string;
-  org_fondation_date: string;
-  org_saint_patron: string;
-  org_saint_patron_date: string;
-  org_fuseau: string;
-  org_signature: string;
-  org_contact: string;
-}
+// Institutional identity is a flexible key/value set (org_*), extendable without a
+// migration. The known keys are documented in the page; unknown keys pass through.
+export type IdentiteInstitutionnelle = Record<string, string>;
 
 export interface DateInstitutionnelle {
   id: string;
@@ -1620,12 +1612,96 @@ export interface DateInstitutionnelle {
   date_fixe: string | null;
   mois: number | null;
   jour: number | null;
+  annee_origine: number | null;
+  repetition_annuelle: boolean;
+  afficher_calendrier: boolean;
+  couleur: string;
+  priorite: string;
+  statut: string;
+  categorie: string;
+  toute_journee: boolean;
+  heure_debut: string | null;
+  heure_fin: string | null;
+  lieu: string | null;
+  lien: string | null;
+  image_url: string | null;
+  message_membre: string | null;
+  source: string | null;
+  note_admin: string | null;
   rappel_jours: number;
   visibilite: string;
   actif: boolean;
 }
 
 export type DateInstitInput = Omit<DateInstitutionnelle, "id">;
+
+export interface ReferenceCouleur {
+  cle: string;
+  libelle: string;
+  hex: string;
+  categorie: string;
+  icone: string | null;
+  actif: boolean;
+}
+
+export interface DateLiturgique {
+  id: string;
+  cle: string;
+  nom: string;
+  type: string;
+  mois: number | null;
+  jour: number | null;
+  cle_mobile: string | null;
+  rang: string;
+  categorie: string;
+  couleur: string;
+  description: string | null;
+  source: string | null;
+  visibilite: string;
+  actif: boolean;
+  ordre: number;
+}
+
+export interface DateLiturgiquePatch {
+  nom?: string;
+  couleur?: string;
+  rang?: string;
+  description?: string | null;
+  source?: string | null;
+  visibilite?: string;
+  actif?: boolean;
+}
+
+export interface OccurrenceReference {
+  source_id: string;
+  origine: string;
+  categorie: string;
+  type: string | null;
+  titre: string;
+  date: string;
+  couleur: string | null;
+  priorite: string | null;
+  rang: string | null;
+  toute_journee: boolean;
+  heure_debut: string | null;
+  heure_fin: string | null;
+  anciennete: number | null;
+  description: string | null;
+  image_url: string | null;
+  lieu: string | null;
+  lien: string | null;
+  message_membre: string | null;
+  source: string | null;
+  badge: string;
+  est_activite: boolean;
+}
+
+export interface ApercuCalendrier {
+  annee: number;
+  occurrences: OccurrenceReference[];
+  alertes: { niveau: string; message: string }[];
+  resume: { total: number; institution: number; liturgie: number };
+}
 
 export interface CentreDiffusion {
   informations_actives: number;
@@ -1671,7 +1747,19 @@ export function getIdentiteInstitutionnelle(token: string): Promise<IdentiteInst
   return authedGet<IdentiteInstitutionnelle>("/api/v1/admin/parametres/identite-institutionnelle", token, "Identité indisponible");
 }
 export function setIdentiteInstitutionnelle(token: string, payload: IdentiteInstitutionnelle): Promise<void> {
-  return authedSend("/api/v1/admin/parametres/identite-institutionnelle", token, "PUT", payload, "Mise à jour impossible");
+  return authedSend("/api/v1/admin/parametres/identite-institutionnelle", token, "PUT", { valeurs: payload }, "Mise à jour impossible");
+}
+export function getReferenceCouleurs(token: string): Promise<ReferenceCouleur[]> {
+  return authedGet<ReferenceCouleur[]>("/api/v1/admin/reference-couleurs", token, "Couleurs indisponibles");
+}
+export function getCalendrierLiturgique(token: string): Promise<DateLiturgique[]> {
+  return authedGet<DateLiturgique[]>("/api/v1/admin/calendrier-liturgique", token, "Calendrier liturgique indisponible");
+}
+export function patchCalendrierLiturgique(token: string, id: string, patch: DateLiturgiquePatch): Promise<DateLiturgique> {
+  return authedSend(`/api/v1/admin/calendrier-liturgique/${id}`, token, "PATCH", patch, "Mise à jour impossible");
+}
+export function getApercuCalendrier(token: string, annee: number): Promise<ApercuCalendrier> {
+  return authedGet<ApercuCalendrier>(`/api/v1/admin/calendrier-institutionnel/apercu?annee=${annee}`, token, "Aperçu indisponible");
 }
 export function getDatesInstitutionnelles(token: string): Promise<DateInstitutionnelle[]> {
   return authedGet<DateInstitutionnelle[]>("/api/v1/admin/dates-institutionnelles", token, "Dates indisponibles");
