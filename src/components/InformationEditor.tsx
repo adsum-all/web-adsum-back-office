@@ -25,7 +25,9 @@ import {
   updateInformation,
   uploadInformationMedia,
 } from "../api.js";
+import { InformationConfirm } from "./InformationConfirm.js";
 import { DiffusionControls } from "./InformationDiffusionControls.js";
+import { InformationSuivi } from "./InformationSuivi.js";
 import { MembrePicker, RichToolbar, VoiceRecorder, fileToDataUrl } from "./InformationsEditorParts.js";
 
 const PRIO_OPTIONS: { value: InformationPriorite; label: string }[] = [
@@ -50,7 +52,6 @@ interface UniteRow {
 function emptyInput(): InformationInput {
   return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, affiche_entete: false, canaux: ["application", "telegram"], requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", expire_le: new Date(Date.now() + 24 * 3600 * 1000).toISOString(), cibles: [] };
 }
-
 
 /** Staged media: undefined = untouched, null = clear, string = new data URL. */
 type Staged = { audio?: string | null; image?: string | null; document?: string | null };
@@ -103,8 +104,7 @@ export function InformationEditor({
 
   const editable = statut === "brouillon" || statut === "programme";
   // A sent Information keeps its audience, media and targeting frozen, but its CONTENT
-  // may still be corrected (rare: a typo, a broken link). Those fields follow
-  // contenuEditable; the draft-only blocks (media, targeting) keep the stricter editable.
+  // may still be corrected (contenuEditable); media/targeting keep the stricter editable.
   const contenuEditable = editable || statut === "envoye";
 
   useEffect(() => {
@@ -198,9 +198,7 @@ export function InformationEditor({
         </div>
         <div className="drawer-body">
           {statut === "envoye" && (
-            <p className="banner banner-info small" style={{ textAlign: "left" }}>
-              Cette information a déjà été diffusée. Vous pouvez corriger son contenu (les membres verront la version à jour), mais son audience, ses médias et son ciblage restent figés, et aucune nouvelle notification n&apos;est renvoyée.
-            </p>
+            <p className="banner banner-info small" style={{ textAlign: "left" }}>Cette information a déjà été diffusée. Vous pouvez corriger son contenu (les membres verront la version à jour), mais son audience, ses médias et son ciblage restent figés, et aucune nouvelle notification n&apos;est renvoyée.</p>
           )}
           <label className="field"><span>Titre *</span><input value={form.titre} onChange={(e) => set("titre", e.target.value)} maxLength={200} disabled={!contenuEditable} /></label>
           <label className="field"><span>Sous-titre</span><input value={form.sous_titre ?? ""} onChange={(e) => set("sous_titre", e.target.value)} maxLength={200} disabled={!contenuEditable} /></label>
@@ -234,7 +232,6 @@ export function InformationEditor({
               </div>
             )}
           </div>
-
 
           <div className="field">
             <span>Signature (facultative)</span>
@@ -434,82 +431,41 @@ export function InformationEditor({
 
           {apercu !== null && <p className="banner banner-info">{apercu} destinataire(s) unique(s) pour ce ciblage.</p>}
           {stats && (
-            <div className="info-stats">
-              <p className="field-group-title">Suivi de diffusion</p>
-              <div className="info-stats-grid">
-                <div><b>{stats.destinataires}</b><span>Destinataires</span></div>
-                <div><b>{stats.lus}</b><span>Lus ({stats.taux_lecture}%)</span></div>
-                <div><b>{stats.confirmes}</b><span>Confirmés ({stats.taux_confirmation}%)</span></div>
-                <div><b>{stats.non_lus}</b><span>Non lus</span></div>
-              </div>
-              {id && statut === "envoye" && (
-                <div className="info-suivi-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-inline"
-                    disabled={busy}
-                    onClick={() => void run(async () => { if (id) await exportInformationCSV(token, id); })}
-                  >
-                    Exporter le suivi (CSV)
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-inline"
-                    disabled={busy || stats.non_lus === 0}
-                    title={stats.non_lus === 0 ? "Tous les destinataires ont lu cette information." : "Renvoyer l'information sur ses canaux, uniquement aux personnes qui ne l'ont pas encore lue."}
-                    onClick={() => setConfirm("relancer")}
-                  >
-                    Relancer les non-lus
-                  </button>
-                </div>
-              )}
-              {confirm === "relancer" && (
-                <div className="banner banner-info small" style={{ textAlign: "left", marginTop: 8 }}>
-                  <strong>Relancer les destinataires non lus ?</strong>
-                  <div className="muted" style={{ marginTop: 4 }}>L&apos;information sera renvoyée sur ses canaux (Telegram, e-mail) uniquement aux personnes qui ne l&apos;ont pas encore lue. Celles qui l&apos;ont déjà lue ne sont pas notifiées.</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                    <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void run(async () => {
-                      if (!id) return;
-                      const r = await relanceInformation(token, id);
-                      setRelanceMsg(`Relance envoyée à ${r.non_lus} destinataire(s) non lus (Telegram : ${r.telegram.envoyes}, e-mail : ${r.email.envoyes}).`);
-                      setStats(await getInformationStats(token, id));
-                      setConfirm(null);
-                    })}>Relancer maintenant</button>
-                    <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirm(null)}>Annuler</button>
-                  </div>
-                </div>
-              )}
-              {relanceMsg && <p className="banner banner-info">{relanceMsg}</p>}
-            </div>
+            <InformationSuivi
+              stats={stats}
+              actionsVisibles={!!id && statut === "envoye"}
+              busy={busy}
+              relanceMsg={relanceMsg}
+              onExport={() => void run(async () => { if (id) await exportInformationCSV(token, id); })}
+              onRelance={() => setConfirm("relancer")}
+            />
           )}
           {err && <p className="banner banner-error">{err}</p>}
 
-          {confirm === "publier" && (
-            <div className="banner banner-info small" style={{ textAlign: "left", marginTop: 6 }}>
-              <strong>Publier et diffuser cette information ?</strong>
-              <div className="muted" style={{ marginTop: 4 }}>Elle sera envoyée à tous les destinataires ciblés sur les canaux choisis (Telegram, e-mail). Cette diffusion ne peut pas être annulée.</div>
-              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                <button type="button" className="btn btn-primary btn-inline" disabled={busy || mediaBusy || invalide || !form.expire_le} onClick={() => void run(async () => {
-                  const vid = await persister();
-                  const r = await publishInformation(token, vid);
-                  setStatut("envoye");
-                  setApercu(r.destinataires);
-                  setConfirm(null);
-                  onSaved();
-                })}>Publier et diffuser</button>
-                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirm(null)}>Annuler</button>
-              </div>
-            </div>
-          )}
-          {confirm === "supprimer" && (
-            <div className="banner banner-error small" style={{ textAlign: "left", marginTop: 6 }}>
-              <strong>{editable ? "Supprimer ce brouillon d'information ?" : "Supprimer définitivement cette information diffusée ?"}</strong>
-              <div className="muted" style={{ marginTop: 4 }}>{editable ? "Cette action est irréversible." : "Son suivi de lecture (lu, confirmé) sera définitivement perdu. Pour la retirer sans perdre le suivi, préférez l'archivage."}</div>
-              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                <button type="button" className="btn btn-danger btn-inline" disabled={busy} onClick={() => void run(async () => { if (id) { await deleteInformation(token, id); setConfirm(null); onSaved(); onClose(); } })}>Supprimer définitivement</button>
-                <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => setConfirm(null)}>Annuler</button>
-              </div>
-            </div>
+          {confirm && (
+            <InformationConfirm
+              kind={confirm}
+              editable={editable}
+              busy={busy}
+              publierBloque={busy || mediaBusy || invalide || !form.expire_le}
+              onAnnuler={() => setConfirm(null)}
+              onPublier={() => void run(async () => {
+                const vid = await persister();
+                const r = await publishInformation(token, vid);
+                setStatut("envoye");
+                setApercu(r.destinataires);
+                setConfirm(null);
+                onSaved();
+              })}
+              onSupprimer={() => void run(async () => { if (id) { await deleteInformation(token, id); setConfirm(null); onSaved(); onClose(); } })}
+              onRelancer={() => void run(async () => {
+                if (!id) return;
+                const r = await relanceInformation(token, id);
+                setRelanceMsg(`Relance envoyée à ${r.non_lus} destinataire(s) non lus (Telegram : ${r.telegram.envoyes}, e-mail : ${r.email.envoyes}).`);
+                setStats(await getInformationStats(token, id));
+                setConfirm(null);
+              })}
+            />
           )}
         </div>
         <div className="drawer-foot info-editor-foot">
