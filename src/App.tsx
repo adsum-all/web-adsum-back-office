@@ -174,21 +174,37 @@ export function App(): JSX.Element {
     setSession(null);
   }, [session]);
 
-  // Re-hydrate a session persisted before permissions were stored, so a refresh
-  // keeps the exact same visible menu without forcing the user to sign in again.
+  // Always refresh the effective permissions on load (once per token). Permissions are
+  // cached inside the persisted session so the menu renders instantly on a refresh, but
+  // the cache must never win over the server: a permission granted (or revoked) server
+  // side has to propagate on the next load WITHOUT forcing a fresh sign-in. So we always
+  // refetch in the background and update the cache only when the set actually changed.
+  // Without this, a session persisted before a permission was granted keeps a stale menu
+  // forever, hiding sections the account is in fact allowed to see.
   useEffect(() => {
-    if (!session || session.permissions !== undefined) return;
+    if (!session) return undefined;
+    const token = session.token;
+    const avaitPerms = session.permissions !== undefined;
     let cancelled = false;
-    void getMyPermissions(session.token)
+    void getMyPermissions(token)
       .then((p) => {
         if (cancelled) return;
-        const hydrated: Session = { ...session, permissions: p.permissions };
-        saveSession(hydrated);
-        setSession(hydrated);
+        setSession((prev) => {
+          if (!prev || prev.token !== token) return prev;
+          const actuel = prev.permissions ?? [];
+          const suivant = p.permissions;
+          const identique = actuel.length === suivant.length && suivant.every((x) => actuel.includes(x));
+          if (identique && avaitPerms) return prev;
+          const hydrated: Session = { ...prev, permissions: suivant };
+          saveSession(hydrated);
+          return hydrated;
+        });
       })
       .catch(() => {
-        // Token no longer valid: sign out rather than show a stale menu.
-        if (!cancelled) {
+        // On the initial load (no cached permissions) an invalid token signs out rather
+        // than show an empty menu. With a cached menu a transient failure keeps the last
+        // known menu instead of logging the administrator out.
+        if (!cancelled && !avaitPerms) {
           saveSession(null);
           setSession(null);
         }
@@ -196,7 +212,8 @@ export function App(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.token]);
 
   const held = useMemo(() => new Set(session?.permissions ?? []), [session]);
   const visibleNav = useMemo(() => NAV.filter((n) => held.has(n.perm)), [held]);
