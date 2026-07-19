@@ -1599,6 +1599,52 @@ export interface RetentionJournalItem {
   execute_le: string | null;
 }
 
+export interface IdentiteInstitutionnelle {
+  org_nom: string;
+  org_nom_court: string;
+  org_site: string;
+  org_fondation_date: string;
+  org_saint_patron: string;
+  org_saint_patron_date: string;
+  org_fuseau: string;
+  org_signature: string;
+  org_contact: string;
+}
+
+export interface DateInstitutionnelle {
+  id: string;
+  nom: string;
+  description: string | null;
+  type: string;
+  date_fixe: string | null;
+  mois: number | null;
+  jour: number | null;
+  rappel_jours: number;
+  visibilite: string;
+  actif: boolean;
+}
+
+export type DateInstitInput = Omit<DateInstitutionnelle, "id">;
+
+export function getIdentiteInstitutionnelle(token: string): Promise<IdentiteInstitutionnelle> {
+  return authedGet<IdentiteInstitutionnelle>("/api/v1/admin/parametres/identite-institutionnelle", token, "Identité indisponible");
+}
+export function setIdentiteInstitutionnelle(token: string, payload: IdentiteInstitutionnelle): Promise<void> {
+  return authedSend("/api/v1/admin/parametres/identite-institutionnelle", token, "PUT", payload, "Mise à jour impossible");
+}
+export function getDatesInstitutionnelles(token: string): Promise<DateInstitutionnelle[]> {
+  return authedGet<DateInstitutionnelle[]>("/api/v1/admin/dates-institutionnelles", token, "Dates indisponibles");
+}
+export function createDateInstitutionnelle(token: string, payload: DateInstitInput): Promise<DateInstitutionnelle> {
+  return authedSend("/api/v1/admin/dates-institutionnelles", token, "POST", payload, "Création impossible");
+}
+export function updateDateInstitutionnelle(token: string, id: string, payload: DateInstitInput): Promise<DateInstitutionnelle> {
+  return authedSend(`/api/v1/admin/dates-institutionnelles/${id}`, token, "PATCH", payload, "Mise à jour impossible");
+}
+export function deleteDateInstitutionnelle(token: string, id: string): Promise<void> {
+  return authedSend(`/api/v1/admin/dates-institutionnelles/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
 export function getRetentionEtat(token: string): Promise<RetentionEtat> {
   return authedGet<RetentionEtat>("/api/v1/admin/parametres/retention", token, "Paramètres de rétention indisponibles");
 }
