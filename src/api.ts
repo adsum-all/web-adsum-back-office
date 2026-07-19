@@ -1646,6 +1646,26 @@ export function getCentreDiffusion(token: string): Promise<CentreDiffusion> {
   return authedGet<CentreDiffusion>("/api/v1/admin/communication/centre-diffusion", token, "Centre de diffusion indisponible");
 }
 
+/** Download the per-recipient delivery CSV of an Information (triggers a file save). */
+export async function exportInformationCSV(token: string, infoId: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/admin/informations/${infoId}/export`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error("Export impossible");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `diffusion-${infoId}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Re-send a sent Information on its relay channels to the recipients who have not read it. */
+export function relanceInformation(token: string, infoId: string): Promise<{ non_lus: number; telegram: { envoyes: number }; email: { envoyes: number } }> {
+  return authedSend(`/api/v1/admin/informations/${infoId}/relance`, token, "POST", {}, "Relance impossible");
+}
+
 export function getIdentiteInstitutionnelle(token: string): Promise<IdentiteInstitutionnelle> {
   return authedGet<IdentiteInstitutionnelle>("/api/v1/admin/parametres/identite-institutionnelle", token, "Identité indisponible");
 }
