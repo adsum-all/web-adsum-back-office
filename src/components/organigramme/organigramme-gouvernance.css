@@ -1,0 +1,205 @@
+/* Governance panel: coherence report + interim management. Theme-aware, built on
+   the shared --adsum-* tokens so it matches the rest of the back office. */
+
+.gouv-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gouv-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.gouv-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gouv-section-head h2 {
+  margin: 0;
+  font-size: var(--adsum-text-lg, 1.05rem);
+}
+
+.gouv-subhead {
+  margin: 12px 0 2px;
+  font-size: 0.92rem;
+  color: var(--adsum-ink);
+}
+
+.gouv-resume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gouv-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: var(--adsum-radius-pill, 999px);
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+.gouv-chip-bloquant {
+  color: var(--adsum-danger, #b23);
+  background: var(--adsum-danger-bg, #fbe7e7);
+}
+
+.gouv-chip-warn {
+  color: #8a5a12;
+  background: #fbeccb;
+}
+
+.gouv-chip-info {
+  color: var(--adsum-mut);
+  background: var(--adsum-line);
+}
+
+.gouv-findings,
+.gouv-interims {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gouv-finding {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--adsum-ink);
+}
+
+.gouv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--adsum-line);
+  border-bottom: 1px solid var(--adsum-line);
+}
+
+.gouv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.gouv-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--adsum-mut);
+}
+
+.gouv-field input,
+.gouv-field select {
+  height: 40px;
+  border-radius: var(--adsum-radius-md, 10px);
+  border: 1px solid var(--adsum-line);
+  background: var(--adsum-bg);
+  color: var(--adsum-ink);
+  padding: 0 12px;
+  font: inherit;
+}
+
+.gouv-dates {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gouv-dates .gouv-field {
+  flex: 1 1 160px;
+}
+
+.gouv-picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--adsum-radius-md, 10px);
+  border: 1px solid var(--adsum-line);
+  background: var(--adsum-bg);
+}
+
+.gouv-suggestions {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--adsum-panel, var(--adsum-bg));
+  border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-md, 10px);
+  box-shadow: var(--adsum-shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.gouv-suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--adsum-ink);
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gouv-suggestion:hover,
+.gouv-suggestion:focus-visible {
+  background: var(--adsum-line);
+}
+
+.gouv-interim {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-md, 10px);
+  background: var(--adsum-bg);
+}
+
+.gouv-interims-hist .gouv-interim {
+  opacity: 0.75;
+}
+
+.gouv-interim-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .gouv-interim {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .gouv-interim-actions {
+    justify-content: flex-end;
+  }
+}
