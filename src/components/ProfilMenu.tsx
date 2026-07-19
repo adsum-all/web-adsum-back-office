@@ -11,7 +11,7 @@ import { roleLabel } from "./utilisateursShared.js";
  * and shows no sensitive technical detail. Identity is read from the authenticated
  * /auth/me endpoint (and the member profile for the display name); nothing is hardcoded.
  */
-export function ProfilMenu({ token, onLogout }: { token: string; onLogout: () => void }): JSX.Element {
+export function ProfilMenu({ token, onLogout, onOpenProfil }: Readonly<{ token: string; onLogout: () => void; onOpenProfil?: () => void }>): JSX.Element {
   const [me, setMe] = useState<Me | null>(null);
   const [nom, setNom] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -119,6 +119,11 @@ export function ProfilMenu({ token, onLogout }: { token: string; onLogout: () =>
             </div>
           </div>
           <div className="profil-menu-actions">
+            {onOpenProfil && (
+              <button type="button" className="btn btn-ghost btn-inline" role="menuitem" onClick={() => { setOpen(false); onOpenProfil(); }}>
+                Voir mon profil complet
+              </button>
+            )}
             <button type="button" className="btn btn-ghost btn-inline" role="menuitem" onClick={() => { setOpen(false); onLogout(); }}>
               Déconnexion
             </button>

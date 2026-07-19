@@ -285,6 +285,10 @@ h3 {
   padding: 0;
   font-family: inherit;
 }
+/* Sidebar footer sits on the dark navy: the light-theme text tokens (--adsum-mut, --adsum-acc)
+   are unreadable there. Scope a readable override to the footer only, using the sidebar tokens. */
+.sidebar-foot .muted { color: var(--sidebar-mut); }
+.sidebar-foot .link { color: var(--sidebar-ink); }
 
 /* Main + top bar */
 .main {
@@ -1612,3 +1616,56 @@ h3 {
 .tag-normale { background: #eef2fb; color: #2a4fad; }
 .tag-importante { background: #fff4e5; color: #b26a00; }
 .tag-urgente { background: #fdecec; color: #c0392b; }
+
+/* Sidebar footer: a bright, semibold link to the profile page (sits on the dark navy). */
+.sidebar-foot .link-strong { font-weight: var(--adsum-weight-semibold); color: var(--sidebar-ink); }
+.nav-profil-foot.is-active { text-decoration: underline; }
+
+/* Account profile page (back-office). Uses the design tokens so it follows the theme. */
+.profil-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 780px;
+}
+.profil-page-ident {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.profil-page-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--adsum-acc);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--adsum-weight-bold);
+  font-size: var(--adsum-text-lg);
+  flex-shrink: 0;
+}
+.profil-page-ident-txt { flex: 1; min-width: 0; }
+.profil-page-ident-txt h2 { margin: 0; font-size: var(--adsum-text-lg); color: var(--adsum-ink); }
+.profil-page-ident-txt p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.profil-page-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.profil-page-logout { flex-shrink: 0; }
+.profil-page-prefs h3 { margin: 0 0 4px; font-size: var(--adsum-text-md); color: var(--adsum-ink); }
+.profil-page-pref {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--adsum-line);
+}
+.profil-page-prefs .profil-page-pref:first-of-type { margin-top: 8px; }
+.profil-page-pref-lib { display: flex; flex-direction: column; gap: 2px; }
+.profil-page-pref-lib strong { color: var(--adsum-ink); font-size: var(--adsum-text-sm); }
+.profil-page-choix { display: flex; gap: 6px; flex-shrink: 0; }
+.profil-page-msg { margin: 10px 0 0; color: var(--adsum-ok, #1f8a5b); font-size: var(--adsum-text-sm); }
+
+@media (max-width: 640px) {
+  .profil-page-pref { flex-direction: column; align-items: flex-start; }
+}
