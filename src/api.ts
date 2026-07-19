@@ -3099,6 +3099,7 @@ export interface Information {
   signature_url: string | null;
   protege: boolean;
   institutionnelle: boolean;
+  canaux: string[];
   statut: InformationStatut;
   requiert_accuse: boolean;
   lecture_vocale_auto: boolean;
@@ -3125,6 +3126,7 @@ export interface InformationInput {
   signature_url?: string | null;
   protege?: boolean;
   institutionnelle?: boolean;
+  canaux?: string[];
   requiert_accuse?: boolean;
   lecture_vocale_auto?: boolean;
   lien_url?: string | null;
