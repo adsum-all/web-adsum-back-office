@@ -2,6 +2,7 @@
  * channels selection for an Information. The in-app feed is always the official
  * source; Telegram and e-mail are relays. Split from InformationEditor to keep
  * each file under the size threshold. */
+import { useEffect } from "react";
 
 // Mandatory display-duration presets: an Information is never active indefinitely.
 const DUREES: { id: string; label: string; heures: number | null }[] = [
@@ -37,6 +38,17 @@ export function DiffusionControls({
   canaux: string[];
   onCanaux: (next: string[]) => void;
 }>): JSX.Element {
+  // Back the shown preset (24h by default) with a real expire_le the moment the form
+  // opens, when none is set yet. Without this, the select displays "24 heures" but no
+  // value exists behind it (a fresh draft, or a saved draft with a null expire_le), so
+  // Publier stays disabled until the user re-picks a duration, which never fires the
+  // select's onChange when the shown option is already selected. This removes that trap.
+  useEffect(() => {
+    if (!editable || expireLe) return;
+    const p = DUREES.find((x) => x.id === duree);
+    onExpire(new Date(Date.now() + (p && p.heures != null ? p.heures : 24) * 3600 * 1000).toISOString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <>
       <p className="field-group-title">Durée d&apos;affichage prioritaire (obligatoire)</p>

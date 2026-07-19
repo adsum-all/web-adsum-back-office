@@ -25,7 +25,9 @@ import {
   updateInformation,
   uploadInformationMedia,
 } from "../api.js";
+import { InformationConfirm } from "./InformationConfirm.js";
 import { DiffusionControls } from "./InformationDiffusionControls.js";
+import { InformationSuivi } from "./InformationSuivi.js";
 import { MembrePicker, RichToolbar, VoiceRecorder, fileToDataUrl } from "./InformationsEditorParts.js";
 
 const PRIO_OPTIONS: { value: InformationPriorite; label: string }[] = [
@@ -48,9 +50,8 @@ interface UniteRow {
 }
 
 function emptyInput(): InformationInput {
-  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, canaux: ["application", "telegram"], requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", expire_le: new Date(Date.now() + 24 * 3600 * 1000).toISOString(), cibles: [] };
+  return { titre: "", sous_titre: "", contenu: "", priorite: "normale", auteur: "", signature: "", signature_url: "", protege: false, institutionnelle: false, affiche_entete: false, canaux: ["application", "telegram"], requiert_accuse: true, lecture_vocale_auto: true, lien_url: "", action_label: "", action_url: "", expire_le: new Date(Date.now() + 24 * 3600 * 1000).toISOString(), cibles: [] };
 }
-
 
 /** Staged media: undefined = untouched, null = clear, string = new data URL. */
 type Staged = { audio?: string | null; image?: string | null; document?: string | null };
@@ -68,7 +69,7 @@ export function InformationEditor({
 }: Readonly<{ token: string; info: Information | null; cibles: CibleReference[]; onClose: () => void; onSaved: () => void }>): JSX.Element {
   const [form, setForm] = useState<InformationInput>(() =>
     info
-      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, canaux: info.canaux ?? ["application", "telegram"], requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
+      ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, affiche_entete: info.affiche_entete, canaux: info.canaux ?? ["application", "telegram"], requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
       : emptyInput(),
   );
   // Mandatory display duration: pick a preset (which computes expire_le) or a precise date.
@@ -80,6 +81,9 @@ export function InformationEditor({
   const [apercu, setApercu] = useState<number | null>(null);
   const [stats, setStats] = useState<InformationStats | null>(null);
   const [relanceMsg, setRelanceMsg] = useState<string | null>(null);
+  // Inline professional confirmation (never window.confirm): which action awaits a
+  // second click. One at a time, so a single state covers all three.
+  const [confirm, setConfirm] = useState<null | "publier" | "supprimer" | "relancer">(null);
   const [staged, setStaged] = useState<Staged>({});
   const [membres, setMembres] = useState<{ id: string; nom: string }[]>(() => {
     const sel = info?.cibles.find((c) => c.code === "selection");
@@ -99,6 +103,9 @@ export function InformationEditor({
   const contenuRef = useRef<HTMLTextAreaElement>(null);
 
   const editable = statut === "brouillon" || statut === "programme";
+  // A sent Information keeps its audience, media and targeting frozen, but its CONTENT
+  // may still be corrected (contenuEditable); media/targeting keep the stricter editable.
+  const contenuEditable = editable || statut === "envoye";
 
   useEffect(() => {
     if (id && statut === "envoye") void getInformationStats(token, id).then(setStats).catch(() => undefined);
@@ -190,25 +197,28 @@ export function InformationEditor({
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Fermer">&times;</button>
         </div>
         <div className="drawer-body">
-          <label className="field"><span>Titre *</span><input value={form.titre} onChange={(e) => set("titre", e.target.value)} maxLength={200} disabled={!editable} /></label>
-          <label className="field"><span>Sous-titre</span><input value={form.sous_titre ?? ""} onChange={(e) => set("sous_titre", e.target.value)} maxLength={200} disabled={!editable} /></label>
+          {statut === "envoye" && (
+            <p className="banner banner-info small" style={{ textAlign: "left" }}>Cette information a déjà été diffusée. Vous pouvez corriger son contenu (les membres verront la version à jour), mais son audience, ses médias et son ciblage restent figés, et aucune nouvelle notification n&apos;est renvoyée.</p>
+          )}
+          <label className="field"><span>Titre *</span><input value={form.titre} onChange={(e) => set("titre", e.target.value)} maxLength={200} disabled={!contenuEditable} /></label>
+          <label className="field"><span>Sous-titre</span><input value={form.sous_titre ?? ""} onChange={(e) => set("sous_titre", e.target.value)} maxLength={200} disabled={!contenuEditable} /></label>
           <label className="field"><span>Niveau de priorité *</span>
-            <select value={form.priorite} onChange={(e) => set("priorite", e.target.value as InformationPriorite)} disabled={!editable}>
+            <select value={form.priorite} onChange={(e) => set("priorite", e.target.value as InformationPriorite)} disabled={!contenuEditable}>
               {PRIO_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </label>
 
           <div className="field">
             <span>Contenu *</span>
-            {editable && <RichToolbar textareaRef={contenuRef} value={form.contenu} onChange={(v) => set("contenu", v)} />}
-            <textarea ref={contenuRef} rows={7} value={form.contenu} onChange={(e) => set("contenu", e.target.value)} maxLength={20000} disabled={!editable} />
+            {contenuEditable && <RichToolbar textareaRef={contenuRef} value={form.contenu} onChange={(v) => set("contenu", v)} />}
+            <textarea ref={contenuRef} rows={7} value={form.contenu} onChange={(e) => set("contenu", e.target.value)} maxLength={20000} disabled={!contenuEditable} />
             <span className="muted small">Mise en forme: **gras**, *italique*, __souligné__. Les émojis s'insèrent depuis la barre.</span>
           </div>
 
           <div className="field">
             <span>Auteur / service émetteur</span>
-            <input value={form.auteur ?? ""} onChange={(e) => set("auteur", e.target.value)} maxLength={160} disabled={!editable} />
-            {editable && (monNom || maFonction) && (
+            <input value={form.auteur ?? ""} onChange={(e) => set("auteur", e.target.value)} maxLength={160} disabled={!contenuEditable} />
+            {contenuEditable && (monNom || maFonction) && (
               <div className="info-auteur-btns">
                 {monNom && (
                   <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("auteur", monNom)}>Mon nom</button>
@@ -223,20 +233,22 @@ export function InformationEditor({
             )}
           </div>
 
-
           <div className="field">
             <span>Signature (facultative)</span>
-            <input value={form.signature ?? ""} onChange={(e) => set("signature", e.target.value)} maxLength={200} disabled={!editable} placeholder="Ex : La Modératrice" />
-            {editable && (
+            <input value={form.signature ?? ""} onChange={(e) => set("signature", e.target.value)} maxLength={200} disabled={!contenuEditable} placeholder="Ex : Le Sacerdoce Royal" />
+            {contenuEditable && (
               <div className="info-auteur-btns">
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "La Modératrice")}>La Modératrice</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Sacerdoce Royal")}>Le Sacerdoce Royal</button>
                 <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Fondateur")}>Le Fondateur</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Berger des Missions")}>Le Berger des Missions</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "La Modératrice")}>La Modératrice</button>
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Secrétariat Général")}>Le Secrétariat Général</button>
                 <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "L'Administration")}>L'Administration</button>
                 {monNom && <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", monNom)}>Mon nom</button>}
               </div>
             )}
           </div>
-          <label className="field"><span>Lien de signature (site officiel, facultatif)</span><input value={form.signature_url ?? ""} onChange={(e) => set("signature_url", e.target.value)} placeholder="https://sacerdoceroyal.info" disabled={!editable} /></label>
+          <label className="field"><span>Lien de signature (site officiel, facultatif)</span><input value={form.signature_url ?? ""} onChange={(e) => set("signature_url", e.target.value)} placeholder="https://sacerdoceroyal.info" disabled={!contenuEditable} /></label>
           {editable && (
             <>
               <p className="field-group-title">Note vocale</p>
@@ -395,7 +407,7 @@ export function InformationEditor({
           )}
 
           <DiffusionControls
-            editable={editable}
+            editable={contenuEditable}
             expireLe={form.expire_le ?? undefined}
             duree={duree}
             onDuree={setDuree}
@@ -404,58 +416,57 @@ export function InformationEditor({
             onCanaux={(next) => set("canaux", next)}
           />
 
-          <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.requiert_accuse} onChange={(e) => set("requiert_accuse", e.target.checked)} /><span>Demander une confirmation de lecture</span></label>
-          <label className="field-check"><input type="checkbox" disabled={!editable} checked={form.lecture_vocale_auto !== false} onChange={(e) => set("lecture_vocale_auto", e.target.checked)} /><span>Autoriser la lecture vocale du texte</span></label>
-          <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.protege} onChange={(e) => set("protege", e.target.checked)} /><span>Conservation protégée (jamais archivée ni supprimée automatiquement)</span></label>
-          <label className="field-check"><input type="checkbox" disabled={!editable} checked={!!form.institutionnelle} onChange={(e) => set("institutionnelle", e.target.checked)} /><span>Information institutionnelle (conservée durablement)</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!contenuEditable} checked={!!form.requiert_accuse} onChange={(e) => set("requiert_accuse", e.target.checked)} /><span>Demander une confirmation de lecture</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!contenuEditable} checked={form.lecture_vocale_auto !== false} onChange={(e) => set("lecture_vocale_auto", e.target.checked)} /><span>Autoriser la lecture vocale du texte</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!contenuEditable} checked={!!form.protege} onChange={(e) => set("protege", e.target.checked)} /><span>Conservation protégée (jamais archivée ni supprimée automatiquement)</span></label>
+          <label className="field-check"><input type="checkbox" disabled={!contenuEditable} checked={!!form.institutionnelle} onChange={(e) => set("institutionnelle", e.target.checked)} /><span>Information institutionnelle (conservée durablement)</span></label>
+          <label className="field-check info-entete-check"><input type="checkbox" disabled={!contenuEditable} checked={!!form.affiche_entete} onChange={(e) => set("affiche_entete", e.target.checked)} /><span>Afficher en bannière d&apos;accueil (en-tête de l&apos;application membre)</span></label>
+          <p className="muted small" style={{ marginTop: -6 }}>Réservé aux informations vraiment critiques : si la case est cochée, l&apos;information apparaît en tête de l&apos;écran d&apos;accueil du membre jusqu&apos;à sa lecture. Décochée (par défaut), elle reste consultable dans l&apos;onglet Informations et via la notification, sans occuper l&apos;en-tête.</p>
 
-          <label className="field"><span>Lien externe (facultatif)</span><input value={form.lien_url ?? ""} onChange={(e) => set("lien_url", e.target.value)} placeholder="https://..." disabled={!editable} /></label>
+          <label className="field"><span>Lien externe (facultatif)</span><input value={form.lien_url ?? ""} onChange={(e) => set("lien_url", e.target.value)} placeholder="https://..." disabled={!contenuEditable} /></label>
           <div className="info-two">
-            <label className="field"><span>Bouton d'action (libellé)</span><input value={form.action_label ?? ""} onChange={(e) => set("action_label", e.target.value)} maxLength={80} disabled={!editable} /></label>
-            <label className="field"><span>Bouton d'action (URL)</span><input value={form.action_url ?? ""} onChange={(e) => set("action_url", e.target.value)} placeholder="https://..." disabled={!editable} /></label>
+            <label className="field"><span>Bouton d'action (libellé)</span><input value={form.action_label ?? ""} onChange={(e) => set("action_label", e.target.value)} maxLength={80} disabled={!contenuEditable} /></label>
+            <label className="field"><span>Bouton d'action (URL)</span><input value={form.action_url ?? ""} onChange={(e) => set("action_url", e.target.value)} placeholder="https://..." disabled={!contenuEditable} /></label>
           </div>
 
           {apercu !== null && <p className="banner banner-info">{apercu} destinataire(s) unique(s) pour ce ciblage.</p>}
           {stats && (
-            <div className="info-stats">
-              <p className="field-group-title">Suivi de diffusion</p>
-              <div className="info-stats-grid">
-                <div><b>{stats.destinataires}</b><span>Destinataires</span></div>
-                <div><b>{stats.lus}</b><span>Lus ({stats.taux_lecture}%)</span></div>
-                <div><b>{stats.confirmes}</b><span>Confirmés ({stats.taux_confirmation}%)</span></div>
-                <div><b>{stats.non_lus}</b><span>Non lus</span></div>
-              </div>
-              {id && statut === "envoye" && (
-                <div className="info-suivi-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-inline"
-                    disabled={busy}
-                    onClick={() => void run(async () => { if (id) await exportInformationCSV(token, id); })}
-                  >
-                    Exporter le suivi (CSV)
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-inline"
-                    disabled={busy || stats.non_lus === 0}
-                    title={stats.non_lus === 0 ? "Tous les destinataires ont lu cette information." : "Renvoyer l'information sur ses canaux, uniquement aux personnes qui ne l'ont pas encore lue."}
-                    onClick={() => void run(async () => {
-                      if (!id) return;
-                      if (!window.confirm("Relancer les destinataires qui n'ont pas encore lu cette information ? Les personnes qui l'ont déjà lue ne sont pas notifiées.")) return;
-                      const r = await relanceInformation(token, id);
-                      setRelanceMsg(`Relance envoyée à ${r.non_lus} destinataire(s) non lus (Telegram : ${r.telegram.envoyes}, e-mail : ${r.email.envoyes}).`);
-                      setStats(await getInformationStats(token, id));
-                    })}
-                  >
-                    Relancer les non-lus
-                  </button>
-                </div>
-              )}
-              {relanceMsg && <p className="banner banner-info">{relanceMsg}</p>}
-            </div>
+            <InformationSuivi
+              stats={stats}
+              actionsVisibles={!!id && statut === "envoye"}
+              busy={busy}
+              relanceMsg={relanceMsg}
+              onExport={() => void run(async () => { if (id) await exportInformationCSV(token, id); })}
+              onRelance={() => setConfirm("relancer")}
+            />
           )}
           {err && <p className="banner banner-error">{err}</p>}
+
+          {confirm && (
+            <InformationConfirm
+              kind={confirm}
+              editable={editable}
+              busy={busy}
+              publierBloque={busy || mediaBusy || invalide || !form.expire_le}
+              onAnnuler={() => setConfirm(null)}
+              onPublier={() => void run(async () => {
+                const vid = await persister();
+                const r = await publishInformation(token, vid);
+                setStatut("envoye");
+                setApercu(r.destinataires);
+                setConfirm(null);
+                onSaved();
+              })}
+              onSupprimer={() => void run(async () => { if (id) { await deleteInformation(token, id); setConfirm(null); onSaved(); onClose(); } })}
+              onRelancer={() => void run(async () => {
+                if (!id) return;
+                const r = await relanceInformation(token, id);
+                setRelanceMsg(`Relance envoyée à ${r.non_lus} destinataire(s) non lus (Telegram : ${r.telegram.envoyes}, e-mail : ${r.email.envoyes}).`);
+                setStats(await getInformationStats(token, id));
+                setConfirm(null);
+              })}
+            />
+          )}
         </div>
         <div className="drawer-foot info-editor-foot">
           {editable && (
@@ -467,24 +478,20 @@ export function InformationEditor({
                 className="btn btn-primary btn-inline"
                 disabled={busy || mediaBusy || invalide || !form.expire_le}
                 title={!form.expire_le ? "Choisissez d'abord une durée d'affichage" : undefined}
-                onClick={() => void run(async () => {
-                  if (!window.confirm("Publier et diffuser cette information aux destinataires ?")) return;
-                  const vid = await persister();
-                  const r = await publishInformation(token, vid);
-                  setStatut("envoye");
-                  setApercu(r.destinataires);
-                  onSaved();
-                })}
+                onClick={() => setConfirm("publier")}
               >
                 Publier
               </button>
-              {id && (
-                <button type="button" className="btn btn-danger btn-inline" disabled={busy} onClick={() => void run(async () => { if (id && window.confirm("Supprimer ce brouillon ?")) { await deleteInformation(token, id); onSaved(); onClose(); } })}>Supprimer</button>
-              )}
             </>
           )}
           {statut === "envoye" && (
-            <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void run(async () => { if (id) { await archiveInformation(token, id); setStatut("archive"); onSaved(); } })}>Archiver</button>
+            <>
+              <button type="button" className="btn btn-primary btn-inline" disabled={busy || invalide} title="Corriger le contenu de cette information déjà diffusée (sans renvoi)" onClick={() => void run(async () => { await persister(); setRelanceMsg("Modifications enregistrées."); onSaved(); })}>Enregistrer les modifications</button>
+              <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void run(async () => { if (id) { await archiveInformation(token, id); setStatut("archive"); onSaved(); } })}>Archiver</button>
+            </>
+          )}
+          {id && (
+            <button type="button" className="btn btn-danger btn-inline" disabled={busy} onClick={() => setConfirm("supprimer")}>Supprimer</button>
           )}
         </div>
       </aside>

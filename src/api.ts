@@ -3192,6 +3192,7 @@ export interface Information {
   signature_url: string | null;
   protege: boolean;
   institutionnelle: boolean;
+  affiche_entete: boolean;
   canaux: string[];
   statut: InformationStatut;
   requiert_accuse: boolean;
@@ -3219,6 +3220,7 @@ export interface InformationInput {
   signature_url?: string | null;
   protege?: boolean;
   institutionnelle?: boolean;
+  affiche_entete?: boolean;
   canaux?: string[];
   requiert_accuse?: boolean;
   lecture_vocale_auto?: boolean;
