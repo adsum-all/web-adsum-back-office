@@ -27,11 +27,15 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
   const collapsed = ctx?.collapsed.has(node.id) ?? false;
   const editable = ctx?.mode === "edition";
 
-  // The displayed name is the assigned member first (kept in sync when a member is
-  // affected to the node), otherwise the node's own label. The function/scope is
-  // the subtitle. When the photo is enabled and available, it replaces the initials.
-  const nomAffiche = node.membre_nom ?? node.nom;
-  const sousTitre = node.membre_nom && node.membre_nom !== node.nom ? node.nom : node.sous_titre;
+  // FUNCTION-DOMINANT display: the node label (its function / unit) is primary, the
+  // occupant's name is secondary. A function post with no holder shows "Poste a pourvoir"
+  // and never disappears. A structural unit shows its scope/type instead of an occupant.
+  const estPoste = !!node.fonction_cle || node.type_noeud === "personne";
+  const vacant = estPoste && (node.statut === "vacant" || !node.membre_nom);
+  const fonctionAffiche = node.nom || node.sous_titre || TYPE_NOEUD_LABEL[node.type_noeud];
+  const perimetre = node.sous_titre && node.sous_titre !== fonctionAffiche ? node.sous_titre : null;
+  const secondaire = estPoste ? (vacant ? "Poste à pourvoir" : node.membre_nom) : perimetre;
+  const avatarBase = node.membre_nom ?? node.nom;
   const montrerPhoto = node.afficher_photo && !!node.photo_url;
   const style = node.couleur ? ({ "--org-accent": node.couleur } as CSSProperties) : undefined;
 
@@ -55,16 +59,21 @@ export function OrgNodeCard({ data, selected }: NodeProps<OrgFlowNode>): JSX.Ele
           <img className="org-avatar org-avatar-photo" src={node.photo_url ?? ""} alt="" data-kind={node.type_noeud} />
         ) : (
           <span className="org-avatar" data-kind={node.type_noeud} aria-hidden="true">
-            {initiales(nomAffiche)}
+            {initiales(avatarBase)}
           </span>
         )}
         <span className="org-node-body">
-          <span className="org-node-name" title={nomAffiche}>
-            {nomAffiche}
+          <span className="org-node-name" title={fonctionAffiche}>
+            {fonctionAffiche}
           </span>
-          {sousTitre ? (
-            <span className="org-node-sub" title={sousTitre}>
-              {sousTitre}
+          {estPoste && perimetre ? (
+            <span className="org-node-sub" title={perimetre}>
+              {perimetre}
+            </span>
+          ) : null}
+          {secondaire ? (
+            <span className={`org-node-sub ${vacant ? "org-node-sub-vacant" : ""}`} title={secondaire}>
+              {secondaire}
             </span>
           ) : (
             <span className="org-node-sub org-node-sub-mut">{TYPE_NOEUD_LABEL[node.type_noeud]}</span>
