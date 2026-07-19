@@ -1,66 +1,97 @@
 import { useEffect, useState } from "react";
 
 import {
-  type DateInstitInput,
-  type DateInstitutionnelle,
   type IdentiteInstitutionnelle as Identite,
-  createDateInstitutionnelle,
-  deleteDateInstitutionnelle,
-  getDatesInstitutionnelles,
+  type ReferenceCouleur,
   getIdentiteInstitutionnelle,
+  getReferenceCouleurs,
   setIdentiteInstitutionnelle,
-  updateDateInstitutionnelle,
 } from "../api.js";
-
-const CHAMPS: { key: keyof Identite; label: string; placeholder?: string; type?: string }[] = [
-  { key: "org_nom", label: "Nom de l'organisation" },
-  { key: "org_nom_court", label: "Nom court" },
-  { key: "org_site", label: "Site ou portail officiel", placeholder: "https://..." },
-  { key: "org_fondation_date", label: "Date de fondation / anniversaire", type: "date" },
-  { key: "org_saint_patron", label: "Saint patron" },
-  { key: "org_saint_patron_date", label: "Date de la fête du saint patron", type: "date" },
-  { key: "org_fuseau", label: "Fuseau de référence", placeholder: "Africa/Abidjan" },
-  { key: "org_signature", label: "Signature institutionnelle" },
-  { key: "org_contact", label: "Contact officiel" },
-];
-
-const MOIS = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-
-function nouvelleDate(): DateInstitInput {
-  return { nom: "", description: null, type: "commemoration", date_fixe: null, mois: null, jour: null, rappel_jours: 7, visibilite: "membre", actif: true };
-}
+import { RichEditor } from "./RichEditor.js";
+import "./institutionnel/institutionnel.css";
+import { FuseauSelect } from "./institutionnel/FuseauSelect.js";
+import { InstitApercuTab } from "./institutionnel/InstitApercuTab.js";
+import { InstitDatesTab } from "./institutionnel/InstitDatesTab.js";
+import { InstitLiturgieTab } from "./institutionnel/InstitLiturgieTab.js";
 
 /**
- * Parametres > Identite et dates institutionnelles.
+ * SYSTEME > Identité, dates et calendrier institutionnel.
  *
- * Everything organisation-specific (name, site, founding date, patron saint,
- * timezone, signature) is edited here and stored as data, never hardcoded, so
- * ADSUM can be redeployed for any association. A configurable list of institutional
- * dates (anniversary, patron feast, commemorations) can each carry a reminder.
+ * A durable configuration centre, not an activity form: the organisation identity,
+ * its commemorative dates and the catholic liturgical calendar, all editable as data
+ * (never hardcoded) and surfaced automatically in the member calendar. Organised in
+ * tabs so identity, institutional dates and church feasts never blur together.
  */
+type Onglet = "identite" | "dates" | "liturgie" | "apercu";
+
+const PRINCIPALE: { key: string; label: string; placeholder?: string; type?: string }[] = [
+  { key: "org_nom", label: "Nom officiel de l'organisation" },
+  { key: "org_nom_court", label: "Nom court" },
+  { key: "org_acronyme", label: "Acronyme" },
+  { key: "org_slogan", label: "Slogan ou devise" },
+  { key: "org_signature", label: "Signature institutionnelle" },
+  { key: "org_site", label: "Site ou portail officiel", placeholder: "https://..." },
+  { key: "org_email", label: "E-mail officiel", type: "email" },
+  { key: "org_telephone", label: "Téléphone officiel" },
+  { key: "org_whatsapp", label: "WhatsApp officiel" },
+  { key: "org_adresse", label: "Adresse ou siège" },
+  { key: "org_pays", label: "Pays principal" },
+  { key: "org_ville", label: "Ville principale" },
+  { key: "org_langue", label: "Langue principale" },
+  { key: "org_logo_url", label: "Logo (URL)", placeholder: "https://..." },
+  { key: "org_banniere_url", label: "Bannière (URL)", placeholder: "https://..." },
+  { key: "org_reseaux", label: "Réseaux sociaux (texte libre)" },
+];
+const ORIGINE: { key: string; label: string; type?: string }[] = [
+  { key: "org_fondation_date", label: "Date de fondation", type: "date" },
+  { key: "org_fondation_lieu", label: "Lieu de fondation" },
+  { key: "org_fondateur_nom", label: "Fondateur ou fondatrice" },
+  { key: "org_fondateur_type", label: "Rôle du fondateur (facultatif)" },
+  { key: "org_saint_patron", label: "Saint patron ou sainte patronne" },
+  { key: "org_saint_patron_date", label: "Date de la fête du saint patron", type: "date" },
+  { key: "org_source_validee", label: "Source institutionnelle validée" },
+];
+const RICHES: { key: string; label: string }[] = [
+  { key: "org_description_longue", label: "Présentation institutionnelle" },
+  { key: "org_mission", label: "Mission" },
+  { key: "org_vision", label: "Vision" },
+  { key: "org_valeurs", label: "Valeurs" },
+  { key: "org_texte_historique", label: "Texte historique (source validée uniquement)" },
+];
+
+const ONGLETS: { id: Onglet; label: string }[] = [
+  { id: "identite", label: "Identité de l'organisation" },
+  { id: "dates", label: "Dates de l'organisation" },
+  { id: "liturgie", label: "Calendrier catholique" },
+  { id: "apercu", label: "Aperçu calendrier" },
+];
+
 export function IdentiteInstitutionnelle({ token, canGerer }: Readonly<{ token: string; canGerer: boolean }>): JSX.Element {
+  const [onglet, setOnglet] = useState<Onglet>("identite");
   const [identite, setIdentite] = useState<Identite | null>(null);
-  const [dates, setDates] = useState<DateInstitutionnelle[]>([]);
-  const [edit, setEdit] = useState<{ id: string | null; data: DateInstitInput } | null>(null);
+  const [couleurs, setCouleurs] = useState<ReferenceCouleur[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const charger = (): void => {
+  useEffect(() => {
     void getIdentiteInstitutionnelle(token).then(setIdentite).catch((e) => setErr(String(e?.message ?? e)));
-    void getDatesInstitutionnelles(token).then(setDates).catch(() => undefined);
-  };
-  useEffect(charger, [token]);
+    void getReferenceCouleurs(token).then(setCouleurs).catch(() => undefined);
+  }, [token]);
 
-  async function run(fn: () => Promise<void>): Promise<void> {
+  const setChamp = (key: string, val: string): void => setIdentite((id) => (id ? { ...id, [key]: val } : id));
+
+  async function enregistrer(): Promise<void> {
+    if (!identite) return;
     setBusy(true); setErr(null); setMsg(null);
-    try { await fn(); } catch (e) { setErr(e instanceof Error ? e.message : "Erreur"); } finally { setBusy(false); }
+    try { await setIdentiteInstitutionnelle(token, identite); setMsg("Identité enregistrée."); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Erreur"); } finally { setBusy(false); }
   }
 
   if (!identite) {
     return (
       <div className="page">
-        <header className="page-head"><h1>Identité et dates institutionnelles</h1></header>
+        <header className="page-head"><h1>Identité, dates et calendrier institutionnel</h1></header>
         <section className="card"><p className="muted">{err ?? "Chargement..."}</p></section>
       </div>
     );
@@ -69,113 +100,78 @@ export function IdentiteInstitutionnelle({ token, canGerer }: Readonly<{ token: 
   return (
     <div className="page">
       <header className="page-head">
-        <h1>Identité et dates institutionnelles</h1>
-        <p className="muted">Ces valeurs sont configurables et réutilisables pour toute association. Rien n'est figé dans le code.</p>
+        <h1>Identité, dates et calendrier institutionnel</h1>
+        <p className="muted">Configurez l'identité officielle de l'organisation, ses dates de référence et les repères liturgiques affichés automatiquement dans le calendrier.</p>
       </header>
+
+      <div className="card" style={{ background: "var(--adsum-bg-soft, #f4f6fb)", borderLeft: "4px solid var(--adsum-acc, #2a4fad)" }}>
+        <strong>À quoi sert cette page ?</strong>
+        <p className="muted" style={{ margin: "6px 0 0" }}>
+          Ces informations permanentes personnalisent l'application, les communications et le calendrier des membres.
+          Les dates institutionnelles et liturgiques ne sont pas des activités : elles n'ouvrent ni pointage, ni sondage,
+          ni contrôle d'accès, et se répètent automatiquement chaque année.
+        </p>
+      </div>
+
+      <div className="inst-tabs" role="tablist" aria-label="Sections">
+        {ONGLETS.map((o) => (
+          <button key={o.id} type="button" role="tab" aria-selected={onglet === o.id} className={`inst-tab ${onglet === o.id ? "is-active" : ""}`} onClick={() => setOnglet(o.id)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+
       {err && <div className="banner-error">{err}</div>}
       {msg && <div className="banner-info">{msg}</div>}
 
-      <section className="card">
-        <h2>Identité de l'organisation</h2>
-        <div className="grid-2">
-          {CHAMPS.map((c) => (
-            <label key={c.key} className="field">
-              <span>{c.label}</span>
-              <input
-                type={c.type ?? "text"}
-                value={identite[c.key] ?? ""}
-                placeholder={c.placeholder}
-                disabled={!canGerer}
-                onChange={(e) => setIdentite((id) => (id ? { ...id, [c.key]: e.target.value } : id))}
-              />
+      {onglet === "identite" && (
+        <section className="card">
+          <h2>Identité principale</h2>
+          <div className="grid-2">
+            {PRINCIPALE.map((c) => (
+              <label key={c.key} className="field">
+                <span>{c.label}</span>
+                <input type={c.type ?? "text"} value={identite[c.key] ?? ""} placeholder={c.placeholder} disabled={!canGerer} onChange={(e) => setChamp(c.key, e.target.value)} />
+              </label>
+            ))}
+            <label className="field">
+              <span>Fuseau de référence</span>
+              <FuseauSelect value={identite.org_fuseau ?? ""} disabled={!canGerer} onChange={(tz) => setChamp("org_fuseau", tz)} />
             </label>
+          </div>
+
+          <label className="field" style={{ marginTop: 10 }}><span>Description courte</span>
+            <textarea value={identite.org_description_courte ?? ""} disabled={!canGerer} onChange={(e) => setChamp("org_description_courte", e.target.value)} maxLength={400} />
+          </label>
+
+          {RICHES.map((r) => (
+            <div key={r.key} style={{ marginTop: 12 }}>
+              <label className="field"><span>{r.label}</span></label>
+              <RichEditor value={identite[r.key] ?? ""} onChange={(html) => setChamp(r.key, html)} disabled={!canGerer} />
+            </div>
           ))}
-        </div>
-        {canGerer && (
-          <div className="row-actions" style={{ marginTop: 12 }}>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(async () => { await setIdentiteInstitutionnelle(token, identite); setMsg("Identité enregistrée."); })}>Enregistrer l'identité</button>
-          </div>
-        )}
-      </section>
 
-      <section className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>Dates institutionnelles</h2>
-          {canGerer && <button type="button" className="btn btn-ghost btn-inline" onClick={() => setEdit({ id: null, data: nouvelleDate() })}>+ Ajouter une date</button>}
-        </div>
-        {dates.length === 0 ? (
-          <p className="muted">Aucune date institutionnelle pour le moment.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>Nom</th><th>Type</th><th>Quand</th><th>Rappel</th><th>Visibilité</th><th>Actif</th>{canGerer && <th></th>}</tr></thead>
-              <tbody>
-                {dates.map((d) => (
-                  <tr key={d.id}>
-                    <td>{d.nom}</td>
-                    <td>{d.type}</td>
-                    <td>{d.date_fixe ? new Date(d.date_fixe).toLocaleDateString("fr-FR") : d.jour && d.mois ? `${d.jour} ${MOIS[d.mois]}` : "-"}</td>
-                    <td>{d.rappel_jours} j avant</td>
-                    <td>{d.visibilite}</td>
-                    <td>{d.actif ? "Oui" : "Non"}</td>
-                    {canGerer && (
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        <button type="button" className="btn btn-ghost btn-inline" onClick={() => setEdit({ id: d.id, data: { ...d } })}>Modifier</button>
-                        <button type="button" className="btn btn-danger btn-inline" onClick={() => void run(async () => { if (window.confirm(`Supprimer « ${d.nom} » ?`)) { await deleteDateInstitutionnelle(token, d.id); charger(); } })}>Supprimer</button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 style={{ marginTop: 20 }}>Statut et origine</h2>
+          <div className="grid-2">
+            {ORIGINE.map((c) => (
+              <label key={c.key} className="field">
+                <span>{c.label}</span>
+                <input type={c.type ?? "text"} value={identite[c.key] ?? ""} disabled={!canGerer} onChange={(e) => setChamp(c.key, e.target.value)} />
+              </label>
+            ))}
           </div>
-        )}
-      </section>
 
-      {edit && (
-        <div className="drawer-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,20,35,.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div className="card" style={{ width: "min(480px, 94vw)", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2>{edit.id ? "Modifier la date" : "Nouvelle date institutionnelle"}</h2>
-            <label className="field"><span>Nom</span><input value={edit.data.nom} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, nom: e.target.value } }))} /></label>
-            <label className="field"><span>Description</span><textarea value={edit.data.description ?? ""} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, description: e.target.value } }))} /></label>
-            <div className="grid-2">
-              <label className="field"><span>Type</span>
-                <select value={edit.data.type} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, type: e.target.value } }))}>
-                  <option value="anniversaire">Anniversaire</option>
-                  <option value="fete_patron">Fête du saint patron</option>
-                  <option value="journee">Journée institutionnelle</option>
-                  <option value="commemoration">Commémoration</option>
-                </select>
-              </label>
-              <label className="field"><span>Date fixe (année précise)</span><input type="date" value={edit.data.date_fixe ?? ""} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, date_fixe: e.target.value || null } }))} /></label>
-              <label className="field"><span>Jour (récurrent)</span><input type="number" min={1} max={31} value={edit.data.jour ?? ""} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, jour: e.target.value ? Number(e.target.value) : null } }))} /></label>
-              <label className="field"><span>Mois (récurrent)</span>
-                <select value={edit.data.mois ?? ""} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, mois: e.target.value ? Number(e.target.value) : null } }))}>
-                  <option value="">-</option>
-                  {MOIS.slice(1).map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </select>
-              </label>
-              <label className="field"><span>Rappel (jours avant)</span><input type="number" min={0} max={365} value={edit.data.rappel_jours} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, rappel_jours: Number(e.target.value) } }))} /></label>
-              <label className="field"><span>Visibilité</span>
-                <select value={edit.data.visibilite} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, visibilite: e.target.value } }))}>
-                  <option value="interne">Interne</option>
-                  <option value="membre">Membre</option>
-                  <option value="administrateur">Administrateur</option>
-                </select>
-              </label>
+          {canGerer && (
+            <div className="row-actions" style={{ marginTop: 14 }}>
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void enregistrer()}>{busy ? "Enregistrement…" : "Enregistrer l'identité"}</button>
             </div>
-            <label className="switch-row"><input type="checkbox" checked={edit.data.actif} onChange={(e) => setEdit((x) => x && ({ ...x, data: { ...x.data, actif: e.target.checked } }))} /><span>Active</span></label>
-            <div className="row-actions" style={{ marginTop: 12 }}>
-              <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Annuler</button>
-              <button type="button" className="btn btn-primary" disabled={busy || !edit.data.nom.trim()} onClick={() => void run(async () => {
-                if (edit.id) await updateDateInstitutionnelle(token, edit.id, edit.data);
-                else await createDateInstitutionnelle(token, edit.data);
-                setEdit(null); charger(); setMsg("Date enregistrée.");
-              })}>Enregistrer</button>
-            </div>
-          </div>
-        </div>
+          )}
+        </section>
       )}
+
+      {onglet === "dates" && <section className="card"><h2>Dates de l'organisation</h2><InstitDatesTab token={token} canGerer={canGerer} couleurs={couleurs} /></section>}
+      {onglet === "liturgie" && <section className="card"><h2>Calendrier catholique</h2><InstitLiturgieTab token={token} canGerer={canGerer} couleurs={couleurs} /></section>}
+      {onglet === "apercu" && <section className="card"><h2>Aperçu du calendrier</h2><InstitApercuTab token={token} couleurs={couleurs} /></section>}
     </div>
   );
 }
