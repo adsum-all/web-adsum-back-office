@@ -2982,6 +2982,7 @@ export interface OrgValidation {
   publiable: boolean;
   bloquants: string[];
   avertissements: string[];
+  coherence?: CoherenceReport;
   noeuds: OrgNode[];
   liens: OrgLink[];
 }
@@ -3144,6 +3145,60 @@ export function restaurerOrganigramme(token: string, id: string): Promise<{ id: 
  * the page turns into an empty state. */
 export function getOrganigrammePublie(token: string): Promise<OrgContenu> {
   return authedGet("/api/v1/organigramme/publie", token, "Organigramme publié indisponible");
+}
+
+// --- Coherence report + interim (suppleance) --------------------------------
+
+export interface CoherenceFinding {
+  code: string;
+  niveau: "bloquant" | "avertissement" | "info";
+  message: string;
+}
+export interface CoherenceReport {
+  findings: CoherenceFinding[];
+  bloquants: CoherenceFinding[];
+  avertissements: CoherenceFinding[];
+  infos: CoherenceFinding[];
+  resume: { bloquants: number; avertissements: number; infos: number };
+}
+
+export function getRapportCoherence(token: string): Promise<CoherenceReport> {
+  return authedGet("/api/v1/admin/organigramme/coherence", token, "Rapport de cohérence indisponible");
+}
+
+export interface Interim {
+  id: string;
+  fonction_cle: string;
+  perimetre: string | null;
+  titulaire_id: string | null;
+  suppleant_id: string | null;
+  motif: string | null;
+  date_debut: string | null;
+  date_fin: string | null;
+  statut: "actif" | "termine" | "annule";
+}
+export interface InterimInput {
+  fonction_cle: string;
+  perimetre?: string | null;
+  titulaire_id?: string | null;
+  suppleant_id: string;
+  motif?: string | null;
+  date_debut?: string | null;
+  date_fin?: string | null;
+}
+
+export function listInterims(token: string, statut?: string): Promise<Interim[]> {
+  const q = statut ? `?statut=${encodeURIComponent(statut)}` : "";
+  return authedGet(`/api/v1/admin/organigramme/interims${q}`, token, "Intérims indisponibles");
+}
+export function creerInterim(token: string, input: InterimInput): Promise<Interim> {
+  return authedSend("/api/v1/admin/organigramme/interims", token, "POST", input, "Création de l'intérim impossible");
+}
+export function terminerInterim(token: string, id: string): Promise<Interim> {
+  return authedSend(`/api/v1/admin/organigramme/interims/${id}/terminer`, token, "POST", undefined, "Clôture de l'intérim impossible");
+}
+export function annulerInterim(token: string, id: string): Promise<Interim> {
+  return authedSend(`/api/v1/admin/organigramme/interims/${id}/annuler`, token, "POST", undefined, "Annulation de l'intérim impossible");
 }
 
 // --- Informations (internal communication) ---------------------------------
