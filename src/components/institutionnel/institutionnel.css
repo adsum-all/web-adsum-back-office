@@ -1,0 +1,55 @@
+/* Institutional identity/calendar page: self-contained tab bar and status pills so
+   the page renders correctly whether or not the org-chart styles are loaded.
+   Built on the shared --adsum-* tokens; theme-aware. */
+
+.inst-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.inst-tab {
+  border: 1px solid var(--adsum-line, #d7dbe3);
+  background: var(--adsum-bg, #fff);
+  color: var(--adsum-ink, #1a2233);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inst-tab:hover {
+  border-color: var(--adsum-acc, #2a4fad);
+}
+
+.inst-tab.is-active {
+  background: var(--adsum-acc, #2a4fad);
+  border-color: var(--adsum-acc, #2a4fad);
+  color: #fff;
+}
+
+.inst-pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.inst-pill-brouillon {
+  color: #8a5a12;
+  background: #fbeccb;
+}
+
+.inst-pill-publie {
+  color: #0f6b45;
+  background: #d6f2e4;
+}
+
+.inst-pill-archive {
+  color: var(--adsum-mut, #667);
+  background: var(--adsum-line, #e7e9ee);
+}
