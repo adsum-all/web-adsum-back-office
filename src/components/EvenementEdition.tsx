@@ -16,6 +16,7 @@ import {
 } from "../api.js";
 import { FUSEAUX } from "../lib/fuseaux.js";
 import { utcToZoned, zonedToUtc } from "../lib/tz.js";
+import { CreneauJour } from "./CreneauJour.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
@@ -186,14 +187,7 @@ export function EvenementEdition({
             {FUSEAUX.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </label>
-        <label>
-          <span>Début * (heure du fuseau)</span>
-          <input type="datetime-local" value={debut} onChange={(e) => setDebut(e.target.value)} />
-        </label>
-        <label>
-          <span>Fin</span>
-          <input type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
-        </label>
+        <CreneauJour debut={debut} fin={fin} onChange={(d, f) => { setDebut(d); setFin(f); }} />
         <label>
           <span>Lieu</span>
           <input value={lieu} onChange={(e) => setLieu(e.target.value)} />

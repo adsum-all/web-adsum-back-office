@@ -12,6 +12,7 @@ import {
   archiveInformation,
   createInformation,
   deleteInformation,
+  exportInformationCSV,
   getCommissions,
   getCoordinations,
   getInformationStats,
@@ -20,6 +21,7 @@ import {
   getSousCommissions,
   getTribus,
   publishInformation,
+  relanceInformation,
   updateInformation,
   uploadInformationMedia,
 } from "../api.js";
@@ -77,6 +79,7 @@ export function InformationEditor({
   const [err, setErr] = useState<string | null>(null);
   const [apercu, setApercu] = useState<number | null>(null);
   const [stats, setStats] = useState<InformationStats | null>(null);
+  const [relanceMsg, setRelanceMsg] = useState<string | null>(null);
   const [staged, setStaged] = useState<Staged>({});
   const [membres, setMembres] = useState<{ id: string; nom: string }[]>(() => {
     const sel = info?.cibles.find((c) => c.code === "selection");
@@ -422,6 +425,34 @@ export function InformationEditor({
                 <div><b>{stats.confirmes}</b><span>Confirmés ({stats.taux_confirmation}%)</span></div>
                 <div><b>{stats.non_lus}</b><span>Non lus</span></div>
               </div>
+              {id && statut === "envoye" && (
+                <div className="info-suivi-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-inline"
+                    disabled={busy}
+                    onClick={() => void run(async () => { if (id) await exportInformationCSV(token, id); })}
+                  >
+                    Exporter le suivi (CSV)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-inline"
+                    disabled={busy || stats.non_lus === 0}
+                    title={stats.non_lus === 0 ? "Tous les destinataires ont lu cette information." : "Renvoyer l'information sur ses canaux, uniquement aux personnes qui ne l'ont pas encore lue."}
+                    onClick={() => void run(async () => {
+                      if (!id) return;
+                      if (!window.confirm("Relancer les destinataires qui n'ont pas encore lu cette information ? Les personnes qui l'ont déjà lue ne sont pas notifiées.")) return;
+                      const r = await relanceInformation(token, id);
+                      setRelanceMsg(`Relance envoyée à ${r.non_lus} destinataire(s) non lus (Telegram : ${r.telegram.envoyes}, e-mail : ${r.email.envoyes}).`);
+                      setStats(await getInformationStats(token, id));
+                    })}
+                  >
+                    Relancer les non-lus
+                  </button>
+                </div>
+              )}
+              {relanceMsg && <p className="banner banner-info">{relanceMsg}</p>}
             </div>
           )}
           {err && <p className="banner banner-error">{err}</p>}
