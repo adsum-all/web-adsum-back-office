@@ -22,6 +22,7 @@ import { Membres } from "./components/Membres.js";
 import { ReglagesIA } from "./components/ReglagesIA.js";
 import { ParticipationStats } from "./components/ParticipationStats.js";
 import { Organisation } from "./components/Organisation.js";
+import { CentreDiffusion } from "./components/CentreDiffusion.js";
 import { IdentiteInstitutionnelle } from "./components/IdentiteInstitutionnelle.js";
 import { InformationsAdmin } from "./components/InformationsAdmin.js";
 import { RetentionArchivage } from "./components/RetentionArchivage.js";
@@ -50,6 +51,7 @@ type Section =
   | "organisation"
   | "organigramme"
   | "informations"
+  | "centre-diffusion"
   | "retention"
   | "identite-institutionnelle"
   | "evenements"
@@ -87,6 +89,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "organigramme", label: "Organigramme hiérarchique", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "informations", label: "Informations importantes", group: "COMMUNICATION", perm: "informations.consulter" },
+  { id: "centre-diffusion", label: "Centre de diffusion", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "retention", label: "Rétention et archivage", group: "COMMUNICATION", perm: "parametres.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "types-evenements", label: "Types d'événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
@@ -111,7 +114,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
 // library is added: the hash is the single source of truth, validated against NAV.
 const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
-  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "informations", "retention", "evenements",
+  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "informations", "centre-diffusion", "retention", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
 ]);
@@ -325,6 +328,7 @@ export function App(): JSX.Element {
             <Organigramme token={session.token} canAdministrer={held.has("organisation.administrer")} />
           )}
           {activeId === "informations" && <InformationsAdmin token={session.token} />}
+          {activeId === "centre-diffusion" && <CentreDiffusion token={session.token} />}
           {activeId === "retention" && <RetentionArchivage token={session.token} canGerer={held.has("parametres.gerer")} />}
           {activeId === "identite-institutionnelle" && <IdentiteInstitutionnelle token={session.token} canGerer={held.has("parametres.gerer")} />}
           {activeId === "evenements" && (

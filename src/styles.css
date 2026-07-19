@@ -1602,3 +1602,12 @@ h3 {
 .plan-resume { border-top: 1px dashed var(--adsum-line); padding-top: 8px; }
 .plan-liste { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
 .info-canaux { display: flex; flex-direction: column; gap: 4px; }
+.cd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.cd-tile { border: 1px solid var(--adsum-line); border-radius: 12px; padding: 14px; background: var(--adsum-bg); display: flex; flex-direction: column; gap: 4px; }
+.cd-tile b { font-size: 24px; font-family: var(--adsum-fd, inherit); color: var(--adsum-ink); }
+.cd-tile span { font-size: 11.5px; color: var(--adsum-mut); }
+.cd-warn { border-color: #e0a800; background: #fff8e6; }
+.cd-danger { border-color: #c0392b; background: #fdecec; }
+.tag-normale { background: #eef2fb; color: #2a4fad; }
+.tag-importante { background: #fff4e5; color: #b26a00; }
+.tag-urgente { background: #fdecec; color: #c0392b; }
