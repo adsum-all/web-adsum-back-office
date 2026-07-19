@@ -1529,6 +1529,7 @@ h3 {
 .info-stats-grid > div { display: flex; flex-direction: column; }
 .info-stats-grid b { font-size: 19px; font-variant-numeric: tabular-nums; }
 .info-stats-grid span { font-size: 10.5px; color: var(--adsum-mut); }
+.info-suivi-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .empty-card { border: 1px dashed var(--adsum-line); border-radius: 12px; padding: 28px; text-align: center; color: var(--adsum-mut); }
 @media (max-width: 640px) { .info-two { grid-template-columns: 1fr; } .info-stats-grid { grid-template-columns: 1fr 1fr; } }
 
