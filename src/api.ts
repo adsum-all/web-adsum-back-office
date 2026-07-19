@@ -1623,6 +1623,16 @@ export function setQuestionnaireFenetre(token: string, heures: number): Promise<
   return authedSend("/api/v1/admin/parametres/questionnaire-fenetre", token, "PUT", { heures }, "Mise à jour impossible");
 }
 
+/** Survey window in minutes (default 120 = 2 h), adjustable in 30-minute steps
+ * from 0 (0 closes the survey exactly when the activity ends). */
+export function getQuestionnaireFenetreMinutes(token: string): Promise<{ minutes: number }> {
+  return authedGet<{ minutes: number }>("/api/v1/admin/parametres/questionnaire-fenetre-minutes", token, "Paramètre indisponible");
+}
+
+export function setQuestionnaireFenetreMinutes(token: string, minutes: number): Promise<{ minutes: number }> {
+  return authedSend("/api/v1/admin/parametres/questionnaire-fenetre-minutes", token, "PUT", { minutes }, "Mise à jour impossible");
+}
+
 export function getSemaineJourDebut(token: string): Promise<{ jour: number }> {
   return authedGet<{ jour: number }>("/api/v1/admin/parametres/semaine-jour-debut", token, "Paramètre indisponible");
 }

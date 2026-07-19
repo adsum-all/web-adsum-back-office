@@ -13,12 +13,12 @@ import {
   getEvenements,
   getIntendances,
   getMesPreferences,
-  getQuestionnaireFenetre,
+  getQuestionnaireFenetreMinutes,
   getSemaineJourDebut,
   getTribus,
   getTypesEvenements,
   setMesPreferences,
-  setQuestionnaireFenetre,
+  setQuestionnaireFenetreMinutes,
   setSemaineJourDebut,
 } from "../api.js";
 import { formatDate } from "../format.js";
@@ -32,6 +32,7 @@ import { PiecesACharger } from "./PiecesACharger.js";
 import { lireFichier } from "./PiecesEvenement.js";
 import { InfoTip } from "./InfoTip.js";
 import { LiensEditor } from "./LiensEditor.js";
+import { type Plan, PlanificationActivite } from "./PlanificationActivite.js";
 import { RichEditor } from "./RichEditor.js";
 
 const EMPTY: EvenementCreateInput = {
@@ -51,19 +52,6 @@ const EMPTY: EvenementCreateInput = {
 // administrable referential (GET /reference/cibles-activite): an administrator
 // can add, rename, reorder or deactivate a destination without any code change.
 
-type Repetition = "aucune" | "quotidienne" | "hebdomadaire" | "dates_precises";
-type DatePrecise = { debut: string; mode: string };
-
-/** Add whole days to a naive "YYYY-MM-DDTHH:mm", keeping the same wall-clock time
- * (so a daily 21:00 series stays at 21:00 every day, across month boundaries). */
-function addDaysLocal(local: string, days: number): string {
-  const [d = "", t = "00:00"] = local.split("T");
-  const [y = 0, mo = 1, da = 1] = d.split("-").map(Number);
-  const [h = 0, mi = 0] = t.split(":").map(Number);
-  const dt = new Date(y, mo - 1, da + days, h, mi);
-  const p = (n: number): string => String(n).padStart(2, "0");
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
-}
 
 // Personal display preference (calendar vs list) for the events section. It is a
 // per-account view choice, kept in localStorage so it persists for THIS operator on
@@ -93,7 +81,7 @@ export function Evenements({
   canParametres?: boolean;
 }): JSX.Element {
   const evenements = useResource(() => getEvenements(token), [token]);
-  const fenetre = useResource(() => getQuestionnaireFenetre(token), [token]);
+  const fenetre = useResource(() => getQuestionnaireFenetreMinutes(token), [token]);
   const semaineDebut = useResource(() => getSemaineJourDebut(token), [token]);
   // Units available as an activity target. Loaded once; the second select only
   // shows the list matching the chosen target kind.
@@ -119,22 +107,21 @@ export function Evenements({
   // Month calendar is the default display; the flat list stays available. The choice
   // is a personal preference persisted per operator (see loadVuePref / choisirVue).
   const [vue, setVue] = useState<"calendrier" | "liste">(loadVuePref);
-  // Recurrence: how the activity repeats and over how many dates (1 = single).
-  const [repetition, setRepetition] = useState<Repetition>("aucune");
-  const [nbOccurrences, setNbOccurrences] = useState(1);
-  // Explicit intermittent dates (each an extra occurrence with its own mode).
-  const [datesPrecises, setDatesPrecises] = useState<DatePrecise[]>([]);
+  // Scheduling plan (dates separated from per-day times): the source of truth for
+  // debut/fin and the series occurrences. planKey remounts the planner on reset.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [planKey, setPlanKey] = useState(0);
   // Ad-hoc e-mail list (one per line / comma) for a 'liste' target.
   const [emailsTexte, setEmailsTexte] = useState("");
   // Local value of the questionnaire-window slider while it is being dragged, so
   // the position is persisted only once, on release, not on every tick (which
   // would flood the API and the audit log).
   const [fenetreLocal, setFenetreLocal] = useState<number | null>(null);
-  const fenetreValue = fenetreLocal ?? fenetre.data?.heures ?? 6;
+  const fenetreValue = fenetreLocal ?? fenetre.data?.minutes ?? 120;
 
-  function saveFenetre(heures: number): void {
+  function saveFenetre(minutes: number): void {
     setFenetreLocal(null);
-    void setQuestionnaireFenetre(token, heures).then(() => fenetre.reload()).catch(() => undefined);
+    void setQuestionnaireFenetreMinutes(token, minutes).then(() => fenetre.reload()).catch(() => undefined);
   }
 
   // The server-side preference is authoritative (it follows the account across
@@ -188,7 +175,11 @@ export function Evenements({
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
-    if (!form.titre.trim() || !form.debut) return;
+    if (!form.titre.trim()) return;
+    if (!plan) {
+      setError("Renseignez la planification : au moins une date avec son heure de début et de fin.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -216,9 +207,10 @@ export function Evenements({
       const payload: EvenementCreateInput = {
         titre: form.titre.trim(),
         volet: form.volet,
-        // The typed time is interpreted in the activity's chosen zone, then stored
-        // as an absolute UTC instant so every member sees it in their own time.
-        debut: zonedToUtc(form.debut, zone),
+        // The planner separates dates from per-day times; the first slot is the
+        // master. The typed time is interpreted in the activity's chosen zone, then
+        // stored as an absolute UTC instant so every member sees it in their own time.
+        debut: zonedToUtc(plan.debut, zone),
         type: form.type,
         type_evenement_id: form.type_evenement_id ?? null,
         mode: form.mode,
@@ -235,7 +227,8 @@ export function Evenements({
         intervenant_principal: (form.intervenant_principal ?? "").trim() || null,
         intervenants: (form.intervenants ?? []).map((x) => x.trim()).filter(Boolean),
       };
-      if (form.fin) payload.fin = zonedToUtc(form.fin, zone);
+      // Same-day end always set by the planner (no more phantom multi-day span).
+      payload.fin = zonedToUtc(plan.fin, zone);
       if (form.fenetre_reponse_heures) payload.fenetre_reponse_heures = Number(form.fenetre_reponse_heures);
       if (form.lieu?.trim()) payload.lieu = form.lieu.trim();
       const cleanLiens = liens.map((l) => l.trim()).filter((l) => l.length > 0);
@@ -243,39 +236,16 @@ export function Evenements({
         payload.liens = cleanLiens;
         payload.lien_session = cleanLiens[0];
       }
-      // Recurrence: generate the extra occurrences (2nd onward) as real dated
-      // instants in the activity's own zone, so the server creates one activity
-      // per date sharing a serie_id.
-      if (repetition !== "aucune") {
-        let extra: { debut: string; fin?: string; mode?: string }[] = [];
-        let freq = "daily";
-        if (repetition === "dates_precises") {
-          freq = "custom";
-          // Keep the base duration so each explicit date has the same length.
-          const baseDurMs = form.fin ? new Date(zonedToUtc(form.fin, zone)).getTime() - new Date(payload.debut).getTime() : 0;
-          extra = datesPrecises
-            .filter((r) => r.debut)
-            .map((r) => {
-              const debutU = zonedToUtc(r.debut, zone);
-              const occ: { debut: string; fin?: string; mode?: string } = { debut: debutU };
-              if (baseDurMs > 0) occ.fin = new Date(new Date(debutU).getTime() + baseDurMs).toISOString();
-              if (r.mode && r.mode !== (form.mode ?? "")) occ.mode = r.mode;
-              return occ;
-            });
-        } else {
-          const step = repetition === "hebdomadaire" ? 7 : 1;
-          freq = repetition === "hebdomadaire" ? "weekly" : "daily";
-          const count = Math.min(Math.max(2, Math.floor(nbOccurrences)), 104);
-          for (let k = 1; k < count; k += 1) {
-            const occ: { debut: string; fin?: string } = { debut: zonedToUtc(addDaysLocal(form.debut, k * step), zone) };
-            if (form.fin) occ.fin = zonedToUtc(addDaysLocal(form.fin, k * step), zone);
-            extra.push(occ);
-          }
-        }
-        if (extra.length > 0) {
-          payload.occurrences = extra;
-          payload.recurrence = { freq, interval: 1, count: extra.length + 1 };
-        }
+      // Each planned slot beyond the first becomes a real dated occurrence sharing a
+      // serie_id, so a multi-day activity gives one pointage and one questionnaire
+      // per day. Every occurrence carries its own same-day debut and fin.
+      if (plan.occurrences.length > 0) {
+        payload.occurrences = plan.occurrences.map((o) => {
+          const occ: { debut: string; fin?: string; mode?: string } = { debut: zonedToUtc(o.debut, zone), fin: zonedToUtc(o.fin, zone) };
+          if (o.mode && o.mode !== (form.mode ?? "")) occ.mode = o.mode;
+          return occ;
+        });
+        payload.recurrence = { freq: "custom", interval: 1, count: payload.occurrences.length + 1 };
       }
       const cree = await createEvenement(token, payload);
       // Upload the attachments joined during planning to the freshly created event.
@@ -287,9 +257,8 @@ export function Evenements({
       }
       setForm(EMPTY);
       setLiens([""]);
-      setRepetition("aucune");
-      setNbOccurrences(1);
-      setDatesPrecises([]);
+      setPlan(null);
+      setPlanKey((k) => k + 1);
       setEmailsTexte("");
       setPiecesAJoindre([]);
       evenements.reload();
@@ -344,85 +313,18 @@ export function Evenements({
               les heures seront saisies dans ce fuseau, et chaque membre les verra à sa propre heure.
             </span>
           </label>
+          <PlanificationActivite key={planKey} modeDefaut={form.mode} onChange={setPlan} />
           <label>
-            <span>Début * (heure du fuseau ci-dessus)</span>
-            <input type="datetime-local" value={form.debut} onChange={(e) => set("debut", e.target.value)} required />
-          </label>
-          <label>
-            <span>Fin</span>
-            <input type="datetime-local" value={form.fin ?? ""} onChange={(e) => set("fin", e.target.value)} />
-          </label>
-          <label>
-            <span>Répétition</span>
-            <select
-              value={repetition}
-              onChange={(e) => {
-                const r = e.target.value as Repetition;
-                setRepetition(r);
-                if ((r === "quotidienne" || r === "hebdomadaire") && nbOccurrences < 2) setNbOccurrences(2);
-                if (r === "dates_precises" && datesPrecises.length === 0) setDatesPrecises([{ debut: "", mode: form.mode ?? "presentiel" }]);
-              }}
-            >
-              <option value="aucune">Aucune (activité unique)</option>
-              <option value="quotidienne">Quotidienne</option>
-              <option value="hebdomadaire">Hebdomadaire</option>
-              <option value="dates_precises">Dates précises (intermittent)</option>
-            </select>
-          </label>
-          {(repetition === "quotidienne" || repetition === "hebdomadaire") && (
-            <label>
-              <span>Nombre de dates (max 104)</span>
-              <input type="number" min={2} max={104} value={nbOccurrences} onChange={(e) => setNbOccurrences(Number(e.target.value))} />
-              <span className="muted small" style={{ fontWeight: 400 }}>
-                Chaque date crée une activité réelle (pointage et questionnaire par jour). Ex. : programme de 21 jours = Quotidienne, 21 dates.
-              </span>
-            </label>
-          )}
-          {repetition === "dates_precises" && (
-            <div className="full">
-              <span className="muted small" style={{ display: "block", marginBottom: 6 }}>
-                La 1re date est le « Début » ci-dessus (mode « {form.mode ?? "presentiel"} »). Ajoutez les autres dates, chacune avec son propre mode.
-              </span>
-              {datesPrecises.map((row, i) => (
-                <div key={i} className="toolbar" style={{ marginBottom: 6 }}>
-                  <input
-                    type="datetime-local"
-                    value={row.debut}
-                    style={{ flex: 1 }}
-                    onChange={(e) => setDatesPrecises((rows) => rows.map((x, j) => (j === i ? { ...x, debut: e.target.value } : x)))}
-                  />
-                  <select
-                    value={row.mode}
-                    onChange={(e) => setDatesPrecises((rows) => rows.map((x, j) => (j === i ? { ...x, mode: e.target.value } : x)))}
-                  >
-                    <option value="presentiel">Présentiel</option>
-                    <option value="en_ligne">En ligne</option>
-                    <option value="hybride">Hybride</option>
-                  </select>
-                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => setDatesPrecises((rows) => rows.filter((_, j) => j !== i))}>
-                    Retirer
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="btn btn-ghost btn-inline"
-                onClick={() => setDatesPrecises((rows) => [...rows, { debut: "", mode: form.mode ?? "presentiel" }])}
-              >
-                + Ajouter une date
-              </button>
-            </div>
-          )}
-          <label>
-            <span>Fenêtre de réponse (h après la fin)</span>
+            <span>Fenêtre de pointage spécifique (h, facultatif)</span>
             <input
               type="number"
               min={1}
               max={336}
-              placeholder="Réglage global"
+              placeholder="Par défaut : 2 h"
               value={form.fenetre_reponse_heures ?? ""}
               onChange={(e) => set("fenetre_reponse_heures", e.target.value ? Number(e.target.value) : undefined)}
             />
+            <span className="muted small" style={{ fontWeight: 400 }}>Laissez vide pour appliquer le réglage global (2 h par défaut).</span>
           </label>
           <label>
             <span>Volet</span>
@@ -604,15 +506,18 @@ export function Evenements({
       </div>
 
       <section className="card">
-        <h2 className="card-title">Fenêtre des questionnaires</h2>
-        <p className="muted small">Durée, en heures après la fin d'une session, pendant laquelle son questionnaire reste ouvert.</p>
+        <h2 className="card-title">Fenêtre de pointage et de questionnaire</h2>
+        <p className="muted small">
+          Durée pendant laquelle le pointage et le questionnaire d'une séance restent ouverts APRÈS la fin de l'activité.
+          Par défaut 2 heures. Réglable par pas de 30 minutes. À 0, le sondage se clôture exactement à la fin de l'activité.
+        </p>
         {!canParametres && <p className="banner banner-info small">Lecture seule : modifier ce réglage requiert la permission de gestion des paramètres.</p>}
         <div className="toolbar">
           <input
             type="range"
-            min={1}
-            max={72}
-            step={1}
+            min={0}
+            max={480}
+            step={30}
             value={fenetreValue}
             disabled={!canParametres}
             onChange={(e) => setFenetreLocal(Number(e.target.value))}
@@ -620,7 +525,9 @@ export function Evenements({
             onKeyUp={(e) => saveFenetre(Number(e.currentTarget.value))}
             style={{ flex: 1 }}
           />
-          <span className="mono" style={{ minWidth: 56, textAlign: "right" }}>{fenetreValue} h</span>
+          <span className="mono" style={{ minWidth: 96, textAlign: "right" }}>
+            {fenetreValue === 0 ? "Immédiat" : `${Math.floor(fenetreValue / 60)} h ${String(fenetreValue % 60).padStart(2, "0")}`}
+          </span>
         </div>
       </section>
 
