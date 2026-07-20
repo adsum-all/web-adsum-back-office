@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { type ApercuCalendrier, type ReferenceCouleur, getApercuCalendrier } from "../../api.js";
+import { type ApercuCalendrier, type ReferenceCouleur, getApercuCalendrier, telechargerApercuICS } from "../../api.js";
 
 /**
  * "Aperçu calendrier": for a chosen year, the computed reference-date occurrences
@@ -48,6 +48,9 @@ export function InstitApercuTab({
           ))}
         </div>
         {data && <span className="muted small" style={{ marginTop: 18 }}>{data.resume.total} dates · {data.resume.institution} institution · {data.resume.liturgie} liturgie</span>}
+        <button type="button" className="btn btn-ghost btn-inline" style={{ marginTop: 18 }} onClick={() => void telechargerApercuICS(token, annee).catch((e) => setErr(e instanceof Error ? e.message : "Erreur"))}>
+          Exporter (.ics)
+        </button>
       </div>
 
       {err && <div className="banner-error" style={{ marginTop: 10 }}>{err}</div>}

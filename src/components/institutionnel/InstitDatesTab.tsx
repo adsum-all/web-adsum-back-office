@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 
 import {
+  ApiError,
   type DateInstitInput,
   type DateInstitutionnelle,
+  type DateVersion,
   type ReferenceCouleur,
   createDateInstitutionnelle,
   deleteDateInstitutionnelle,
   getDatesInstitutionnelles,
+  getVersionsDate,
+  restaurerVersionDate,
   updateDateInstitutionnelle,
 } from "../../api.js";
 import { RichEditor } from "../RichEditor.js";
+import { Aide } from "./Aide.js";
+import { optimiserImageBanniere } from "./imageBanniere.js";
 
 /**
  * "Dates de l'organisation": commemorative/institutional reference dates. These are
@@ -48,6 +54,7 @@ export function InstitDatesTab({
 }: Readonly<{ token: string; canGerer: boolean; couleurs: ReferenceCouleur[] }>): JSX.Element {
   const [dates, setDates] = useState<DateInstitutionnelle[]>([]);
   const [edit, setEdit] = useState<{ id: string | null; data: DateInstitInput } | null>(null);
+  const [histo, setHisto] = useState<{ date: DateInstitutionnelle; versions: DateVersion[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const couleursInst = couleurs.filter((c) => c.categorie === "institution");
@@ -92,6 +99,7 @@ export function InstitDatesTab({
                   {canGerer && (
                     <td style={{ whiteSpace: "nowrap" }}>
                       <button type="button" className="btn btn-ghost btn-inline" onClick={() => setEdit({ id: d.id, data: { ...d } })}>Modifier</button>
+                      <button type="button" className="btn btn-ghost btn-inline" onClick={() => void run(async () => { const versions = await getVersionsDate(token, d.id); setHisto({ date: d, versions }); })}>Historique</button>
                       <button type="button" className="btn btn-danger btn-inline" onClick={() => void run(async () => { if (window.confirm(`Supprimer « ${d.nom} » ?`)) { await deleteDateInstitutionnelle(token, d.id); charger(); } })}>Supprimer</button>
                     </td>
                   )}
@@ -120,7 +128,7 @@ export function InstitDatesTab({
                   {MOIS.slice(1).map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
                 </select>
               </label>
-              <label className="field"><span>Année d'origine (fondation)</span><input type="number" min={1} max={3000} value={edit.data.annee_origine ?? ""} onChange={(e) => setData({ annee_origine: e.target.value ? Number(e.target.value) : null })} placeholder="Ex : 2010" /></label>
+              <label className="field"><span>Année d'origine (fondation)<Aide texte="Année de l'événement fondateur. Sert à calculer automatiquement l'ancienneté affichée chaque année (ex : 16e anniversaire)." /></span><input type="number" min={1} max={3000} value={edit.data.annee_origine ?? ""} onChange={(e) => setData({ annee_origine: e.target.value ? Number(e.target.value) : null })} placeholder="Ex : 2010" /></label>
               <label className="field"><span>Priorité</span>
                 <select value={edit.data.priorite} onChange={(e) => setData({ priorite: e.target.value })}>
                   <option value="normale">Normale</option>
@@ -133,7 +141,7 @@ export function InstitDatesTab({
                   {couleursInst.map((c) => <option key={c.cle} value={c.cle}>{c.libelle}</option>)}
                 </select>
               </label>
-              <label className="field"><span>Statut</span>
+              <label className="field"><span>Statut<Aide texte="Brouillon : non visible des membres. Publié : affiché dans le calendrier des membres. Archivé : conservé mais masqué." /></span>
                 <select value={edit.data.statut} onChange={(e) => setData({ statut: e.target.value })}>
                   <option value="brouillon">Brouillon</option>
                   <option value="publie">Publié</option>
@@ -153,8 +161,27 @@ export function InstitDatesTab({
             <label className="field" style={{ marginTop: 8 }}><span>Description riche</span></label>
             <RichEditor value={edit.data.description ?? ""} onChange={(html) => setData({ description: html })} disabled={!canGerer} />
 
+            <div className="field" style={{ marginTop: 10 }}>
+              <span>Image ou bannière</span>
+              {edit.data.image_url ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <img src={edit.data.image_url} alt="Aperçu de la bannière" style={{ width: 200, maxWidth: "100%", aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: "1px solid var(--adsum-line, #d7dbe3)" }} />
+                  <button type="button" className="btn btn-ghost btn-inline" onClick={() => setData({ image_url: null })}>Retirer</button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void optimiserImageBanniere(f).then((url) => setData({ image_url: url })).catch((err) => setErr(err instanceof Error ? err.message : "Image invalide"));
+                  }}
+                />
+              )}
+              <span className="muted small">Recadrée automatiquement au format bannière (16:9) et optimisée. Ou collez une URL https ci-dessous.</span>
+              <input value={edit.data.image_url && edit.data.image_url.startsWith("http") ? edit.data.image_url : ""} onChange={(e) => setData({ image_url: e.target.value || null })} placeholder="https://..." />
+            </div>
             <div className="grid-2" style={{ marginTop: 10 }}>
-              <label className="field"><span>Image ou bannière (URL)</span><input value={edit.data.image_url ?? ""} onChange={(e) => setData({ image_url: e.target.value || null })} placeholder="https://..." /></label>
               <label className="field"><span>Lien officiel</span><input value={edit.data.lien ?? ""} onChange={(e) => setData({ lien: e.target.value || null })} placeholder="https://..." /></label>
               <label className="field"><span>Lieu</span><input value={edit.data.lieu ?? ""} onChange={(e) => setData({ lieu: e.target.value || null })} /></label>
               <label className="field"><span>Source institutionnelle validée</span><input value={edit.data.source ?? ""} onChange={(e) => setData({ source: e.target.value || null })} /></label>
@@ -162,7 +189,7 @@ export function InstitDatesTab({
             <label className="field" style={{ marginTop: 8 }}><span>Note administrative (non visible des membres)</span><textarea value={edit.data.note_admin ?? ""} onChange={(e) => setData({ note_admin: e.target.value || null })} /></label>
 
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
-              <label className="switch-row"><input type="checkbox" checked={edit.data.repetition_annuelle} onChange={(e) => setData({ repetition_annuelle: e.target.checked })} /><span>Répétition annuelle automatique</span></label>
+              <label className="switch-row"><input type="checkbox" checked={edit.data.repetition_annuelle} onChange={(e) => setData({ repetition_annuelle: e.target.checked })} /><span>Répétition annuelle automatique<Aide texte="Activée : la date réapparaît chaque année au même jour, sans nouvelle saisie. Désactivée : elle n'apparaît qu'à la date fixe indiquée." /></span></label>
               <label className="switch-row"><input type="checkbox" checked={edit.data.afficher_calendrier} onChange={(e) => setData({ afficher_calendrier: e.target.checked })} /><span>Afficher dans le calendrier</span></label>
               <label className="switch-row"><input type="checkbox" checked={edit.data.toute_journee} onChange={(e) => setData({ toute_journee: e.target.checked })} /><span>Toute la journée</span></label>
               <label className="switch-row"><input type="checkbox" checked={edit.data.actif} onChange={(e) => setData({ actif: e.target.checked })} /><span>Active</span></label>
@@ -171,10 +198,47 @@ export function InstitDatesTab({
             <div className="row-actions" style={{ marginTop: 14 }}>
               <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Annuler</button>
               <button type="button" className="btn btn-primary" disabled={busy || !edit.data.nom.trim() || !edit.data.mois || !edit.data.jour} onClick={() => void run(async () => {
-                if (edit.id) await updateDateInstitutionnelle(token, edit.id, edit.data);
-                else await createDateInstitutionnelle(token, edit.data);
+                if (edit.id) { await updateDateInstitutionnelle(token, edit.id, edit.data); setEdit(null); charger(); return; }
+                try {
+                  await createDateInstitutionnelle(token, edit.data);
+                } catch (e) {
+                  // Duplicate guard (spec 18): the server refuses a comparable date with
+                  // 409; confirm to create a distinct date anyway (force=true).
+                  if (e instanceof ApiError && e.status === 409 && window.confirm(`${e.message}\n\nCréer tout de même ?`)) {
+                    await createDateInstitutionnelle(token, edit.data, true);
+                  } else {
+                    throw e;
+                  }
+                }
                 setEdit(null); charger();
               })}>{busy ? "Enregistrement…" : "Enregistrer"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {histo && (
+        <div className="drawer-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,20,35,.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}>
+          <div className="card" style={{ width: "min(560px, 96vw)", maxHeight: "92vh", overflowY: "auto" }}>
+            <h2>Historique : {histo.date.nom}</h2>
+            <p className="muted small">Chaque modification crée une version. Restaurez une version pour revenir à son contenu (l'état actuel est d'abord sauvegardé).</p>
+            {histo.versions.length === 0 ? (
+              <p className="muted">Aucune version antérieure. L'historique se remplit à la première modification.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
+                {histo.versions.map((v) => (
+                  <li key={v.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", border: "1px solid var(--adsum-line, #e2e6ee)", borderRadius: 10 }}>
+                    <div>
+                      <strong>{v.snapshot?.nom ?? "(sans titre)"}</strong>
+                      <div className="muted small">{v.cree_le ? new Date(v.cree_le).toLocaleString("fr-FR") : ""}{v.auteur ? ` · ${v.auteur}` : ""} · statut {v.snapshot?.statut}</div>
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void run(async () => { if (window.confirm("Restaurer cette version ?")) { await restaurerVersionDate(token, histo.date.id, v.id); setHisto(null); charger(); } })}>Restaurer</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="row-actions" style={{ marginTop: 14 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setHisto(null)}>Fermer</button>
             </div>
           </div>
         </div>

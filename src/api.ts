@@ -1761,17 +1761,45 @@ export function patchCalendrierLiturgique(token: string, id: string, patch: Date
 export function getApercuCalendrier(token: string, annee: number): Promise<ApercuCalendrier> {
   return authedGet<ApercuCalendrier>(`/api/v1/admin/calendrier-institutionnel/apercu?annee=${annee}`, token, "Aperçu indisponible");
 }
+/** Download the reference-date iCalendar (.ics) for a year (triggers a file save). */
+export async function telechargerApercuICS(token: string, annee: number): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/admin/calendrier-institutionnel/apercu.ics?annee=${annee}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error("Export iCalendar impossible");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `dates-reference-${annee}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 export function getDatesInstitutionnelles(token: string): Promise<DateInstitutionnelle[]> {
   return authedGet<DateInstitutionnelle[]>("/api/v1/admin/dates-institutionnelles", token, "Dates indisponibles");
 }
-export function createDateInstitutionnelle(token: string, payload: DateInstitInput): Promise<DateInstitutionnelle> {
-  return authedSend("/api/v1/admin/dates-institutionnelles", token, "POST", payload, "Création impossible");
+export function createDateInstitutionnelle(token: string, payload: DateInstitInput, force = false): Promise<DateInstitutionnelle> {
+  const q = force ? "?force=true" : "";
+  return authedSend(`/api/v1/admin/dates-institutionnelles${q}`, token, "POST", payload, "Création impossible");
 }
 export function updateDateInstitutionnelle(token: string, id: string, payload: DateInstitInput): Promise<DateInstitutionnelle> {
   return authedSend(`/api/v1/admin/dates-institutionnelles/${id}`, token, "PATCH", payload, "Mise à jour impossible");
 }
 export function deleteDateInstitutionnelle(token: string, id: string): Promise<void> {
   return authedSend(`/api/v1/admin/dates-institutionnelles/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+
+export interface DateVersion {
+  id: string;
+  snapshot: DateInstitutionnelle;
+  auteur: string | null;
+  cree_le: string | null;
+}
+export function getVersionsDate(token: string, dateId: string): Promise<DateVersion[]> {
+  return authedGet<DateVersion[]>(`/api/v1/admin/dates-institutionnelles/${dateId}/versions`, token, "Historique indisponible");
+}
+export function restaurerVersionDate(token: string, dateId: string, versionId: string): Promise<DateInstitutionnelle> {
+  return authedSend(`/api/v1/admin/dates-institutionnelles/${dateId}/restaurer/${versionId}`, token, "POST", undefined, "Restauration impossible");
 }
 
 export function getRetentionEtat(token: string): Promise<RetentionEtat> {
