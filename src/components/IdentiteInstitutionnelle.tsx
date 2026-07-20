@@ -9,6 +9,7 @@ import {
 } from "../api.js";
 import { RichEditor } from "./RichEditor.js";
 import "./institutionnel/institutionnel.css";
+import { Aide } from "./institutionnel/Aide.js";
 import { FuseauSelect } from "./institutionnel/FuseauSelect.js";
 import { InstitApercuTab } from "./institutionnel/InstitApercuTab.js";
 import { InstitDatesTab } from "./institutionnel/InstitDatesTab.js";
@@ -135,7 +136,7 @@ export function IdentiteInstitutionnelle({ token, canGerer }: Readonly<{ token: 
               </label>
             ))}
             <label className="field">
-              <span>Fuseau de référence</span>
+              <span>Fuseau de référence<Aide texte="Fuseau utilisé par les publications automatiques et le calendrier institutionnel. Les membres voient ensuite les heures converties dans leur fuseau local." /></span>
               <FuseauSelect value={identite.org_fuseau ?? ""} disabled={!canGerer} onChange={(tz) => setChamp("org_fuseau", tz)} />
             </label>
           </div>

@@ -30,6 +30,28 @@
   color: #fff;
 }
 
+.inst-aide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--adsum-line, #c9cfdb);
+  background: var(--adsum-bg-soft, #eef1f7);
+  color: var(--adsum-mut, #667);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.inst-aide:focus-visible {
+  outline: 2px solid var(--adsum-acc, #2a4fad);
+  outline-offset: 1px;
+}
+
 .inst-pill {
   display: inline-block;
   font-size: 0.72rem;
