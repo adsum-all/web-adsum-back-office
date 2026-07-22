@@ -27,6 +27,7 @@ import { OrgGouvernance } from "./organigramme/OrgGouvernance.js";
 import { OrgLinkEditor } from "./organigramme/OrgLinkEditor.js";
 import { OrgNodeEditor } from "./organigramme/OrgNodeEditor.js";
 import { OrgVersionsBar } from "./organigramme/OrgVersionsBar.js";
+import { ReglagesOrganigramme } from "./ReglagesOrganigramme.js";
 import { LINK_META, LINK_ORDER } from "./organigramme/orgLabels.js";
 
 /** Load the published organigramme, turning "nothing published yet" (404) into an
@@ -235,6 +236,7 @@ export function Organigramme({
 
       {gouvernance ? null : (
         <>
+      {editing ? <ReglagesOrganigramme token={token} /> : null}
       {editing ? (
         <OrgVersionsBar
           token={token}

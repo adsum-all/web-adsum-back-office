@@ -3221,6 +3221,18 @@ export function listOrganigrammeVersions(token: string): Promise<OrganigrammeVer
   return authedGet("/api/v1/admin/organigramme/versions", token, "Versions de l'organigramme indisponibles");
 }
 
+// Member-facing display settings for the org chart (visible tabs + display mode).
+export interface OrganigrammeReglages {
+  onglets: { chaine: boolean; rattachements: boolean; titres: boolean; organigramme: boolean };
+  affichage: "interactif" | "image";
+}
+export function getOrganigrammeReglages(token: string): Promise<OrganigrammeReglages> {
+  return authedGet<OrganigrammeReglages>("/api/v1/admin/organigramme/reglages", token, "Réglages indisponibles");
+}
+export function updateOrganigrammeReglages(token: string, input: Partial<OrganigrammeReglages>): Promise<OrganigrammeReglages> {
+  return authedSend<OrganigrammeReglages>("/api/v1/admin/organigramme/reglages", token, "PUT", input, "Enregistrement impossible");
+}
+
 export function createOrganigrammeVersion(
   token: string,
   input: OrgVersionCreateInput,
