@@ -27,6 +27,7 @@ import { OrgGouvernance } from "./organigramme/OrgGouvernance.js";
 import { OrgLinkEditor } from "./organigramme/OrgLinkEditor.js";
 import { OrgNodeEditor } from "./organigramme/OrgNodeEditor.js";
 import { OrgVersionsBar } from "./organigramme/OrgVersionsBar.js";
+import { ReglagesOrganigramme } from "./ReglagesOrganigramme.js";
 import { LINK_META, LINK_ORDER } from "./organigramme/orgLabels.js";
 
 /** Load the published organigramme, turning "nothing published yet" (404) into an
@@ -235,6 +236,7 @@ export function Organigramme({
 
       {gouvernance ? null : (
         <>
+      {editing ? <ReglagesOrganigramme token={token} /> : null}
       {editing ? (
         <OrgVersionsBar
           token={token}
@@ -262,16 +264,7 @@ export function Organigramme({
             + Ajouter un nœud
           </button>
         ) : null}
-        <button
-          type="button"
-          className="btn btn-ghost btn-inline"
-          onClick={() => {
-            if (typeof window !== "undefined") window.print();
-          }}
-          title="Ouvrir l'aperçu d'impression pour enregistrer en PDF ou imprimer"
-        >
-          Imprimer / Exporter en PDF
-        </button>
+        <span className="muted small">Export PNG et PDF disponibles dans la barre de l'organigramme, ci-dessous.</span>
         {editing && selectedId ? (
           <span className="muted small org-edit-hint">
             <strong>Nœuds</strong> : glissez pour déplacer, le bouton +/− plie ou déplie la branche, Éditer et Supprimer
