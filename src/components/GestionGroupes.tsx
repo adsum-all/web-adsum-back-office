@@ -13,13 +13,44 @@ import { useResource } from "../useResource.js";
 import { GroupeForm } from "./GroupeForm.js";
 import { roleLabel } from "./utilisateursShared.js";
 
+/** Which slice of groups this instance manages: every group, only the custom
+ * (editable) ones, or only the system (read-only reference) ones. */
+export type PorteeGroupes = "toutes" | "modifiables" | "standard";
+
+const PORTEE_META: Record<PorteeGroupes, { titre: string; intro: string }> = {
+  toutes: {
+    titre: "Groupes d'accès",
+    intro:
+      "Chaque groupe accorde soit un rôle plateforme, soit un jeu de permissions précises. Refus par défaut : un membre sans groupe n'a aucun accès. Les groupes système ne sont pas modifiables.",
+  },
+  modifiables: {
+    titre: "Groupes modifiables",
+    intro:
+      "Groupes créés sur mesure : vous pouvez les créer, éditer, activer ou désactiver et supprimer. Chacun accorde un rôle plateforme ou un jeu de permissions précises, et peut viser une application.",
+  },
+  standard: {
+    titre: "Groupes standard (système)",
+    intro:
+      "Groupes fournis par la plateforme, en lecture seule. Ils servent de référence et ne sont jamais modifiables ni supprimables. Pour un besoin particulier, créez un groupe modifiable.",
+  },
+};
+
 /**
- * "Groupes d'accès" tab: browse, search and fully manage access groups. The
- * superadmin can create (role or permission groups), edit, activate/deactivate and
- * delete a custom group. System groups are read-only. Every action goes through the
- * server, which enforces least privilege and audits the change.
+ * Access groups listing: browse, search and (for custom groups) fully manage
+ * them. The superadmin can create (role or permission groups), edit,
+ * activate/deactivate and delete a custom group. System groups are read-only.
+ * The `portee` prop restricts the list to editable groups, system groups, or both.
+ * Every action goes through the server, which enforces least privilege and audits.
  */
-export function GestionGroupes({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
+export function GestionGroupes({
+  token,
+  canSysteme = false,
+  portee = "toutes",
+}: {
+  token: string;
+  canSysteme?: boolean;
+  portee?: PorteeGroupes;
+}): JSX.Element {
   const groupes = useResource(() => getGroupes(token, true), [token]);
   const catalogue = useResource(() => getCataloguePermissions(token), [token]);
   const applications = useResource(() => getApplications(token), [token]);
@@ -33,14 +64,19 @@ export function GestionGroupes({ token, canSysteme = false }: { token: string; c
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  // A system group is never editable; the "standard" view is read-only by design.
+  const gerable = canSysteme && portee !== "standard";
+  const meta = PORTEE_META[portee];
+
   const items = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (groupes.data ?? [])
+      .filter((g) => (portee === "toutes" ? true : portee === "standard" ? g.systeme : !g.systeme))
       .filter((g) => (filtre === "tous" ? true : g.mode === filtre))
       .filter((g) =>
         appFiltre === "toutes" ? true : appFiltre === "aucune" ? !g.application_code : g.application_code === appFiltre)
       .filter((g) => !term || g.libelle.toLowerCase().includes(term) || g.cle.toLowerCase().includes(term));
-  }, [groupes.data, q, filtre, appFiltre]);
+  }, [groupes.data, q, filtre, appFiltre, portee]);
 
   const nomApplication = useMemo(() => {
     const map = new Map<string, string>();
@@ -71,13 +107,10 @@ export function GestionGroupes({ token, canSysteme = false }: { token: string; c
     <div>
       <header className="page-head">
         <div>
-          <h2 className="section-title">Groupes d'accès</h2>
-          <p className="muted small">
-            Chaque groupe accorde soit un rôle plateforme, soit un jeu de permissions précises. Refus par défaut :
-            un membre sans groupe n'a aucun accès. Les groupes système ne sont pas modifiables.
-          </p>
+          <h2 className="section-title">{meta.titre}</h2>
+          <p className="muted small">{meta.intro}</p>
         </div>
-        {canSysteme ? (
+        {gerable ? (
           catalogue.data && (
             <button type="button" className="btn btn-primary btn-inline" onClick={() => { setCreer(true); setEdit(null); }}>
               + Nouveau groupe
@@ -91,14 +124,14 @@ export function GestionGroupes({ token, canSysteme = false }: { token: string; c
       {error && <p className="banner banner-error">{error}</p>}
       {groupes.error && <p className="banner banner-error">{groupes.error}</p>}
 
-      {!canSysteme && (
+      {!canSysteme && portee !== "standard" && (
         <p className="banner banner-info small">
           Vous consultez les groupes d'accès en lecture seule. La gestion requiert la permission
           <span className="mono"> acces.systeme</span>.
         </p>
       )}
 
-      {canSysteme && (creer || edit) && catalogue.data && (
+      {gerable && (creer || edit) && catalogue.data && (
         <GroupeForm
           token={token}
           catalogue={catalogue.data}
@@ -166,10 +199,10 @@ export function GestionGroupes({ token, canSysteme = false }: { token: string; c
                   <span className={`badge ${g.actif ? "badge-ok" : "badge-mut"}`}>{g.actif ? "Actif" : "Désactivé"}</span>
                 </td>
                 <td>
-                  {!canSysteme ? (
-                    <span className="muted small">Lecture seule</span>
-                  ) : g.systeme ? (
+                  {g.systeme ? (
                     <span className="muted small">non modifiable</span>
+                  ) : !gerable ? (
+                    <span className="muted small">Lecture seule</span>
                   ) : (
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                       <button type="button" className="link" onClick={() => { setEdit(g); setCreer(false); }}>Modifier</button>
