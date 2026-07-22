@@ -8,8 +8,6 @@ import {
   type Connection,
   Controls,
   type Edge,
-  getNodesBounds,
-  getViewportForBounds,
   MiniMap,
   type Node,
   Panel,
@@ -20,13 +18,12 @@ import {
   useNodesState,
   useReactFlow,
 } from "@xyflow/react";
-import { toPng } from "html-to-image";
-import { jsPDF } from "jspdf";
 
 import type { OrgContenu, OrgNode } from "../../api.js";
 import { computeLayout, NODE_H, NODE_W, resolvePositions } from "./layout.js";
 import { buildFlow, buildHierarchy, hiddenIds } from "./mappers.js";
 import { OrgCanvasContext, type OrgMode } from "./orgContext.js";
+import { exportOrgChart } from "./orgExport.js";
 import { OrgLegende } from "./OrgLegende.js";
 import { OrgNodeCard } from "./OrgNodeCard.js";
 import { OrgSeparator } from "./OrgSeparator.js";
@@ -217,40 +214,12 @@ function OrgCanvasInner({
   // the nodes into a fixed image, and finally wrap it in a PDF when asked.
   const exportChart = useCallback(
     async (format: "png" | "pdf"): Promise<void> => {
-      // Export the CURRENT arrangement (whatever the operator has expanded/collapsed),
-      // not a forced full expansion which is unreadably wide. Virtualisation is turned
-      // off for a frame so every currently-visible card is really in the DOM.
+      // Export the CURRENT arrangement. Virtualisation is turned off for a frame so
+      // every currently-visible card is really in the DOM before rasterising.
       setExporting(true);
       await new Promise((r) => window.setTimeout(r, 400));
       try {
-        const viewportEl = document.querySelector(".org-flow .react-flow__viewport") as HTMLElement | null;
-        if (!viewportEl) return;
-        const bounds = getNodesBounds(rf.getNodes());
-        const pad = 80;
-        const imgW = Math.min(6000, Math.max(1200, Math.round(bounds.width) + pad * 2));
-        const imgH = Math.min(6000, Math.max(800, Math.round(bounds.height) + pad * 2));
-        const vp = getViewportForBounds(bounds, imgW, imgH, 0.2, 2, pad / Math.max(bounds.width, bounds.height, 1));
-        const dataUrl = await toPng(viewportEl, {
-          backgroundColor: "#ffffff",
-          width: imgW,
-          height: imgH,
-          pixelRatio: 2,
-          style: {
-            width: `${imgW}px`,
-            height: `${imgH}px`,
-            transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
-          },
-        });
-        if (format === "png") {
-          const a = document.createElement("a");
-          a.href = dataUrl;
-          a.download = "organigramme.png";
-          a.click();
-        } else {
-          const pdf = new jsPDF({ orientation: imgW >= imgH ? "landscape" : "portrait", unit: "px", format: [imgW, imgH] });
-          pdf.addImage(dataUrl, "PNG", 0, 0, imgW, imgH);
-          pdf.save("organigramme.pdf");
-        }
+        await exportOrgChart(rf, format);
       } finally {
         setExporting(false);
       }
