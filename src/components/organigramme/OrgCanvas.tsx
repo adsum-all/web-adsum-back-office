@@ -8,6 +8,8 @@ import {
   type Connection,
   Controls,
   type Edge,
+  getNodesBounds,
+  getViewportForBounds,
   MiniMap,
   type Node,
   Panel,
@@ -18,6 +20,8 @@ import {
   useNodesState,
   useReactFlow,
 } from "@xyflow/react";
+import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 
 import type { OrgContenu, OrgNode } from "../../api.js";
 import { computeLayout, NODE_H, NODE_W, resolvePositions } from "./layout.js";
@@ -110,6 +114,9 @@ function OrgCanvasInner({
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => defautReplie(contenu.noeuds));
   const [query, setQuery] = useState("");
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
+  // While exporting we render EVERY node (virtualisation off) so the whole chart is
+  // captured, not only the on-screen cards.
+  const [exporting, setExporting] = useState(false);
   // Undo stack for manual moves: the node's position captured at drag start, so a
   // slip during layout is reverted in one click and re-persisted. Session-local.
   const [moveHistory, setMoveHistory] = useState<{ id: string; x: number; y: number }[]>([]);
@@ -202,6 +209,54 @@ function OrgCanvasInner({
     setCollapsed(defautReplie(contenu.noeuds));
     reframe();
   }, [contenu.noeuds, reframe]);
+
+  // Export the WHOLE published/draft chart to a real PNG or PDF. window.print never
+  // worked here: the flow is virtualised and transformed, so the print DOM was blank.
+  // Instead we expand every branch, turn virtualisation off for one frame so every card
+  // is in the DOM, then rasterise the react-flow viewport at a transform that frames all
+  // the nodes into a fixed image, and finally wrap it in a PDF when asked.
+  const exportChart = useCallback(
+    async (format: "png" | "pdf"): Promise<void> => {
+      // Export the CURRENT arrangement (whatever the operator has expanded/collapsed),
+      // not a forced full expansion which is unreadably wide. Virtualisation is turned
+      // off for a frame so every currently-visible card is really in the DOM.
+      setExporting(true);
+      await new Promise((r) => window.setTimeout(r, 400));
+      try {
+        const viewportEl = document.querySelector(".org-flow .react-flow__viewport") as HTMLElement | null;
+        if (!viewportEl) return;
+        const bounds = getNodesBounds(rf.getNodes());
+        const pad = 80;
+        const imgW = Math.min(6000, Math.max(1200, Math.round(bounds.width) + pad * 2));
+        const imgH = Math.min(6000, Math.max(800, Math.round(bounds.height) + pad * 2));
+        const vp = getViewportForBounds(bounds, imgW, imgH, 0.2, 2, pad / Math.max(bounds.width, bounds.height, 1));
+        const dataUrl = await toPng(viewportEl, {
+          backgroundColor: "#ffffff",
+          width: imgW,
+          height: imgH,
+          pixelRatio: 2,
+          style: {
+            width: `${imgW}px`,
+            height: `${imgH}px`,
+            transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
+          },
+        });
+        if (format === "png") {
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = "organigramme.png";
+          a.click();
+        } else {
+          const pdf = new jsPDF({ orientation: imgW >= imgH ? "landscape" : "portrait", unit: "px", format: [imgW, imgH] });
+          pdf.addImage(dataUrl, "PNG", 0, 0, imgW, imgH);
+          pdf.save("organigramme.pdf");
+        }
+      } finally {
+        setExporting(false);
+      }
+    },
+    [rf],
+  );
 
   const ctxValue = useMemo(
     () => ({
@@ -340,6 +395,13 @@ function OrgCanvasInner({
           <button type="button" className="btn btn-ghost btn-inline" onClick={() => void rf.fitView({ padding: 0.18, duration: 400, maxZoom: 1 })} title="Adapter à l'écran">
             Adapter à l'écran
           </button>
+          <span className="org-bar-sep" aria-hidden="true" />
+          <button type="button" className="btn btn-ghost btn-inline" disabled={exporting} onClick={() => void exportChart("png")} title="Exporter tout l'organigramme en image PNG">
+            {exporting ? "Export..." : "Exporter PNG"}
+          </button>
+          <button type="button" className="btn btn-ghost btn-inline" disabled={exporting} onClick={() => void exportChart("pdf")} title="Exporter tout l'organigramme en PDF">
+            {exporting ? "Export..." : "Exporter PDF"}
+          </button>
           {editable ? (
             <>
               <span className="org-bar-sep" aria-hidden="true" />
@@ -423,7 +485,7 @@ function OrgCanvasInner({
             // Virtualise the DOM: with the full tree expanded (~604 cards, each with
             // several handles) only the nodes inside the viewport are mounted, so a
             // large expansion no longer floods the DOM with thousands of elements.
-            onlyRenderVisibleElements
+            onlyRenderVisibleElements={!exporting}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--adsum-dot)" />
             <Controls position="bottom-left" showInteractive={editable} />
