@@ -289,6 +289,16 @@ export function OrgNodeEditor({ token, versionId, node, onClose, onSaved }: OrgN
                   aria-label={c.nom}
                 />
               ))}
+              <label className="org-swatch org-swatch-custom" title="Couleur personnalisée" style={{ background: couleur && !PALETTE.some((c) => c.hex === couleur) ? couleur : undefined }}>
+                <input
+                  type="color"
+                  value={couleur ?? "#2a4fad"}
+                  onChange={(e) => setCouleur(e.target.value)}
+                  aria-label="Choisir une couleur personnalisée"
+                  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
+                />
+                <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>+</span>
+              </label>
             </div>
           </div>
           {err ? <p className="banner banner-error">{err}</p> : null}

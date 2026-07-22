@@ -26,8 +26,14 @@ export const TYPE_NOEUD_LABEL: Record<OrgNodeType, string> = {
 };
 
 /** Accessible accent palette offered by the colour tool. */
+// Preset palette. The first colours mirror the official chart: navy for the
+// functional hierarchy, orange for the special groups (leadership team, shepherds'
+// college, patriarchs, founder's assistants) and gold for the tribes / posts to fill.
+// A custom colour picker in the node editor covers anything else.
 export const PALETTE: { hex: string; nom: string }[] = [
-  { hex: "#2a4fad", nom: "Bleu marine" },
+  { hex: "#2a4fad", nom: "Bleu marine (hiérarchie)" },
+  { hex: "#d97316", nom: "Orange (groupe spécial)" },
+  { hex: "#e0a800", nom: "Or (tribu / à pourvoir)" },
   { hex: "#0f6b6b", nom: "Sarcelle" },
   { hex: "#653597", nom: "Violet" },
   { hex: "#1f8a5b", nom: "Vert" },
