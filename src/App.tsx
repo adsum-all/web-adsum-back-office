@@ -28,6 +28,7 @@ import { IdentiteInstitutionnelle } from "./components/IdentiteInstitutionnelle.
 import { InformationsAdmin } from "./components/InformationsAdmin.js";
 import { RetentionArchivage } from "./components/RetentionArchivage.js";
 import { Organigramme } from "./components/Organigramme.js";
+import { EquipesSpeciales } from "./components/EquipesSpeciales.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
 import { GouvernanceAcces } from "./components/GouvernanceAcces.js";
@@ -53,6 +54,7 @@ type Section =
   | "niveaux"
   | "organisation"
   | "organigramme"
+  | "equipes-speciales"
   | "informations"
   | "centre-diffusion"
   | "retention"
@@ -92,6 +94,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "niveaux", label: "Niveaux d'engagement", group: "ORGANISATION", perm: "niveaux-engagement.consulter" },
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "organigramme", label: "Organigramme hiérarchique", group: "ORGANISATION", perm: "organisation.consulter" },
+  { id: "equipes-speciales", label: "Équipes spéciales", group: "ORGANISATION", perm: "organisation.equipes" },
   { id: "informations", label: "Informations importantes", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "centre-diffusion", label: "Centre de diffusion", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "retention", label: "Rétention et archivage", group: "COMMUNICATION", perm: "parametres.consulter" },
@@ -376,6 +379,9 @@ export function App(): JSX.Element {
           )}
           {activeId === "organigramme" && (
             <Organigramme token={session.token} canAdministrer={held.has("organisation.administrer")} />
+          )}
+          {activeId === "equipes-speciales" && (
+            <EquipesSpeciales token={session.token} canGerer={held.has("organisation.equipes")} />
           )}
           {activeId === "informations" && <InformationsAdmin token={session.token} />}
           {activeId === "centre-diffusion" && <CentreDiffusion token={session.token} />}
