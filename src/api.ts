@@ -1052,6 +1052,62 @@ export function createMembre(token: string, input: MembreCreateInput): Promise<M
   return authedSend<MembreProfile>("/api/v1/admin/membres", token, "POST", input, "Création impossible");
 }
 
+// --- Special teams (equipes speciales) --------------------------------------
+export interface EquipeSpeciale {
+  id: string;
+  code: string | null;
+  nom: string;
+  description: string;
+  officielle: boolean;
+  active: boolean;
+  ordre: number;
+  effectif: number;
+}
+export interface MembreEquipe {
+  id: string;
+  membre_id: string;
+  role: string;
+  matricule: string | null;
+  nom: string | null;
+}
+export interface EquipeSpecialeInput {
+  nom: string;
+  description?: string;
+  officielle?: boolean;
+  ordre?: number;
+}
+export interface EquipeSpecialePatch {
+  nom?: string;
+  description?: string;
+  officielle?: boolean;
+  active?: boolean;
+  ordre?: number;
+}
+
+const EQ = "/api/v1/admin/equipes-speciales";
+
+export function listEquipesSpeciales(token: string): Promise<EquipeSpeciale[]> {
+  return authedGet<EquipeSpeciale[]>(EQ, token, "Équipes spéciales indisponibles");
+}
+export function createEquipeSpeciale(token: string, input: EquipeSpecialeInput): Promise<EquipeSpeciale> {
+  return authedSend<EquipeSpeciale>(EQ, token, "POST", input, "Création impossible");
+}
+export function updateEquipeSpeciale(token: string, id: string, patch: EquipeSpecialePatch): Promise<EquipeSpeciale> {
+  return authedSend<EquipeSpeciale>(`${EQ}/${id}`, token, "PUT", patch, "Modification impossible");
+}
+export function deleteEquipeSpeciale(token: string, id: string): Promise<void> {
+  return authedSend<void>(`${EQ}/${id}`, token, "DELETE", undefined, "Suppression impossible");
+}
+export function listMembresEquipe(token: string, id: string): Promise<MembreEquipe[]> {
+  return authedGet<MembreEquipe[]>(`${EQ}/${id}/membres`, token, "Membres indisponibles");
+}
+export function addMembreEquipe(token: string, id: string, membreId: string, role: string): Promise<{ ok: boolean }> {
+  return authedSend<{ ok: boolean }>(`${EQ}/${id}/membres`, token, "POST", { membre_id: membreId, role }, "Ajout impossible");
+}
+export function removeMembreEquipe(token: string, id: string, membreId: string): Promise<void> {
+  return authedSend<void>(`${EQ}/${id}/membres/${membreId}`, token, "DELETE", undefined, "Retrait impossible");
+}
+
 export function updateMembre(
   token: string,
   id: string,
