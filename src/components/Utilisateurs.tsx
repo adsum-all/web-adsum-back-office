@@ -1,22 +1,27 @@
 import { useState } from "react";
 
 import { GestionGroupes } from "./GestionGroupes.js";
+import { GroupesParApplication } from "./GroupesParApplication.js";
 import { MembresAccesTab } from "./MembresAccesTab.js";
 import { Tabs } from "./Tabs.js";
 
 const TABS = [
-  { id: "groupes", label: "Groupes d'accès" },
+  { id: "modifiables", label: "Groupes modifiables" },
+  { id: "standard", label: "Groupes standard" },
+  { id: "application", label: "Par application" },
   { id: "membres", label: "Membres avec accès plateforme" },
 ];
 
 /**
- * "Accès & groupes" page, split into two tabs so long lists no longer force
- * endless scrolling: one to browse and fully manage access groups, one to see and
- * manage the members that hold platform access. Everyone is a member first; access
- * is a right granted through a group, never an identity.
+ * "Accès & groupes" page, split into tabs so long lists no longer force endless
+ * scrolling and so the two kinds of groups never get confused: custom, editable
+ * groups on one tab; system, non-modifiable reference groups on another; a
+ * per-application breakdown to create app-targeted groups; and the members that
+ * hold platform access. Everyone is a member first; access is a right granted
+ * through a group, never an identity.
  */
 export function Utilisateurs({ token, canSysteme = false }: { token: string; canSysteme?: boolean }): JSX.Element {
-  const [tab, setTab] = useState("groupes");
+  const [tab, setTab] = useState("modifiables");
 
   return (
     <div className="page">
@@ -33,7 +38,9 @@ export function Utilisateurs({ token, canSysteme = false }: { token: string; can
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
-      {tab === "groupes" && <GestionGroupes token={token} canSysteme={canSysteme} />}
+      {tab === "modifiables" && <GestionGroupes token={token} canSysteme={canSysteme} portee="modifiables" />}
+      {tab === "standard" && <GestionGroupes token={token} canSysteme={canSysteme} portee="standard" />}
+      {tab === "application" && <GroupesParApplication token={token} canSysteme={canSysteme} />}
       {tab === "membres" && <MembresAccesTab token={token} />}
     </div>
   );

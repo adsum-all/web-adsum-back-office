@@ -57,12 +57,15 @@ export function GroupeForm({
   token,
   catalogue,
   existing,
+  applicationInitial,
   onDone,
   onCancel,
 }: {
   token: string;
   catalogue: CataloguePermissions;
   existing?: GroupeAcces;
+  /** Preselect an application when creating a group from the per-application view. */
+  applicationInitial?: string;
   onDone: () => void;
   onCancel: () => void;
 }): JSX.Element {
@@ -70,7 +73,7 @@ export function GroupeForm({
   const applications = useResource(() => getApplications(token), [token]);
   const [libelle, setLibelle] = useState(existing?.libelle ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [applicationCode, setApplicationCode] = useState(existing?.application_code ?? "");
+  const [applicationCode, setApplicationCode] = useState(existing?.application_code ?? applicationInitial ?? "");
   const [mode, setMode] = useState<"role" | "permissions">((existing?.mode as "role" | "permissions") ?? "role");
   const [roleAccorde, setRoleAccorde] = useState(existing?.role_accorde && existing.role_accorde !== "membre" ? existing.role_accorde : "gestionnaire");
   const [perms, setPerms] = useState<Set<string>>(new Set(existing?.permissions ?? []));
