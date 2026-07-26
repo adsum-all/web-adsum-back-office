@@ -1669,3 +1669,55 @@ h3 {
 @media (max-width: 640px) {
   .profil-page-pref { flex-direction: column; align-items: flex-start; }
 }
+
+/* --- Pagination partagee par toutes les listes longues -------------------- */
+.pagination {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  padding: 12px 0 4px; margin-top: 8px; border-top: 1px solid var(--adsum-line);
+}
+.pagination-plage { font-size: 13px; color: var(--adsum-mut); font-variant-numeric: tabular-nums; }
+.pagination-controles { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.pagination-page { font-size: 13px; color: var(--adsum-mut); font-variant-numeric: tabular-nums; padding: 0 4px; }
+.pagination-taille { display: flex; align-items: center; gap: 6px; }
+.pagination-taille select { padding: 4px 8px; }
+@media (max-width: 720px) {
+  .pagination-controles { margin-left: 0; width: 100%; }
+  .pagination-plage { width: 100%; }
+}
+
+/* --- Fiche detaillee d'un groupe d'acces ---------------------------------- */
+.drawer-panel-large { width: min(760px, 96vw); }
+.fiche-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.fiche-avertissement { margin: 12px 20px 0; }
+.fiche-action-standard {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 12px 20px 0; padding: 12px 14px;
+  background: var(--adsum-soft); border: 1px solid var(--adsum-line); border-radius: 10px;
+}
+.fiche-corps { padding: 4px 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.fiche-bloc { display: flex; flex-direction: column; gap: 8px; }
+.fiche-bloc-titre {
+  font-family: var(--adsum-font-display); font-size: 14px; margin: 0;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--adsum-mut);
+}
+.fiche-champ { display: grid; grid-template-columns: minmax(160px, 34%) 1fr; gap: 10px; align-items: baseline; }
+.fiche-champ-label { font-size: 13px; color: var(--adsum-mut); }
+.fiche-champ-valeur { font-size: 14px; line-height: 1.45; }
+@media (max-width: 620px) {
+  .fiche-champ { grid-template-columns: 1fr; gap: 2px; }
+}
+.fiche-perms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.fiche-perm { padding: 10px 12px; border: 1px solid var(--adsum-line); border-radius: 10px; background: var(--adsum-panel); }
+.fiche-perm-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fiche-perm-desc { display: block; margin-top: 4px; line-height: 1.4; }
+.fiche-perm-limite { display: block; margin-top: 2px; line-height: 1.4; color: #c0392b; }
+.fiche-historique { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.fiche-historique li {
+  display: grid; grid-template-columns: 130px 1fr auto; gap: 10px; align-items: baseline;
+  padding-bottom: 8px; border-bottom: 1px solid var(--adsum-line);
+}
+.fiche-histo-date { font-size: 13px; color: var(--adsum-mut); font-variant-numeric: tabular-nums; }
+.fiche-histo-libelle { font-size: 14px; }
+@media (max-width: 620px) {
+  .fiche-historique li { grid-template-columns: 1fr; gap: 2px; }
+}

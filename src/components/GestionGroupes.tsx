@@ -10,6 +10,8 @@ import {
   updateGroupe,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { GroupeDupliquer } from "./GroupeDupliquer.js";
+import { GroupeFiche } from "./GroupeFiche.js";
 import { GroupeForm } from "./GroupeForm.js";
 import { roleLabel } from "./utilisateursShared.js";
 
@@ -61,6 +63,10 @@ export function GestionGroupes({
   const [appFiltre, setAppFiltre] = useState<string>("toutes");
   const [creer, setCreer] = useState(false);
   const [edit, setEdit] = useState<GroupeAcces | null>(null);
+  // Reading a group and copying a protected one are the two paths that make the
+  // standard groups usable: neither existed, so a standard group could only be looked at.
+  const [fiche, setFiche] = useState<string | null>(null);
+  const [dupliquer, setDupliquer] = useState<GroupeAcces | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -199,8 +205,13 @@ export function GestionGroupes({
                   <span className={`badge ${g.actif ? "badge-ok" : "badge-mut"}`}>{g.actif ? "Actif" : "Désactivé"}</span>
                 </td>
                 <td>
+                  <button type="button" className="link" onClick={() => setFiche(g.id)}>Consulter</button>
                   {g.systeme ? (
-                    <span className="muted small">non modifiable</span>
+                    canSysteme ? (
+                      <button type="button" className="link" onClick={() => setDupliquer(g)}>Dupliquer</button>
+                    ) : (
+                      <span className="muted small">non modifiable</span>
+                    )
                   ) : !gerable ? (
                     <span className="muted small">Lecture seule</span>
                   ) : (
@@ -231,6 +242,28 @@ export function GestionGroupes({
           </tbody>
         </table>
       </div>
+
+      {fiche ? (
+        <GroupeFiche
+          token={token}
+          groupeId={fiche}
+          onClose={() => setFiche(null)}
+          onDupliquer={canSysteme ? (f) => {
+            setFiche(null);
+            const source = (groupes.data ?? []).find((x) => x.id === f.identite.id);
+            if (source) setDupliquer(source);
+          } : undefined}
+        />
+      ) : null}
+
+      {dupliquer ? (
+        <GroupeDupliquer
+          token={token}
+          source={dupliquer}
+          onClose={() => setDupliquer(null)}
+          onDone={() => { setDupliquer(null); groupes.reload(); }}
+        />
+      ) : null}
     </div>
   );
 }

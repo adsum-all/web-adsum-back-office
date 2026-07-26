@@ -2067,6 +2067,141 @@ export function deleteGroupe(token: string, groupeId: string): Promise<{ supprim
   return authedSend(`/api/v1/admin/groupes/${groupeId}`, token, "DELETE", undefined, "Suppression du groupe impossible");
 }
 
+/** Everything an administrator must read before granting a group. */
+export interface PermissionAccordee {
+  cle: string;
+  libelle: string;
+  domaine: string | null;
+  risque: string | null;
+  portee: string | null;
+  description: string | null;
+  limite: string | null;
+}
+
+export interface FicheGroupe {
+  identite: {
+    id: string; cle: string; libelle: string; description: string | null;
+    type: "standard" | "personnalise"; statut: string; modifiable: boolean;
+    application_code: string | null; version: number | null;
+    cree_le: string | null; cree_par: string | null; maj_le: string | null; maj_par: string | null;
+  };
+  finalite: { objectif: string | null; usage_recommande: string | null; usage_deconseille: string | null };
+  portee: { texte: string | null; application_code: string | null; custom_scope: string | null; sensibilite: string | null };
+  permissions: { mode: string; role_accorde: string | null; accordees: PermissionAccordee[]; total: number };
+  gouvernance: {
+    avertissement_securite: string | null; attribution_requiert: string;
+    modification_requiert: string | null; duplication_requiert: string; protege: boolean;
+  };
+  membres: { total: number };
+  lignee: {
+    derive_d_un_standard: boolean;
+    source: { id: string; cle: string; libelle: string; version: number | null } | null;
+    source_version: number | null;
+    inheritance_mode: string | null;
+  };
+}
+
+export interface MembreDuGroupe {
+  appartenance_id: string;
+  membre_id: string;
+  nom_affiche: string;
+  matricule: string | null;
+  statut_membre: string | null;
+  photo_url: string | null;
+  role_interne: string | null;
+  portee_type: string | null;
+  portee_id: string | null;
+  actif: boolean;
+  ajoute_le: string | null;
+  ajoute_par: string | null;
+  retire_le: string | null;
+}
+
+export interface EvenementGroupe {
+  id: number;
+  action: string;
+  libelle: string;
+  acteur: string | null;
+  acteur_role: string | null;
+  details: Record<string, unknown> | null;
+  horodatage: string | null;
+}
+
+export interface PageApi<T> {
+  items: T[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+}
+
+export interface ComparaisonGroupe {
+  groupe: { id: string; cle: string; libelle: string };
+  source: { id: string; cle: string; libelle: string; version_actuelle: number | null; version_copiee: number | null };
+  modele_a_evolue: boolean;
+  permissions_identiques: PermissionAccordee[];
+  permissions_ajoutees: PermissionAccordee[];
+  permissions_retirees: PermissionAccordee[];
+  resume: { identiques: number; ajoutees: number; retirees: number };
+  portee_differente: boolean;
+}
+
+export function getFicheGroupe(token: string, groupeId: string): Promise<FicheGroupe> {
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/fiche`, token, "Fiche du groupe indisponible");
+}
+
+export function getMembresDuGroupe(
+  token: string, groupeId: string, opts: { page?: number; taille?: number; q?: string; actif?: boolean } = {},
+): Promise<PageApi<MembreDuGroupe>> {
+  const p = new URLSearchParams();
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  if (opts.q) p.set("q", opts.q);
+  if (opts.actif !== undefined) p.set("actif", String(opts.actif));
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/membres?${p}`, token, "Membres du groupe indisponibles");
+}
+
+export function getHistoriqueGroupe(
+  token: string, groupeId: string, opts: { page?: number; taille?: number } = {},
+): Promise<PageApi<EvenementGroupe>> {
+  const p = new URLSearchParams();
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/historique?${p}`, token, "Historique indisponible");
+}
+
+export function getComparaisonGroupe(token: string, groupeId: string): Promise<ComparaisonGroupe> {
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/comparaison`, token, "Comparaison indisponible");
+}
+
+export interface DupliquerGroupeInput {
+  libelle: string;
+  description: string;
+  application_code?: string | null;
+  custom_scope?: string | null;
+}
+
+export function dupliquerGroupe(
+  token: string, groupeId: string, input: DupliquerGroupeInput,
+): Promise<{ id: string; cle: string; libelle: string; permissions_copiees: number; source: { id: string; cle: string } }> {
+  return authedSend(`/api/v1/admin/groupes/${groupeId}/dupliquer`, token, "POST", input, "Duplication impossible");
+}
+
+export interface ReconciliationAcces {
+  resume: {
+    comptes_privilegies_actifs: number; adosses_a_un_groupe: number;
+    alignables: number; comptes_techniques_sans_membre: number;
+  };
+  alignables: { utilisateur_id: string; email: string; role: string; membre_id: string | null; nom: string | null;
+    groupe_suggere: { id: string; cle: string; libelle: string } | null }[];
+  comptes_techniques: { utilisateur_id: string; email: string; role: string; nom: string | null }[];
+  explication: string;
+}
+
+export function getReconciliationAcces(token: string): Promise<ReconciliationAcces> {
+  return authedGet("/api/v1/admin/gouvernance/reconciliation", token, "Réconciliation indisponible");
+}
+
 export function getPerimetresDisponibles(token: string): Promise<PerimetresDisponibles> {
   return authedGet<PerimetresDisponibles>("/api/v1/admin/perimetres-disponibles", token, "Périmètres indisponibles");
 }
@@ -3490,9 +3625,31 @@ export interface CibleReference {
   type_regle: string;
 }
 
-export function listInformations(token: string, statut?: InformationStatut): Promise<Information[]> {
-  const q = statut ? `?statut=${statut}` : "";
-  return authedGet(`/api/v1/admin/informations${q}`, token, "Informations indisponibles");
+export interface PageInformations {
+  items: Information[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+}
+
+/** Paginated list. Media payloads are not carried here: each item advertises which
+ * media exist through `medias`, and opening one information fetches the content. */
+export function listInformationsPage(
+  token: string,
+  opts: { statut?: InformationStatut; page?: number; taille?: number } = {},
+): Promise<PageInformations> {
+  const p = new URLSearchParams();
+  if (opts.statut) p.set("statut", opts.statut);
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/informations?${p.toString()}`, token, "Informations indisponibles");
+}
+
+/** Kept for callers that just want the current page as a plain array. */
+export async function listInformations(token: string, statut?: InformationStatut): Promise<Information[]> {
+  const page = await listInformationsPage(token, { statut, taille: 100 });
+  return page.items;
 }
 
 export function createInformation(token: string, input: InformationInput): Promise<Information> {
