@@ -11,6 +11,8 @@ import {
   setTechnicalAdminNiveau,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const NIVEAU_LABEL: Record<string, string> = {
   lecteur: "Lecteur",
@@ -57,6 +59,8 @@ export function TechnicalAdmins({ token }: { token: string }): JSX.Element {
   const peutGerer = d?.peut_gerer ?? false;
   const estSuper = d?.mon_niveau === "super";
   const actifs = d?.techniques_actifs ?? 0;
+
+  const pagination = usePagination(d?.techniques ?? [], 10);
 
   return (
     <div className="page">
@@ -107,7 +111,7 @@ export function TechnicalAdmins({ token }: { token: string }): JSX.Element {
             {!data.loading && (d?.techniques.length ?? 0) === 0 && (
               <tr><td colSpan={7} className="muted">Aucun super-admin technique.</td></tr>
             )}
-            {(d?.techniques ?? []).map((a) => {
+            {pagination.page.map((a) => {
               const estMoi = d?.mon_id === a.id;
               const estDernierActif = a.actif && actifs <= 1;
               const verrou = estDernierActif
@@ -201,6 +205,15 @@ export function TechnicalAdmins({ token }: { token: string }): JSX.Element {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="comptes techniques"
+      />
 
       {peutGerer && (
       <section className="card" style={{ marginTop: 18 }}>

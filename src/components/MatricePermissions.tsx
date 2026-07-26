@@ -4,6 +4,8 @@ import { type CataloguePermissions, type PermissionItem, getCataloguePermissions
 import { useResource } from "../useResource.js";
 import { PermissionDrawer } from "./PermissionDrawer.js";
 import { Tabs } from "./Tabs.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const ROLE_LABELS: Record<string, string> = {
   membre: "Membre",
@@ -60,6 +62,9 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
   }, [data]);
 
   const roles = data?.roles.map((r) => r.role) ?? [];
+  // Pagine par DOMAINE : borner le tableau sans jamais separer une permission
+  // de son domaine, qui est ce qui rend la matrice lisible.
+  const pagination = usePagination(data?.domaines ?? [], 5);
   const [tab, setTab] = useState<"roles" | "groupes">("roles");
   const [detail, setDetail] = useState<PermissionItem | null>(null);
 
@@ -89,6 +94,7 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
             onChange={(id) => setTab(id as "roles" | "groupes")}
           />
           {tab === "roles" && (
+          <>
           <div className="table-wrap">
             <table className="table table-sticky">
               <thead>
@@ -103,7 +109,7 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {data.domaines.map((domaine) => {
+                {pagination.page.map((domaine) => {
                   const perms = data.permissions.filter((p) => p.domaine === domaine);
                   return [
                     <tr key={`d-${domaine}`}>
@@ -147,6 +153,16 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={pagination.numero}
+            pages={pagination.pages}
+            total={pagination.total}
+            taille={pagination.taille}
+            onPage={pagination.setNumero}
+            onTaille={pagination.setTaille}
+            libelle="domaines"
+          />
+          </>
           )}
 
           {tab === "groupes" && (

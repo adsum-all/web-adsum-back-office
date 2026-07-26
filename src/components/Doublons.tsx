@@ -16,6 +16,8 @@ import {
 } from "../api.js";
 import { fullName } from "../format.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const SIGNAL_LABELS: Record<string, string> = {
   nom: "Nom",
@@ -61,6 +63,8 @@ export function Doublons({ token, canStatuer = false, canScanner = false }: { to
 
   const list: DetectionDoublon[] = detections.data ?? [];
   const active = list.filter((d) => d.statut !== "ignore");
+
+  const pagination = usePagination(active, 10);
 
   return (
     <div className="page">
@@ -114,7 +118,7 @@ export function Doublons({ token, canStatuer = false, canScanner = false }: { to
         <p className="banner banner-ok">Aucun doublon signalé. Lancez une analyse pour actualiser.</p>
       )}
 
-      {active.map((d) => (
+      {pagination.page.map((d) => (
         <DetectionCard
           key={d.id}
           token={token}
@@ -126,6 +130,15 @@ export function Doublons({ token, canStatuer = false, canScanner = false }: { to
           onDecided={() => detections.reload()}
         />
       ))}
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="doublons"
+      />
     </div>
   );
 }

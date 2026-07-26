@@ -12,6 +12,8 @@ import { categorieLabel, categorieUtiliseAbreviation } from "./CategorieBadge.js
 import { FonctionRow } from "./FonctionRow.js";
 import { InfoTip } from "./InfoTip.js";
 import { Tabs } from "./Tabs.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 // Contextual help shown under the tab bar so a manager knows what belongs in the
 // category before creating an attribution.
@@ -137,6 +139,7 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
   const visibles = estTous
     ? [...all].sort((a, b) => a.ordre - b.ordre || a.cle.localeCompare(b.cle))
     : all.filter((f) => f.categorie === activeCat);
+  const pagination = usePagination(visibles, 20);
   const activeLabel = estTous ? categorieLabel(form.categorie) : categorieLabel(activeCat);
   const tabs = [{ id: TOUS, label: "Tout" }, ...CATEGORIES_ATTRIBUTION.map((c) => ({ id: c.code, label: c.label }))];
   const hint = estTous
@@ -274,11 +277,20 @@ export function Fonctions({ token, canGerer = true }: { token: string; canGerer?
                 </td>
               </tr>
             )}
-            {visibles.map((f) => (
+            {pagination.page.map((f) => (
               <FonctionRow key={f.cle} token={token} fonction={f} canGerer={canGerer} onChanged={fonctions.reload} />
             ))}
           </tbody>
         </table>
+        <Pagination
+          page={pagination.numero}
+          pages={pagination.pages}
+          total={pagination.total}
+          taille={pagination.taille}
+          onPage={pagination.setNumero}
+          onTaille={pagination.setTaille}
+          libelle="fonctions"
+        />
       </div>
     </div>
   );

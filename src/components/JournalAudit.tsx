@@ -1,6 +1,8 @@
 import { getAudit } from "../api.js";
 import { formatDate } from "../format.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const ACTION_LABELS: Record<string, string> = {
   creation_membre: "Creation membre",
@@ -15,6 +17,8 @@ const ACTION_LABELS: Record<string, string> = {
 
 export function JournalAudit({ token }: { token: string }): JSX.Element {
   const { data, loading, error } = useResource(() => getAudit(token), [token]);
+
+  const pagination = usePagination((data ?? []), 20);
 
   return (
     <div className="page">
@@ -45,7 +49,7 @@ export function JournalAudit({ token }: { token: string }): JSX.Element {
                 <td colSpan={4} className="muted">Chargement...</td>
               </tr>
             )}
-            {(data ?? []).map((e) => (
+            {pagination.page.map((e) => (
               <tr key={e.id}>
                 <td>
                   <div className="event-main">
@@ -66,6 +70,15 @@ export function JournalAudit({ token }: { token: string }): JSX.Element {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="entrées"
+      />
       <p className="muted small">Lecture restreinte (super-admin, admin). Append-only.</p>
     </div>
   );

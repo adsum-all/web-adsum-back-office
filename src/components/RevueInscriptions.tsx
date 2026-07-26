@@ -14,6 +14,8 @@ import {
   getInscriptions,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 type DossierFonction = NonNullable<DossierMembre["fonctions"]>[number];
 
@@ -145,6 +147,8 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
 
   const list: InscriptionItem[] = data ?? [];
 
+  const pagination = usePagination(list, 10);
+
   async function voirDossier(id: string): Promise<void> {
     setDossierError(null);
     setDossier(null);
@@ -211,7 +215,7 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
               </tr>
             </thead>
             <tbody>
-              {list.map((i) => (
+              {pagination.page.map((i) => (
                 <tr key={i.id}>
                   <td className="mono">{i.matricule}</td>
                   <td>
@@ -239,6 +243,15 @@ export function RevueInscriptions({ token, filtre }: { token: string; filtre: In
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={pagination.numero}
+            pages={pagination.pages}
+            total={pagination.total}
+            taille={pagination.taille}
+            onPage={pagination.setNumero}
+            onTaille={pagination.setTaille}
+            libelle="dossiers"
+          />
         </div>
       )}
 

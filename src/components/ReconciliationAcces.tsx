@@ -1,5 +1,7 @@
 import { getReconciliationAcces } from "../api.js";
+import { usePagination } from "../usePagination.js";
 import { useResource } from "../useResource.js";
+import { Pagination } from "./Pagination.js";
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super-administration",
@@ -22,6 +24,8 @@ const ROLE_LABEL: Record<string, string> = {
  */
 export function ReconciliationAcces({ token }: { token: string }): JSX.Element {
   const donnees = useResource(() => getReconciliationAcces(token), [token]);
+  // Appele avant les retours anticipes : un crochet ne peut pas etre conditionnel.
+  const pagination = usePagination(donnees.data?.alignables ?? [], 10);
 
   if (donnees.loading) return <p className="muted">Analyse des accès...</p>;
   if (donnees.error) return <p className="banner banner-error">{donnees.error}</p>;
@@ -85,7 +89,7 @@ export function ReconciliationAcces({ token }: { token: string }): JSX.Element {
                   </tr>
                 </thead>
                 <tbody>
-                  {alignables.map((c) => (
+                  {pagination.page.map((c) => (
                     <tr key={c.utilisateur_id}>
                       <td>
                         <div className="event-main">
@@ -104,6 +108,15 @@ export function ReconciliationAcces({ token }: { token: string }): JSX.Element {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={pagination.numero}
+              pages={pagination.pages}
+              total={pagination.total}
+              taille={pagination.taille}
+              onPage={pagination.setNumero}
+              onTaille={pagination.setTaille}
+              libelle="comptes"
+            />
           </>
         )}
       </section>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { getMembres, getMembresCompartiments } from "../api.js";
+import { getMembresCompartiments, getMembresPage } from "../api.js";
 import { civilName } from "../format.js";
 import { useResource } from "../useResource.js";
 import { AnnuairePanel } from "./AnnuairePanel.js";
 import { MembreDetail } from "./MembreDetail.js";
 import { MembreForm } from "./MembreForm.js";
 import { Tabs } from "./Tabs.js";
+import { Pagination } from "./Pagination.js";
 
 type View = { kind: "list" } | { kind: "create" } | { kind: "detail"; id: string };
 
@@ -65,11 +66,24 @@ export function Membres({ token, canAdministrer = false, canAccesAdmin = false }
   // The directory drawer lives at the container level so it stays mounted (and keeps
   // its search, filters and scroll) while the detail below reloads on a profile switch.
   const [annuaireOpen, setAnnuaireOpen] = useState(false);
+  // Server-side pagination: the directory used to ask for two hundred rows and
+  // silently drop the rest, so a base of a few thousand members simply hid most of
+  // itself. Ten per page by default, and the total comes back with the page.
+  const [page, setPage] = useState(1);
+  const [taille, setTaille] = useState(10);
   const membres = useResource(
-    () => getMembres(token, { q: query || undefined, statut: compartiment, tri, limit: 200 }),
-    [token, query, compartiment, tri],
+    () => getMembresPage(token, {
+      q: query || undefined, statut: compartiment, tri,
+      limit: taille, offset: (page - 1) * taille,
+    }),
+    [token, query, compartiment, tri, page, taille],
     12000,
   );
+  // Narrowing the filters while sitting on a later page would show an empty table and
+  // read as "no result": go back to the first page whenever the query changes.
+  useEffect(() => {
+    setPage(1);
+  }, [query, compartiment, tri]);
   const compteurs = useResource(() => getMembresCompartiments(token), [token], 10000);
 
   function reloadAll(): void {
@@ -116,7 +130,8 @@ export function Membres({ token, canAdministrer = false, canAccesAdmin = false }
     );
   }
 
-  const list = membres.data ?? [];
+  const list = membres.data?.items ?? [];
+  const totalMembres = membres.data?.total ?? 0;
   const counts = compteurs.data ?? {};
   const tabs = COMPARTIMENTS.map((c) => ({
     id: c.id,
@@ -209,7 +224,18 @@ export function Membres({ token, canAdministrer = false, canAccesAdmin = false }
           </tbody>
         </table>
       </div>
-      <p className="muted small">{list.length} membre(s) affiché(s).</p>
+      <Pagination
+        page={page}
+        pages={Math.max(1, Math.ceil(totalMembres / taille))}
+        total={totalMembres}
+        taille={taille}
+        onPage={setPage}
+        onTaille={(t) => {
+          setTaille(t);
+          setPage(1);
+        }}
+        libelle="membres"
+      />
     </div>
   );
 }

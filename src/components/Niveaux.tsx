@@ -13,6 +13,8 @@ import {
 } from "../api.js";
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 function slugCle(v: string): string {
   const base = v
@@ -63,6 +65,8 @@ export function Niveaux({ token, canGerer = true }: { token: string; canGerer?: 
   }
 
   const items = niveaux.data ?? [];
+
+  const pagination = usePagination(items, 10);
 
   return (
     <div className="page">
@@ -126,12 +130,21 @@ export function Niveaux({ token, canGerer = true }: { token: string; canGerer?: 
                 <td colSpan={5} className="muted">Aucun niveau.</td>
               </tr>
             )}
-            {items.map((n) => (
+            {pagination.page.map((n) => (
               <NiveauRow key={n.cle} token={token} niveau={n} canGerer={canGerer} onChanged={niveaux.reload} />
             ))}
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="niveaux"
+      />
     </div>
   );
 }

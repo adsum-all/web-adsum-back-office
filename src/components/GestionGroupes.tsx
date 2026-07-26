@@ -14,6 +14,8 @@ import { GroupeDupliquer } from "./GroupeDupliquer.js";
 import { GroupeFiche } from "./GroupeFiche.js";
 import { GroupeForm } from "./GroupeForm.js";
 import { roleLabel } from "./utilisateursShared.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 /** Which slice of groups this instance manages: every group, only the custom
  * (editable) ones, or only the system (read-only reference) ones. */
@@ -109,6 +111,8 @@ export function GestionGroupes({
     groupes.reload();
   }
 
+  const pagination = usePagination(items, 10);
+
   return (
     <div>
       <header className="page-head">
@@ -177,7 +181,7 @@ export function GestionGroupes({
           <tbody>
             {groupes.loading && <tr><td colSpan={5} className="muted">Chargement...</td></tr>}
             {!groupes.loading && items.length === 0 && <tr><td colSpan={5} className="muted">Aucun groupe.</td></tr>}
-            {items.map((g) => (
+            {pagination.page.map((g) => (
               <tr key={g.id} style={{ opacity: g.actif ? 1 : 0.55 }}>
                 <td>
                   <div className="event-main">
@@ -242,6 +246,15 @@ export function GestionGroupes({
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="groupes"
+      />
 
       {fiche ? (
         <GroupeFiche

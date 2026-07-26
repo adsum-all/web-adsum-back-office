@@ -6,6 +6,8 @@ import { EditeurGroupes } from "./EditeurGroupes.js";
 import { FicheGouvernance } from "./FicheGouvernance.js";
 import { RechercheMembre } from "./RechercheMembre.js";
 import { type CibleMembre, roleLabel } from "./utilisateursShared.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 /**
  * "Membres avec accès plateforme" tab: the accounts that hold access beyond the
@@ -36,6 +38,8 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
       .filter((u) => u.role !== "membre" || (u.groupes_globaux ?? 0) > 0)
       .filter((u) => !term || (u.membre_nom ?? "").toLowerCase().includes(term) || u.email.toLowerCase().includes(term) || u.role.toLowerCase().includes(term));
   }, [users.data, q]);
+
+  const pagination = usePagination(comptesPlateforme, 10);
 
   return (
     <div>
@@ -70,7 +74,7 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
             {!users.loading && comptesPlateforme.length === 0 && (
               <tr><td colSpan={4} className="muted">Aucun membre n'a d'accès plateforme.</td></tr>
             )}
-            {comptesPlateforme.map((u) => (
+            {pagination.page.map((u) => (
               <tr key={u.id}>
                 <td>
                   <div className="event-main">
@@ -122,6 +126,15 @@ export function MembresAccesTab({ token }: { token: string }): JSX.Element {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="comptes"
+      />
 
       <RechercheMembre token={token} onChoisir={setCible} />
 
