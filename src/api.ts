@@ -372,9 +372,50 @@ export function editOrganisation(
   token: string,
   entity: OrgEntity,
   id: string,
-  fields: { nom?: string; description?: string; commission_id?: string | null },
+  fields: { nom?: string; description?: string; commission_id?: string | null; responsable_id?: string | null },
 ): Promise<{ id: string; nom: string }> {
   return authedSend(`/api/v1/admin/organisation/${entity}/${id}`, token, "PATCH", fields, "Modification impossible");
+}
+
+export interface TitulairesUnite {
+  unite: { id: string; nom: string; type: string };
+  titulaire_actuel: { membre_id: string | null; nom: string | null };
+  poste_pourvu: boolean;
+  historique: {
+    horodatage: string | null;
+    action: string;
+    libelle: string;
+    titulaire_avant: string | null;
+    titulaire_apres: string | null;
+    acteur_role: string | null;
+  }[];
+}
+
+/** Who holds the post on this unit, and who held it before.
+ *
+ * A unit, the function exercised there, the post and its holder are four distinct
+ * things: this reads the holder without ever touching the unit itself. */
+export function getTitulairesUnite(token: string, entity: OrgEntity, id: string): Promise<TitulairesUnite> {
+  return authedGet(`/api/v1/admin/organisation/${entity}/${id}/titulaires`, token, "Titulaires indisponibles");
+}
+
+/** Designate a member as holder of the post, or vacate it by passing null.
+ *
+ * Vacating leaves the unit untouched: it keeps its name and its place, only the post
+ * status changes. */
+export function designerTitulaire(
+  token: string,
+  entity: OrgEntity,
+  id: string,
+  membreId: string | null,
+): Promise<{ id: string; nom: string }> {
+  return authedSend(
+    `/api/v1/admin/organisation/${entity}/${id}`,
+    token,
+    "PATCH",
+    { responsable_id: membreId },
+    membreId ? "Désignation impossible" : "Libération du poste impossible",
+  );
 }
 
 export function publishOrganisation(
