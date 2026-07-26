@@ -983,6 +983,33 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
   );
 }
 
+export interface PageMembres {
+  items: MembreProfile[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** The directory page AND how many members match the filters.
+ *
+ * The count lives in X-Total-Count rather than in the body, so the endpoint keeps
+ * returning a plain list; this reads it back so a page control can show a range and
+ * a last page instead of guessing. */
+export async function getMembresPage(token: string, query: MembreListQuery = {}): Promise<PageMembres> {
+  const res = await fetch(`${BASE}/api/v1/admin/membres${buildQuery(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new ApiError("Membres indisponibles", res.status);
+  const items = (await res.json()) as MembreProfile[];
+  const total = Number(res.headers.get("X-Total-Count") ?? items.length);
+  return {
+    items,
+    total: Number.isFinite(total) ? total : items.length,
+    limit: query.limit ?? items.length,
+    offset: query.offset ?? 0,
+  };
+}
+
 export type MembreCompartiments = Record<string, number>;
 
 /** Exact member count per directory compartment, for the tab badges. */

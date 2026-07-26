@@ -1721,3 +1721,18 @@ h3 {
 @media (max-width: 620px) {
   .fiche-historique li { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* --- Coherence des acces -------------------------------------------------- */
+.reconc-chiffres {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin: 12px 0 16px;
+}
+.reconc-chiffre {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 16px; border: 1px solid var(--adsum-line); border-radius: 12px; background: var(--adsum-panel);
+}
+.reconc-valeur { font-family: var(--adsum-font-display); font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.reconc-ok { color: #2f9e44; }
+.reconc-alerte { color: #e8590c; }
+.reconc-label { font-size: 13px; color: var(--adsum-mut); }
+.reconc-section { margin-top: 22px; display: flex; flex-direction: column; gap: 8px; }
