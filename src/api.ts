@@ -3796,3 +3796,107 @@ export interface OrgStatistiques {
 export function getOrganigrammeStatistiques(token: string): Promise<OrgStatistiques> {
   return authedGet("/api/v1/organigramme/statistiques", token, "Statistiques de l'organisation indisponibles");
 }
+
+/** One registration that has not reached a usable account, with the reason.
+ * ``cause`` and ``action`` are sentences the server writes, so the interface
+ * never has to guess what a status code means for a real person. */
+export interface InscriptionBloquee {
+  membre_id: string;
+  matricule: string | null;
+  email: string | null;
+  nom: string | null;
+  statut_inscription: string | null;
+  inscrit_le: string | null;
+  compte: boolean;
+  connecte_au_moins_une_fois: boolean;
+  etat_envoi: string;
+  dernier_envoi_le: string | null;
+  gravite: "bloquant" | "attention" | "information";
+  cause: string;
+  action: string;
+}
+
+export interface InscriptionsBloqueesPage {
+  items: InscriptionBloquee[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  resume: Record<string, number>;
+  /** False when the diagnosis ceiling truncated the summary, so the badge is a
+   *  floor rather than the exact count. */
+  resume_complet: boolean;
+}
+
+export function getInscriptionsAReparer(token: string, page = 1, taille = 10): Promise<InscriptionsBloqueesPage> {
+  return authedGet(
+    `/api/v1/admin/inscriptions/a-reparer?page=${page}&taille=${taille}`,
+    token,
+    "Inscriptions bloquées indisponibles",
+  );
+}
+
+/** One message the platform tried to send, and what became of it. */
+export interface EnvoiEmail {
+  id: string;
+  destinataire: string | null;
+  template: string | null;
+  sujet: string | null;
+  statut: string | null;
+  etat_lisible: string;
+  fournisseur: string | null;
+  erreur: string | null;
+  tentatives: number | null;
+  cree_le: string | null;
+  envoye_le: string | null;
+  delivre_le: string | null;
+  ouvert_le: string | null;
+  echoue_le: string | null;
+  evenements: { evenement_fournisseur: string; statut_normalise: string; motif: string | null; survenu_le: string }[];
+}
+
+export function getEnvoisEmailMembre(token: string, membreId: string): Promise<{ membre_id: string; envois: EnvoiEmail[]; total: number }> {
+  return authedGet(`/api/v1/admin/membres/${membreId}/envois-email`, token, "Historique d'envoi indisponible");
+}
+
+export interface ReparationApercu {
+  apercu: true;
+  destinataires: { membre_id: string; matricule: string | null; email: string | null; nom: string | null }[];
+  ecartes: { membre_id: string; motif: string }[];
+  total: number;
+}
+
+export interface ReparationResultat {
+  apercu: false;
+  traites: number;
+  envoyes: number;
+  ecartes: { membre_id: string; motif: string }[];
+  resultats: { membre_id: string; email: string | null; envoye: boolean; canal?: string | null; erreur?: string }[];
+}
+
+export function reparerInscriptions(
+  token: string,
+  membreIds: string[],
+  apercu: boolean,
+): Promise<ReparationApercu | ReparationResultat> {
+  return authedSend(
+    `/api/v1/admin/inscriptions/reparer-en-masse?apercu=${apercu ? "true" : "false"}`,
+    token,
+    "POST",
+    membreIds,
+    "Réparation impossible",
+  );
+}
+
+/** Sending health over the last thirty days, expressed as counts to act on. */
+export interface SanteEmail {
+  periode: string;
+  total_envois: number;
+  par_statut: Record<string, number>;
+  adresses_en_echec: { adresse: string; echecs: number; dernier: string }[];
+  alerte: boolean;
+}
+
+export function getSanteEmail(token: string): Promise<SanteEmail> {
+  return authedGet("/api/v1/admin/email/sante", token, "Santé des envois indisponible");
+}
