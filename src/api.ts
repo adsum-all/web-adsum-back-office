@@ -3900,3 +3900,17 @@ export interface SanteEmail {
 export function getSanteEmail(token: string): Promise<SanteEmail> {
   return authedGet("/api/v1/admin/email/sante", token, "Santé des envois indisponible");
 }
+
+/** The exact callback address to paste into the mail provider's configuration.
+ *  Composed server side because it carries the shared secret in its query string,
+ *  and one wrong character means the provider's calls are silently refused. */
+export interface AdresseRappel {
+  configuree: boolean;
+  adresse: string | null;
+  evenements?: string[];
+  message: string;
+}
+
+export function getAdresseRappelEmail(token: string): Promise<AdresseRappel> {
+  return authedGet("/api/v1/admin/email/adresse-rappel", token, "Adresse de rappel indisponible");
+}
