@@ -17,6 +17,8 @@ import {
   retirerMembreGroupe,
 } from "../api.js";
 import { type CibleMembre, GLOBAL_ONLY_ROLES, RisqueBadge, porteeLabel, roleLabel } from "./utilisateursShared.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 export function EditeurGroupes({
   token,
@@ -126,6 +128,8 @@ export function EditeurGroupes({
 
   const appartenances = etat?.groupes ?? [];
 
+  const pagination = usePagination(appartenances, 10);
+
   return (
     <section className="form-card editor-panel">
       <div className="page-head">
@@ -160,7 +164,7 @@ export function EditeurGroupes({
                 <td colSpan={4} className="muted">Aucun accès. Ce membre n&apos;a que son espace membre.</td>
               </tr>
             )}
-            {appartenances.map((a) => (
+            {pagination.page.map((a) => (
               <tr key={a.appartenance_id} style={{ opacity: a.groupe_actif === false ? 0.6 : 1 }}>
                 <td>
                   <div className="event-main">
@@ -200,6 +204,15 @@ export function EditeurGroupes({
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="appartenances"
+      />
 
       {effectif && (
         <section style={{ marginTop: "1rem" }}>

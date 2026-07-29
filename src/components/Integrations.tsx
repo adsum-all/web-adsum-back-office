@@ -17,6 +17,7 @@ import {
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { Switch } from "./Switch.js";
+import { RetourLivraison } from "./RetourLivraison.js";
 import { Tabs } from "./Tabs.js";
 
 const CANAL_LABEL: Record<string, string> = {
@@ -95,6 +96,8 @@ export function Integrations({ token, canAdministrer = false, canGererNotifs = f
       )}
 
       {tab === "jetons" && (
+      <>
+      <RetourLivraison token={token} />
       <section className="card">
         <h2 className="card-title">
           Jetons d'accès
@@ -115,6 +118,7 @@ export function Integrations({ token, canAdministrer = false, canGererNotifs = f
             />
           ))}
       </section>
+      </>
       )}
 
       {tab === "signatures" && (

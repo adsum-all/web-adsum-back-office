@@ -8,12 +8,16 @@ import {
   publishConsentDoc,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { Bibliotheque } from "./Bibliotheque.js";
 import { InfoTip } from "./InfoTip.js";
+import { Tabs } from "./Tabs.js";
+import { TracabiliteConsentements } from "./TracabiliteConsentements.js";
 
 /** Editor for the legal documents members must read and sign at registration. */
 export function Consentements({ token, canGerer = false }: { token: string; canGerer?: boolean }): JSX.Element {
   const docs = useResource(() => getConsentDocsAdmin(token), [token]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [onglet, setOnglet] = useState("consentements");
 
   const list: ConsentDocAdmin[] = docs.data ?? [];
   const current = list.find((d) => d.cle === selected) ?? list[0] ?? null;
@@ -30,10 +34,26 @@ export function Consentements({ token, canGerer = false }: { token: string; canG
             />
           </h1>
           <p className="muted">
-            RGPD, confidentialité, lettre d'engagement et règlement intérieur présentés aux membres à l'inscription.
+            RGPD, confidentialité, lettre d'engagement et règlement intérieur présentés aux membres à l'inscription,
+            la bibliothèque institutionnelle et le relevé des signatures recueillies.
           </p>
         </div>
       </header>
+
+      <Tabs
+        tabs={[
+          { id: "consentements", label: "Textes de consentement" },
+          { id: "bibliotheque", label: "Bibliothèque institutionnelle" },
+          { id: "tracabilite", label: "Signatures recueillies" },
+        ]}
+        active={onglet}
+        onChange={setOnglet}
+      />
+
+      {onglet === "bibliotheque" && <Bibliotheque token={token} canGerer={canGerer} />}
+      {onglet === "tracabilite" && <TracabiliteConsentements token={token} />}
+      {onglet === "consentements" && (
+      <>
 
       {!canGerer && (
         <p className="banner banner-info small">
@@ -75,6 +95,8 @@ export function Consentements({ token, canGerer = false }: { token: string; canG
           canGerer={canGerer}
           onPublished={() => docs.reload()}
         />
+      )}
+      </>
       )}
     </div>
   );

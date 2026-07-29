@@ -11,6 +11,7 @@ import {
   reaffecterOrganisation,
   renameOrganisation,
 } from "../api.js";
+import { TitulaireUnite } from "./TitulaireUnite.js";
 
 /** Extra editable fields for entities that carry more than a name. When present, the
  * inline edit form also exposes the description and/or the parent commission, so an
@@ -57,6 +58,9 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit,
   // resolver panel is open with the pre-flight result (what still references this).
   const [deps, setDeps] = useState<OrgDependances | null>(null);
   const [cible, setCible] = useState<string>("");
+  // A unit and the person holding the post on it are two different things:
+  // the holder is managed in its own panel, never by editing the unit.
+  const [titulaire, setTitulaire] = useState(false);
 
   async function run(action: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
@@ -185,6 +189,9 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit,
         )}
       </div>
       <div className="org-row-actions">
+        <button type="button" className="link" onClick={() => setTitulaire(true)}>
+          Titulaire
+        </button>
         {!canGerer ? (
           <>
             <span className={`pill ${publie ? "pill-on" : "pill-off"}`}>{publie ? "Publié" : "Masqué"}</span>
@@ -273,6 +280,16 @@ export function OrgItemRow({ token, entity, id, nom, prefix, meta, publie, edit,
         </div>
       )}
       {error && <span className="banner banner-error org-row-error">{error}</span>}
+      {titulaire ? (
+        <TitulaireUnite
+          token={token}
+          entity={entity}
+          uniteId={id}
+          uniteNom={nom}
+          onClose={() => setTitulaire(false)}
+          onChange={onChanged}
+        />
+      ) : null}
     </li>
   );
 }

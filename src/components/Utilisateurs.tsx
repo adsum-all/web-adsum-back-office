@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GestionGroupes } from "./GestionGroupes.js";
 import { GroupesParApplication } from "./GroupesParApplication.js";
 import { MembresAccesTab } from "./MembresAccesTab.js";
+import { ReconciliationAcces } from "./ReconciliationAcces.js";
 import { Tabs } from "./Tabs.js";
 
 const TABS = [
@@ -10,6 +11,7 @@ const TABS = [
   { id: "standard", label: "Groupes standard" },
   { id: "application", label: "Par application" },
   { id: "membres", label: "Membres avec accès plateforme" },
+  { id: "coherence", label: "Cohérence des accès" },
 ];
 
 /**
@@ -42,6 +44,7 @@ export function Utilisateurs({ token, canSysteme = false }: { token: string; can
       {tab === "standard" && <GestionGroupes token={token} canSysteme={canSysteme} portee="standard" />}
       {tab === "application" && <GroupesParApplication token={token} canSysteme={canSysteme} />}
       {tab === "membres" && <MembresAccesTab token={token} />}
+      {tab === "coherence" && <ReconciliationAcces token={token} />}
     </div>
   );
 }
