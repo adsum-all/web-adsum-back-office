@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { type CataloguePermissions, type PermissionItem, getCataloguePermissions } from "../api.js";
 import { useResource } from "../useResource.js";
 import { PermissionDrawer } from "./PermissionDrawer.js";
+import { PermissionsParApplication } from "./PermissionsParApplication.js";
 import { Tabs } from "./Tabs.js";
 import { usePagination } from "../usePagination.js";
 import { Pagination } from "./Pagination.js";
@@ -65,7 +66,7 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
   // Pagine par DOMAINE : borner le tableau sans jamais separer une permission
   // de son domaine, qui est ce qui rend la matrice lisible.
   const pagination = usePagination(data?.domaines ?? [], 5);
-  const [tab, setTab] = useState<"roles" | "groupes">("roles");
+  const [tab, setTab] = useState<"roles" | "groupes" | "applications">("roles");
   const [detail, setDetail] = useState<PermissionItem | null>(null);
 
   return (
@@ -89,9 +90,10 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
             tabs={[
               { id: "roles", label: "Permissions par rôle" },
               { id: "groupes", label: `Groupes spécialisés (${data.groupes_specialises.length})` },
+              { id: "applications", label: "Par application" },
             ]}
             active={tab}
-            onChange={(id) => setTab(id as "roles" | "groupes")}
+            onChange={(id) => setTab(id as "roles" | "groupes" | "applications")}
           />
           {tab === "roles" && (
           <>
@@ -217,6 +219,13 @@ export function MatricePermissions({ token }: { token: string }): JSX.Element {
             </table>
           </div>
           </>
+          )}
+          {tab === "applications" && (
+            <PermissionsParApplication
+              token={token}
+              permissions={data.permissions}
+              domaines={data.domaines}
+            />
           )}
         </>
       )}

@@ -3914,3 +3914,38 @@ export interface AdresseRappel {
 export function getAdresseRappelEmail(token: string): Promise<AdresseRappel> {
   return authedGet("/api/v1/admin/email/adresse-rappel", token, "Adresse de rappel indisponible");
 }
+
+/** Which permission can be exercised from which application.
+ *  This referential is what makes an application-tagged access group actually
+ *  bounded: it decides what such a group confers, so it is a security surface. */
+export interface ApplicationPorteuse {
+  code: string;
+  nom: string | null;
+  actif: boolean;
+  administre_tout: boolean;
+  membres_concernes: number;
+}
+
+export interface ReferentielApplications {
+  applications: ApplicationPorteuse[];
+  par_permission: Record<string, string[]>;
+  total_couples: number;
+}
+
+export function getReferentielApplications(token: string): Promise<ReferentielApplications> {
+  return authedGet("/api/v1/admin/permissions-applications", token, "Référentiel par application indisponible");
+}
+
+export function setPermissionApplications(
+  token: string,
+  permission: string,
+  applications: string[],
+): Promise<{ permission: string; applications: string[]; ajoutees: string[]; retirees: string[] }> {
+  return authedSend(
+    "/api/v1/admin/permissions-applications",
+    token,
+    "PUT",
+    { permission, applications },
+    "Enregistrement impossible",
+  );
+}
