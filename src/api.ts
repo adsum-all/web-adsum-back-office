@@ -4049,3 +4049,117 @@ export function deciderDeclaration(
     "Décision impossible",
   );
 }
+
+/** An institutional document: statutes, rules, a charter, a procedure.
+ *  A published version is never edited; a correction opens the next one, so what
+ *  somebody signed can always be shown again exactly as it was. */
+export interface DocumentInstitutionnel {
+  id: string;
+  cle: string;
+  categorie: string;
+  titre: string;
+  titre_en: string | null;
+  description: string | null;
+  visibilite: string;
+  statut: "brouillon" | "publie" | "archive";
+  ordre: number;
+  version_publiee: number | null;
+  versions: number;
+  maj_le: string | null;
+}
+
+export interface VersionDocument {
+  id: string;
+  version: number;
+  contenu: string | null;
+  contenu_en: string | null;
+  fichier: { nom: string | null; mime: string | null; taille: number | null } | null;
+  empreinte: string | null;
+  notes: string | null;
+  publiee: boolean;
+  publie_le: string | null;
+  publie_par: string | null;
+  cree_le: string | null;
+}
+
+export interface BibliothequePage {
+  items: DocumentInstitutionnel[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  resume: Record<string, number>;
+  categories: string[];
+  visibilites: string[];
+}
+
+export function getBibliotheque(token: string, page = 1, taille = 10, statut?: string): Promise<BibliothequePage> {
+  const p = new URLSearchParams({ page: String(page), taille: String(taille) });
+  if (statut) p.set("statut", statut);
+  return authedGet(`/api/v1/admin/bibliotheque?${p}`, token, "Bibliothèque indisponible");
+}
+
+export function getDocumentInstitutionnel(
+  token: string,
+  id: string,
+): Promise<DocumentInstitutionnel & { versions_detail: VersionDocument[] }> {
+  return authedGet(`/api/v1/admin/bibliotheque/${id}`, token, "Document indisponible");
+}
+
+export function creerDocumentInstitutionnel(
+  token: string,
+  body: { cle: string; titre: string; titre_en?: string; categorie: string; description?: string; visibilite: string; ordre?: number },
+): Promise<{ id: string; cle: string; statut: string }> {
+  return authedSend("/api/v1/admin/bibliotheque", token, "POST", body, "Création impossible");
+}
+
+export function ajouterVersion(
+  token: string,
+  documentId: string,
+  body: { contenu?: string; contenu_en?: string; notes?: string; publier: boolean },
+): Promise<{ id: string; version: number; publiee: boolean }> {
+  return authedSend(`/api/v1/admin/bibliotheque/${documentId}/versions`, token, "POST", body, "Version impossible");
+}
+
+export function publierVersion(token: string, documentId: string, versionId: string): Promise<{ version: number }> {
+  return authedSend(
+    `/api/v1/admin/bibliotheque/${documentId}/versions/${versionId}/publier`,
+    token, "POST", {}, "Publication impossible",
+  );
+}
+
+export function changerStatutDocument(token: string, documentId: string, statut: string): Promise<{ statut: string }> {
+  return authedSend(`/api/v1/admin/bibliotheque/${documentId}`, token, "PATCH", { statut }, "Changement impossible");
+}
+
+/** Who signed which consent text, in which version, and on what proof. */
+export interface SignatureConsentement {
+  id: string;
+  membre: string | null;
+  email: string | null;
+  matricule: string | null;
+  texte: string | null;
+  cle: string | null;
+  version: string | null;
+  signe_le: string | null;
+  canal: string | null;
+  code_verifie: boolean;
+  preuve: string | null;
+  rattache_au_texte: boolean;
+}
+
+export interface TracabilitePage {
+  items: SignatureConsentement[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  membres_concernes: number;
+  par_texte: { cle: string; titre: string; version: number; bloquant: boolean; signataires: number; manquants: number }[];
+}
+
+export function getTracabiliteConsentements(token: string, page = 1, taille = 10, cle?: string): Promise<TracabilitePage> {
+  const p = new URLSearchParams({ page: String(page), taille: String(taille) });
+  if (cle) p.set("cle", cle);
+  return authedGet(`/api/v1/admin/consentements/tracabilite?${p}`, token, "Traçabilité indisponible");
+}
