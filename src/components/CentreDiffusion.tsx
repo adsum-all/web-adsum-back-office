@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { type CentreDiffusion as Centre, getCentreDiffusion } from "../api.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "-";
@@ -45,6 +47,8 @@ export function CentreDiffusion({ token }: Readonly<{ token: string }>): JSX.Ele
     { label: "Échecs d'envoi ouverts", valeur: d.echecs_envoi, ton: d.echecs_envoi > 0 ? "danger" : undefined },
   ];
 
+  const pagination = usePagination(cartes, 10);
+
   return (
     <div className="page">
       <header className="page-head">
@@ -55,7 +59,7 @@ export function CentreDiffusion({ token }: Readonly<{ token: string }>): JSX.Ele
 
       <section className="card">
         <div className="cd-grid">
-          {cartes.map((c) => (
+          {pagination.page.map((c) => (
             <div key={c.label} className={`cd-tile ${c.ton ? `cd-${c.ton}` : ""}`}>
               <b>{c.valeur}</b>
               <span>{c.label}</span>
@@ -82,6 +86,15 @@ export function CentreDiffusion({ token }: Readonly<{ token: string }>): JSX.Ele
                 ))}
               </tbody>
             </table>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="diffusions"
+      />
           </div>
         )}
       </section>

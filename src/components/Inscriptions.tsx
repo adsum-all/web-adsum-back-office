@@ -4,6 +4,7 @@ import { type InscriptionFiltre, getInscriptionCompteurs } from "../api.js";
 import { useResource } from "../useResource.js";
 import { CreerComptesMasse } from "./CreerComptesMasse.js";
 import { CreerCompteMembre } from "./CreerCompteMembre.js";
+import { InscriptionsBloquees } from "./InscriptionsBloquees.js";
 import { RevueInscriptions } from "./RevueInscriptions.js";
 import { Tabs } from "./Tabs.js";
 
@@ -29,6 +30,9 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
     { id: "creer", label: "Créer un compte membre" },
     { id: "masse", label: "Créer des comptes en masse" },
     ...LIST_TABS.map((t) => ({ id: t.id, label: c ? `${t.label} (${c[t.id]})` : t.label })),
+    // The queues above show where a dossier stands. This one answers the other
+    // question, the one nobody could answer: who registered and never got in.
+    { id: "bloquees", label: "Inscriptions bloquées" },
   ];
 
   return (
@@ -49,6 +53,7 @@ export function Inscriptions({ token }: { token: string }): JSX.Element {
       {/* key={tab} remounts the queue on every tab change, so a dossier opened in one
           stage never stays open when moving to another stage (no cross-tab confusion). */}
       {LIST_TABS.some((t) => t.id === tab) && <RevueInscriptions key={tab} token={token} filtre={tab as InscriptionFiltre} />}
+      {tab === "bloquees" && <InscriptionsBloquees token={token} />}
     </div>
   );
 }

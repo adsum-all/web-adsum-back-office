@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { type RetentionConfig, type RetentionEtat, type RetentionJournalItem, type RetentionRapport, executerRetention, getRetentionEtat, getRetentionJournal, setRetentionConfig } from "../api.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 /**
  * Parametres > Communication > Retention et archivage.
@@ -53,6 +55,8 @@ export function RetentionArchivage({ token, canGerer }: Readonly<{ token: string
   }
 
   const tc = etat.telegram_capacite;
+
+  const pagination = usePagination(journal, 10);
 
   return (
     <div className="page">
@@ -149,7 +153,7 @@ export function RetentionArchivage({ token, canGerer }: Readonly<{ token: string
             <table className="table">
               <thead><tr><th>Date</th><th>Type</th><th>Règle</th><th>Résultat</th><th>Détail</th><th>Acteur</th></tr></thead>
               <tbody>
-                {journal.map((j, i) => (
+                {pagination.page.map((j, i) => (
                   <tr key={`${j.execute_le}-${i}`}>
                     <td>{formatDate(j.execute_le)}</td>
                     <td>{j.type_element}</td>
@@ -161,6 +165,15 @@ export function RetentionArchivage({ token, canGerer }: Readonly<{ token: string
                 ))}
               </tbody>
             </table>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="entrées"
+      />
           </div>
         )}
       </section>

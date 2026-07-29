@@ -372,9 +372,50 @@ export function editOrganisation(
   token: string,
   entity: OrgEntity,
   id: string,
-  fields: { nom?: string; description?: string; commission_id?: string | null },
+  fields: { nom?: string; description?: string; commission_id?: string | null; responsable_id?: string | null },
 ): Promise<{ id: string; nom: string }> {
   return authedSend(`/api/v1/admin/organisation/${entity}/${id}`, token, "PATCH", fields, "Modification impossible");
+}
+
+export interface TitulairesUnite {
+  unite: { id: string; nom: string; type: string };
+  titulaire_actuel: { membre_id: string | null; nom: string | null };
+  poste_pourvu: boolean;
+  historique: {
+    horodatage: string | null;
+    action: string;
+    libelle: string;
+    titulaire_avant: string | null;
+    titulaire_apres: string | null;
+    acteur_role: string | null;
+  }[];
+}
+
+/** Who holds the post on this unit, and who held it before.
+ *
+ * A unit, the function exercised there, the post and its holder are four distinct
+ * things: this reads the holder without ever touching the unit itself. */
+export function getTitulairesUnite(token: string, entity: OrgEntity, id: string): Promise<TitulairesUnite> {
+  return authedGet(`/api/v1/admin/organisation/${entity}/${id}/titulaires`, token, "Titulaires indisponibles");
+}
+
+/** Designate a member as holder of the post, or vacate it by passing null.
+ *
+ * Vacating leaves the unit untouched: it keeps its name and its place, only the post
+ * status changes. */
+export function designerTitulaire(
+  token: string,
+  entity: OrgEntity,
+  id: string,
+  membreId: string | null,
+): Promise<{ id: string; nom: string }> {
+  return authedSend(
+    `/api/v1/admin/organisation/${entity}/${id}`,
+    token,
+    "PATCH",
+    { responsable_id: membreId },
+    membreId ? "Désignation impossible" : "Libération du poste impossible",
+  );
 }
 
 export function publishOrganisation(
@@ -981,6 +1022,33 @@ export function getMembres(token: string, query: MembreListQuery = {}): Promise<
     token,
     "Membres indisponibles",
   );
+}
+
+export interface PageMembres {
+  items: MembreProfile[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** The directory page AND how many members match the filters.
+ *
+ * The count lives in X-Total-Count rather than in the body, so the endpoint keeps
+ * returning a plain list; this reads it back so a page control can show a range and
+ * a last page instead of guessing. */
+export async function getMembresPage(token: string, query: MembreListQuery = {}): Promise<PageMembres> {
+  const res = await fetch(`${BASE}/api/v1/admin/membres${buildQuery(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new ApiError("Membres indisponibles", res.status);
+  const items = (await res.json()) as MembreProfile[];
+  const total = Number(res.headers.get("X-Total-Count") ?? items.length);
+  return {
+    items,
+    total: Number.isFinite(total) ? total : items.length,
+    limit: query.limit ?? items.length,
+    offset: query.offset ?? 0,
+  };
 }
 
 export type MembreCompartiments = Record<string, number>;
@@ -2065,6 +2133,141 @@ export function updateGroupe(token: string, groupeId: string, input: UpdateGroup
 
 export function deleteGroupe(token: string, groupeId: string): Promise<{ supprime: boolean; id: string }> {
   return authedSend(`/api/v1/admin/groupes/${groupeId}`, token, "DELETE", undefined, "Suppression du groupe impossible");
+}
+
+/** Everything an administrator must read before granting a group. */
+export interface PermissionAccordee {
+  cle: string;
+  libelle: string;
+  domaine: string | null;
+  risque: string | null;
+  portee: string | null;
+  description: string | null;
+  limite: string | null;
+}
+
+export interface FicheGroupe {
+  identite: {
+    id: string; cle: string; libelle: string; description: string | null;
+    type: "standard" | "personnalise"; statut: string; modifiable: boolean;
+    application_code: string | null; version: number | null;
+    cree_le: string | null; cree_par: string | null; maj_le: string | null; maj_par: string | null;
+  };
+  finalite: { objectif: string | null; usage_recommande: string | null; usage_deconseille: string | null };
+  portee: { texte: string | null; application_code: string | null; custom_scope: string | null; sensibilite: string | null };
+  permissions: { mode: string; role_accorde: string | null; accordees: PermissionAccordee[]; total: number };
+  gouvernance: {
+    avertissement_securite: string | null; attribution_requiert: string;
+    modification_requiert: string | null; duplication_requiert: string; protege: boolean;
+  };
+  membres: { total: number };
+  lignee: {
+    derive_d_un_standard: boolean;
+    source: { id: string; cle: string; libelle: string; version: number | null } | null;
+    source_version: number | null;
+    inheritance_mode: string | null;
+  };
+}
+
+export interface MembreDuGroupe {
+  appartenance_id: string;
+  membre_id: string;
+  nom_affiche: string;
+  matricule: string | null;
+  statut_membre: string | null;
+  photo_url: string | null;
+  role_interne: string | null;
+  portee_type: string | null;
+  portee_id: string | null;
+  actif: boolean;
+  ajoute_le: string | null;
+  ajoute_par: string | null;
+  retire_le: string | null;
+}
+
+export interface EvenementGroupe {
+  id: number;
+  action: string;
+  libelle: string;
+  acteur: string | null;
+  acteur_role: string | null;
+  details: Record<string, unknown> | null;
+  horodatage: string | null;
+}
+
+export interface PageApi<T> {
+  items: T[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+}
+
+export interface ComparaisonGroupe {
+  groupe: { id: string; cle: string; libelle: string };
+  source: { id: string; cle: string; libelle: string; version_actuelle: number | null; version_copiee: number | null };
+  modele_a_evolue: boolean;
+  permissions_identiques: PermissionAccordee[];
+  permissions_ajoutees: PermissionAccordee[];
+  permissions_retirees: PermissionAccordee[];
+  resume: { identiques: number; ajoutees: number; retirees: number };
+  portee_differente: boolean;
+}
+
+export function getFicheGroupe(token: string, groupeId: string): Promise<FicheGroupe> {
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/fiche`, token, "Fiche du groupe indisponible");
+}
+
+export function getMembresDuGroupe(
+  token: string, groupeId: string, opts: { page?: number; taille?: number; q?: string; actif?: boolean } = {},
+): Promise<PageApi<MembreDuGroupe>> {
+  const p = new URLSearchParams();
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  if (opts.q) p.set("q", opts.q);
+  if (opts.actif !== undefined) p.set("actif", String(opts.actif));
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/membres?${p}`, token, "Membres du groupe indisponibles");
+}
+
+export function getHistoriqueGroupe(
+  token: string, groupeId: string, opts: { page?: number; taille?: number } = {},
+): Promise<PageApi<EvenementGroupe>> {
+  const p = new URLSearchParams();
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/historique?${p}`, token, "Historique indisponible");
+}
+
+export function getComparaisonGroupe(token: string, groupeId: string): Promise<ComparaisonGroupe> {
+  return authedGet(`/api/v1/admin/groupes/${groupeId}/comparaison`, token, "Comparaison indisponible");
+}
+
+export interface DupliquerGroupeInput {
+  libelle: string;
+  description: string;
+  application_code?: string | null;
+  custom_scope?: string | null;
+}
+
+export function dupliquerGroupe(
+  token: string, groupeId: string, input: DupliquerGroupeInput,
+): Promise<{ id: string; cle: string; libelle: string; permissions_copiees: number; source: { id: string; cle: string } }> {
+  return authedSend(`/api/v1/admin/groupes/${groupeId}/dupliquer`, token, "POST", input, "Duplication impossible");
+}
+
+export interface ReconciliationAcces {
+  resume: {
+    comptes_privilegies_actifs: number; adosses_a_un_groupe: number;
+    alignables: number; comptes_techniques_sans_membre: number;
+  };
+  alignables: { utilisateur_id: string; email: string; role: string; membre_id: string | null; nom: string | null;
+    groupe_suggere: { id: string; cle: string; libelle: string } | null }[];
+  comptes_techniques: { utilisateur_id: string; email: string; role: string; nom: string | null }[];
+  explication: string;
+}
+
+export function getReconciliationAcces(token: string): Promise<ReconciliationAcces> {
+  return authedGet("/api/v1/admin/gouvernance/reconciliation", token, "Réconciliation indisponible");
 }
 
 export function getPerimetresDisponibles(token: string): Promise<PerimetresDisponibles> {
@@ -3490,9 +3693,31 @@ export interface CibleReference {
   type_regle: string;
 }
 
-export function listInformations(token: string, statut?: InformationStatut): Promise<Information[]> {
-  const q = statut ? `?statut=${statut}` : "";
-  return authedGet(`/api/v1/admin/informations${q}`, token, "Informations indisponibles");
+export interface PageInformations {
+  items: Information[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+}
+
+/** Paginated list. Media payloads are not carried here: each item advertises which
+ * media exist through `medias`, and opening one information fetches the content. */
+export function listInformationsPage(
+  token: string,
+  opts: { statut?: InformationStatut; page?: number; taille?: number } = {},
+): Promise<PageInformations> {
+  const p = new URLSearchParams();
+  if (opts.statut) p.set("statut", opts.statut);
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/informations?${p.toString()}`, token, "Informations indisponibles");
+}
+
+/** Kept for callers that just want the current page as a plain array. */
+export async function listInformations(token: string, statut?: InformationStatut): Promise<Information[]> {
+  const page = await listInformationsPage(token, { statut, taille: 100 });
+  return page.items;
 }
 
 export function createInformation(token: string, input: InformationInput): Promise<Information> {
@@ -3570,4 +3795,371 @@ export interface OrgStatistiques {
 
 export function getOrganigrammeStatistiques(token: string): Promise<OrgStatistiques> {
   return authedGet("/api/v1/organigramme/statistiques", token, "Statistiques de l'organisation indisponibles");
+}
+
+/** One registration that has not reached a usable account, with the reason.
+ * ``cause`` and ``action`` are sentences the server writes, so the interface
+ * never has to guess what a status code means for a real person. */
+export interface InscriptionBloquee {
+  membre_id: string;
+  matricule: string | null;
+  email: string | null;
+  nom: string | null;
+  statut_inscription: string | null;
+  inscrit_le: string | null;
+  compte: boolean;
+  connecte_au_moins_une_fois: boolean;
+  etat_envoi: string;
+  dernier_envoi_le: string | null;
+  gravite: "bloquant" | "attention" | "information";
+  cause: string;
+  action: string;
+}
+
+export interface InscriptionsBloqueesPage {
+  items: InscriptionBloquee[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  resume: Record<string, number>;
+  /** False when the diagnosis ceiling truncated the summary, so the badge is a
+   *  floor rather than the exact count. */
+  resume_complet: boolean;
+}
+
+export function getInscriptionsAReparer(token: string, page = 1, taille = 10): Promise<InscriptionsBloqueesPage> {
+  return authedGet(
+    `/api/v1/admin/inscriptions/a-reparer?page=${page}&taille=${taille}`,
+    token,
+    "Inscriptions bloquées indisponibles",
+  );
+}
+
+/** One message the platform tried to send, and what became of it. */
+export interface EnvoiEmail {
+  id: string;
+  destinataire: string | null;
+  template: string | null;
+  sujet: string | null;
+  statut: string | null;
+  etat_lisible: string;
+  fournisseur: string | null;
+  erreur: string | null;
+  tentatives: number | null;
+  cree_le: string | null;
+  envoye_le: string | null;
+  delivre_le: string | null;
+  ouvert_le: string | null;
+  echoue_le: string | null;
+  evenements: { evenement_fournisseur: string; statut_normalise: string; motif: string | null; survenu_le: string }[];
+}
+
+export function getEnvoisEmailMembre(token: string, membreId: string): Promise<{ membre_id: string; envois: EnvoiEmail[]; total: number }> {
+  return authedGet(`/api/v1/admin/membres/${membreId}/envois-email`, token, "Historique d'envoi indisponible");
+}
+
+export interface ReparationApercu {
+  apercu: true;
+  destinataires: { membre_id: string; matricule: string | null; email: string | null; nom: string | null }[];
+  ecartes: { membre_id: string; motif: string }[];
+  total: number;
+}
+
+export interface ReparationResultat {
+  apercu: false;
+  traites: number;
+  envoyes: number;
+  ecartes: { membre_id: string; motif: string }[];
+  resultats: { membre_id: string; email: string | null; envoye: boolean; canal?: string | null; erreur?: string }[];
+}
+
+export function reparerInscriptions(
+  token: string,
+  membreIds: string[],
+  apercu: boolean,
+): Promise<ReparationApercu | ReparationResultat> {
+  return authedSend(
+    `/api/v1/admin/inscriptions/reparer-en-masse?apercu=${apercu ? "true" : "false"}`,
+    token,
+    "POST",
+    membreIds,
+    "Réparation impossible",
+  );
+}
+
+/** Sending health over the last thirty days, expressed as counts to act on. */
+export interface SanteEmail {
+  periode: string;
+  total_envois: number;
+  par_statut: Record<string, number>;
+  adresses_en_echec: { adresse: string; echecs: number; dernier: string }[];
+  alerte: boolean;
+}
+
+export function getSanteEmail(token: string): Promise<SanteEmail> {
+  return authedGet("/api/v1/admin/email/sante", token, "Santé des envois indisponible");
+}
+
+/** The exact callback address to paste into the mail provider's configuration.
+ *  Composed server side because it carries the shared secret in its query string,
+ *  and one wrong character means the provider's calls are silently refused. */
+export interface AdresseRappel {
+  configuree: boolean;
+  adresse: string | null;
+  evenements?: string[];
+  message: string;
+}
+
+export function getAdresseRappelEmail(token: string): Promise<AdresseRappel> {
+  return authedGet("/api/v1/admin/email/adresse-rappel", token, "Adresse de rappel indisponible");
+}
+
+/** Which permission can be exercised from which application.
+ *  This referential is what makes an application-tagged access group actually
+ *  bounded: it decides what such a group confers, so it is a security surface. */
+export interface ApplicationPorteuse {
+  code: string;
+  nom: string | null;
+  actif: boolean;
+  administre_tout: boolean;
+  membres_concernes: number;
+}
+
+export interface ReferentielApplications {
+  applications: ApplicationPorteuse[];
+  par_permission: Record<string, string[]>;
+  total_couples: number;
+}
+
+export function getReferentielApplications(token: string): Promise<ReferentielApplications> {
+  return authedGet("/api/v1/admin/permissions-applications", token, "Référentiel par application indisponible");
+}
+
+export function setPermissionApplications(
+  token: string,
+  permission: string,
+  applications: string[],
+): Promise<{ permission: string; applications: string[]; ajoutees: string[]; retirees: string[] }> {
+  return authedSend(
+    "/api/v1/admin/permissions-applications",
+    token,
+    "PUT",
+    { permission, applications },
+    "Enregistrement impossible",
+  );
+}
+
+/** Who answers for a tribe, since when, and appointed by whom.
+ *  Distinct from the patriarche, who must belong to the tribe: a supervisor
+ *  is often external, and one person can carry several tribes. */
+export interface Supervision {
+  id: string;
+  tribu: { id: string; nom: string | null };
+  porteur: { type: "membre" | "equipe"; id: string; libelle: string; matricule: string | null };
+  role: string;
+  debut: string | null;
+  fin: string | null;
+  en_cours: boolean;
+  motif: string | null;
+  attribue_par: string | null;
+}
+
+export interface SupervisionsPage {
+  items: Supervision[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  tribus_sans_supervision: { id: string; nom: string }[];
+}
+
+export function getSupervisions(
+  token: string,
+  opts: { tribuId?: string; inclureCloses?: boolean; page?: number; taille?: number } = {},
+): Promise<SupervisionsPage> {
+  const p = new URLSearchParams();
+  if (opts.tribuId) p.set("tribu_id", opts.tribuId);
+  if (opts.inclureCloses) p.set("inclure_closes", "true");
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/tribus/supervisions?${p}`, token, "Supervisions indisponibles");
+}
+
+export function designerSupervision(
+  token: string,
+  body: { tribu_id: string; membre_id?: string; equipe_speciale_id?: string; role: string; motif?: string },
+): Promise<{ id: string; tribu_id: string; en_cours: boolean }> {
+  return authedSend("/api/v1/admin/tribus/supervisions", token, "POST", body, "Désignation impossible");
+}
+
+export function cloreSupervision(token: string, id: string, motif?: string): Promise<{ id: string; en_cours: boolean }> {
+  return authedSend(`/api/v1/admin/tribus/supervisions/${id}/clore`, token, "POST", { motif }, "Clôture impossible");
+}
+
+/** A member who declared belonging to the leading team, waiting for an answer. */
+export interface DeclarationDirigeante {
+  id: string;
+  membre_id: string;
+  nom: string | null;
+  email: string | null;
+  matricule: string | null;
+  statut_inscription: string | null;
+  declaree_le: string | null;
+  statut: "a_traiter" | "confirmee" | "refusee";
+  traitee_le: string | null;
+  traitee_par: string | null;
+  commentaire: string | null;
+  deja_membre: boolean;
+}
+
+export interface DeclarationsPage {
+  items: DeclarationDirigeante[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  en_attente: number;
+}
+
+export function getDeclarationsDirigeante(
+  token: string,
+  statut = "a_traiter",
+  page = 1,
+  taille = 10,
+): Promise<DeclarationsPage> {
+  return authedGet(
+    `/api/v1/admin/equipe-dirigeante/declarations?statut=${statut}&page=${page}&taille=${taille}`,
+    token,
+    "Déclarations indisponibles",
+  );
+}
+
+export function deciderDeclaration(
+  token: string,
+  id: string,
+  confirmee: boolean,
+  commentaire?: string,
+): Promise<{ id: string; statut: string; membre_id: string }> {
+  return authedSend(
+    `/api/v1/admin/equipe-dirigeante/declarations/${id}`,
+    token,
+    "POST",
+    { confirmee, commentaire },
+    "Décision impossible",
+  );
+}
+
+/** An institutional document: statutes, rules, a charter, a procedure.
+ *  A published version is never edited; a correction opens the next one, so what
+ *  somebody signed can always be shown again exactly as it was. */
+export interface DocumentInstitutionnel {
+  id: string;
+  cle: string;
+  categorie: string;
+  titre: string;
+  titre_en: string | null;
+  description: string | null;
+  visibilite: string;
+  statut: "brouillon" | "publie" | "archive";
+  ordre: number;
+  version_publiee: number | null;
+  versions: number;
+  maj_le: string | null;
+}
+
+export interface VersionDocument {
+  id: string;
+  version: number;
+  contenu: string | null;
+  contenu_en: string | null;
+  fichier: { nom: string | null; mime: string | null; taille: number | null } | null;
+  empreinte: string | null;
+  notes: string | null;
+  publiee: boolean;
+  publie_le: string | null;
+  publie_par: string | null;
+  cree_le: string | null;
+}
+
+export interface BibliothequePage {
+  items: DocumentInstitutionnel[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  resume: Record<string, number>;
+  categories: string[];
+  visibilites: string[];
+}
+
+export function getBibliotheque(token: string, page = 1, taille = 10, statut?: string): Promise<BibliothequePage> {
+  const p = new URLSearchParams({ page: String(page), taille: String(taille) });
+  if (statut) p.set("statut", statut);
+  return authedGet(`/api/v1/admin/bibliotheque?${p}`, token, "Bibliothèque indisponible");
+}
+
+export function getDocumentInstitutionnel(
+  token: string,
+  id: string,
+): Promise<DocumentInstitutionnel & { versions_detail: VersionDocument[] }> {
+  return authedGet(`/api/v1/admin/bibliotheque/${id}`, token, "Document indisponible");
+}
+
+export function creerDocumentInstitutionnel(
+  token: string,
+  body: { cle: string; titre: string; titre_en?: string; categorie: string; description?: string; visibilite: string; ordre?: number },
+): Promise<{ id: string; cle: string; statut: string }> {
+  return authedSend("/api/v1/admin/bibliotheque", token, "POST", body, "Création impossible");
+}
+
+export function ajouterVersion(
+  token: string,
+  documentId: string,
+  body: { contenu?: string; contenu_en?: string; notes?: string; publier: boolean },
+): Promise<{ id: string; version: number; publiee: boolean }> {
+  return authedSend(`/api/v1/admin/bibliotheque/${documentId}/versions`, token, "POST", body, "Version impossible");
+}
+
+export function publierVersion(token: string, documentId: string, versionId: string): Promise<{ version: number }> {
+  return authedSend(
+    `/api/v1/admin/bibliotheque/${documentId}/versions/${versionId}/publier`,
+    token, "POST", {}, "Publication impossible",
+  );
+}
+
+export function changerStatutDocument(token: string, documentId: string, statut: string): Promise<{ statut: string }> {
+  return authedSend(`/api/v1/admin/bibliotheque/${documentId}`, token, "PATCH", { statut }, "Changement impossible");
+}
+
+/** Who signed which consent text, in which version, and on what proof. */
+export interface SignatureConsentement {
+  id: string;
+  membre: string | null;
+  email: string | null;
+  matricule: string | null;
+  texte: string | null;
+  cle: string | null;
+  version: string | null;
+  signe_le: string | null;
+  canal: string | null;
+  code_verifie: boolean;
+  preuve: string | null;
+  rattache_au_texte: boolean;
+}
+
+export interface TracabilitePage {
+  items: SignatureConsentement[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  membres_concernes: number;
+  par_texte: { cle: string; titre: string; version: number; bloquant: boolean; signataires: number; manquants: number }[];
+}
+
+export function getTracabiliteConsentements(token: string, page = 1, taille = 10, cle?: string): Promise<TracabilitePage> {
+  const p = new URLSearchParams({ page: String(page), taille: String(taille) });
+  if (cle) p.set("cle", cle);
+  return authedGet(`/api/v1/admin/consentements/tracabilite?${p}`, token, "Traçabilité indisponible");
 }

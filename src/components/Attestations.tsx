@@ -14,6 +14,8 @@ import {
 import { useResource } from "../useResource.js";
 import { InfoTip } from "./InfoTip.js";
 import { Tabs } from "./Tabs.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 // Badge class and label per attestation status (awaiting an admin decision).
 const STATUT_BADGE: Record<string, string> = {
@@ -43,6 +45,8 @@ export function Attestations({ token }: { token: string }): JSX.Element {
   const fileAttente: Attestation[] = attestations.data ?? [];
   const matrice: PaysSignature[] = pays.data ?? [];
   const [tab, setTab] = useState<"file" | "pays">("file");
+
+  const pagination = usePagination(fileAttente, 10);
 
   return (
     <div className="page">
@@ -91,11 +95,20 @@ export function Attestations({ token }: { token: string }): JSX.Element {
                 </tr>
               </thead>
               <tbody>
-                {fileAttente.map((a) => (
+                {pagination.page.map((a) => (
                   <AttestationRow key={a.id} token={token} item={a} onChanged={attestations.reload} />
                 ))}
               </tbody>
             </table>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="attestations"
+      />
           </div>
         )}
       </section>

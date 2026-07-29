@@ -330,6 +330,19 @@
   font-style: normal;
   opacity: 1;
 }
+/* Holder line of a post: its own zone, distinct from the unit name and from the
+   function. An unfilled post says so here, while the unit keeps its real name. */
+.org-node-holder {
+  font-size: 12px;
+  color: var(--adsum-txt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-node-holder-vide {
+  color: #b6791b;
+  font-style: italic;
+}
 .org-node-meta {
   display: flex;
   flex-wrap: wrap;

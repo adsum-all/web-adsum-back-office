@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 
 import { ApiError, type EngagementInvitation, convertirEngagement, getEngagementInvitations } from "../api.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const SOURCE_LABEL: Record<string, string> = { qr: "QR code", manuel: "Saisie", import: "Import Excel" };
 
@@ -55,6 +57,8 @@ export function EngagementListe({ token, onConverted }: { token: string; onConve
     return `${i.prenoms ?? ""} ${i.nom ?? ""}`.trim() || "-";
   }
 
+  const pagination = usePagination(items, 10);
+
   return (
     <div>
       <header className="page-head">
@@ -91,7 +95,7 @@ export function EngagementListe({ token, onConverted }: { token: string; onConve
           <tbody>
             {leads.loading && <tr><td colSpan={6} className="muted">Chargement...</td></tr>}
             {!leads.loading && items.length === 0 && <tr><td colSpan={6} className="muted">Aucune invitation en attente.</td></tr>}
-            {items.map((i) => (
+            {pagination.page.map((i) => (
               <tr key={i.id}>
                 <td><input type="checkbox" checked={sel.has(i.id)} onChange={() => toggle(i.id)} aria-label={`Sélectionner ${i.email}`} /></td>
                 <td>
@@ -111,6 +115,15 @@ export function EngagementListe({ token, onConverted }: { token: string; onConve
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="engagements"
+      />
     </div>
   );
 }

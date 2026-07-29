@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { ApiError, type MembreProfile, getMembres } from "../api.js";
 import { type CibleMembre } from "./utilisateursShared.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 export function RechercheMembre({
   token,
@@ -34,6 +36,8 @@ export function RechercheMembre({
     }
   }
 
+  const pagination = usePagination(resultats, 10);
+
   return (
     <section className="form-card">
       <h2 className="section-title">Accorder un accès à un membre</h2>
@@ -63,7 +67,7 @@ export function RechercheMembre({
               </tr>
             </thead>
             <tbody>
-              {resultats.map((m) => (
+              {pagination.page.map((m) => (
                 <tr key={m.id}>
                   <td>
                     <strong>{m.nom_affiche ?? m.nom_affichage ?? `${m.nom ?? ""} ${m.prenoms ?? ""}`.trim()}</strong>
@@ -87,6 +91,15 @@ export function RechercheMembre({
               ))}
             </tbody>
           </table>
+      <Pagination
+        page={pagination.numero}
+        pages={pagination.pages}
+        total={pagination.total}
+        taille={pagination.taille}
+        onPage={pagination.setNumero}
+        onTaille={pagination.setTaille}
+        libelle="résultats"
+      />
         </div>
       )}
     </section>

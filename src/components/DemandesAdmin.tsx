@@ -19,6 +19,8 @@ import {
   updateAdminDemande,
 } from "../api.js";
 import { useResource } from "../useResource.js";
+import { usePagination } from "../usePagination.js";
+import { Pagination } from "./Pagination.js";
 
 const STATUT: Record<string, string> = {
   ouverte: "badge-warn",
@@ -99,6 +101,8 @@ export function DemandesAdmin({ token, canGerer = false }: { token: string; canG
 
   const list: DemandeItem[] = data ?? [];
 
+  const pagination = usePagination(list, 10);
+
   return (
     <div className="page">
       <header className="page-head">
@@ -133,7 +137,7 @@ export function DemandesAdmin({ token, canGerer = false }: { token: string; canG
 
       <div className="card-grid-2">
         <div>
-          {list.map((d) => (
+          {pagination.page.map((d) => (
             <button
               key={d.id}
               type="button"
@@ -150,6 +154,15 @@ export function DemandesAdmin({ token, canGerer = false }: { token: string; canG
               <span className={`badge ${STATUT[d.statut] ?? "badge-mut"}`}>{STATUT_LIBELLE[d.statut] ?? d.statut}</span>
             </button>
           ))}
+          <Pagination
+            page={pagination.numero}
+            pages={pagination.pages}
+            total={pagination.total}
+            taille={pagination.taille}
+            onPage={pagination.setNumero}
+            onTaille={pagination.setTaille}
+            libelle="demandes"
+          />
         </div>
         {openId && <Conversation token={token} id={openId} canGerer={canGerer} onChanged={reload} />}
       </div>
