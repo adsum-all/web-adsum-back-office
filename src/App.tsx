@@ -29,6 +29,7 @@ import { InformationsAdmin } from "./components/InformationsAdmin.js";
 import { RetentionArchivage } from "./components/RetentionArchivage.js";
 import { Organigramme } from "./components/Organigramme.js";
 import { EquipesSpeciales } from "./components/EquipesSpeciales.js";
+import { GouvernanceTransverse } from "./components/GouvernanceTransverse.js";
 import { Statistiques } from "./components/Statistiques.js";
 import { Terminaux } from "./components/Terminaux.js";
 import { GouvernanceAcces } from "./components/GouvernanceAcces.js";
@@ -55,6 +56,7 @@ type Section =
   | "organisation"
   | "organigramme"
   | "equipes-speciales"
+  | "supervision-tribus"
   | "informations"
   | "centre-diffusion"
   | "retention"
@@ -95,6 +97,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "organisation", label: "Coordinations & intendances", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "organigramme", label: "Organigramme hiérarchique", group: "ORGANISATION", perm: "organisation.consulter" },
   { id: "equipes-speciales", label: "Équipes spéciales", group: "ORGANISATION", perm: "organisation.equipes" },
+  { id: "supervision-tribus", label: "Supervision & équipe dirigeante", group: "ORGANISATION", perm: "organisation.supervision" },
   { id: "informations", label: "Informations importantes", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "centre-diffusion", label: "Centre de diffusion", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "retention", label: "Rétention et archivage", group: "COMMUNICATION", perm: "parametres.consulter" },
@@ -121,7 +124,8 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
 // library is added: the hash is the single source of truth, validated against NAV.
 const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
-  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme", "informations", "centre-diffusion", "retention", "evenements",
+  "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme",
+  "equipes-speciales", "supervision-tribus", "informations", "centre-diffusion", "retention", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
   "profil",
@@ -382,6 +386,9 @@ export function App(): JSX.Element {
           )}
           {activeId === "equipes-speciales" && (
             <EquipesSpeciales token={session.token} canGerer={held.has("organisation.equipes")} />
+          )}
+          {activeId === "supervision-tribus" && (
+            <GouvernanceTransverse token={session.token} canGerer={held.has("organisation.supervision")} />
           )}
           {activeId === "informations" && <InformationsAdmin token={session.token} />}
           {activeId === "centre-diffusion" && <CentreDiffusion token={session.token} />}

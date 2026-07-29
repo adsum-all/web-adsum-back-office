@@ -3949,3 +3949,103 @@ export function setPermissionApplications(
     "Enregistrement impossible",
   );
 }
+
+/** Who answers for a tribe, since when, and appointed by whom.
+ *  Distinct from the patriarche, who must belong to the tribe: a supervisor
+ *  is often external, and one person can carry several tribes. */
+export interface Supervision {
+  id: string;
+  tribu: { id: string; nom: string | null };
+  porteur: { type: "membre" | "equipe"; id: string; libelle: string; matricule: string | null };
+  role: string;
+  debut: string | null;
+  fin: string | null;
+  en_cours: boolean;
+  motif: string | null;
+  attribue_par: string | null;
+}
+
+export interface SupervisionsPage {
+  items: Supervision[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  tribus_sans_supervision: { id: string; nom: string }[];
+}
+
+export function getSupervisions(
+  token: string,
+  opts: { tribuId?: string; inclureCloses?: boolean; page?: number; taille?: number } = {},
+): Promise<SupervisionsPage> {
+  const p = new URLSearchParams();
+  if (opts.tribuId) p.set("tribu_id", opts.tribuId);
+  if (opts.inclureCloses) p.set("inclure_closes", "true");
+  p.set("page", String(opts.page ?? 1));
+  p.set("taille", String(opts.taille ?? 10));
+  return authedGet(`/api/v1/admin/tribus/supervisions?${p}`, token, "Supervisions indisponibles");
+}
+
+export function designerSupervision(
+  token: string,
+  body: { tribu_id: string; membre_id?: string; equipe_speciale_id?: string; role: string; motif?: string },
+): Promise<{ id: string; tribu_id: string; en_cours: boolean }> {
+  return authedSend("/api/v1/admin/tribus/supervisions", token, "POST", body, "Désignation impossible");
+}
+
+export function cloreSupervision(token: string, id: string, motif?: string): Promise<{ id: string; en_cours: boolean }> {
+  return authedSend(`/api/v1/admin/tribus/supervisions/${id}/clore`, token, "POST", { motif }, "Clôture impossible");
+}
+
+/** A member who declared belonging to the leading team, waiting for an answer. */
+export interface DeclarationDirigeante {
+  id: string;
+  membre_id: string;
+  nom: string | null;
+  email: string | null;
+  matricule: string | null;
+  statut_inscription: string | null;
+  declaree_le: string | null;
+  statut: "a_traiter" | "confirmee" | "refusee";
+  traitee_le: string | null;
+  traitee_par: string | null;
+  commentaire: string | null;
+  deja_membre: boolean;
+}
+
+export interface DeclarationsPage {
+  items: DeclarationDirigeante[];
+  total: number;
+  page: number;
+  taille: number;
+  pages: number;
+  en_attente: number;
+}
+
+export function getDeclarationsDirigeante(
+  token: string,
+  statut = "a_traiter",
+  page = 1,
+  taille = 10,
+): Promise<DeclarationsPage> {
+  return authedGet(
+    `/api/v1/admin/equipe-dirigeante/declarations?statut=${statut}&page=${page}&taille=${taille}`,
+    token,
+    "Déclarations indisponibles",
+  );
+}
+
+export function deciderDeclaration(
+  token: string,
+  id: string,
+  confirmee: boolean,
+  commentaire?: string,
+): Promise<{ id: string; statut: string; membre_id: string }> {
+  return authedSend(
+    `/api/v1/admin/equipe-dirigeante/declarations/${id}`,
+    token,
+    "POST",
+    { confirmee, commentaire },
+    "Décision impossible",
+  );
+}
