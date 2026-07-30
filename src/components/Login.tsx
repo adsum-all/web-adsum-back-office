@@ -5,9 +5,12 @@ import { PasswordInput } from "./PasswordInput.js";
 
 interface LoginProps {
   onAuth: (session: Session) => void;
+  /** Why the previous session ended, so the return here is explained rather than
+   *  abrupt. Absent on a first sign-in. */
+  avis?: string;
 }
 
-export function Login({ onAuth }: LoginProps): JSX.Element {
+export function Login({ onAuth, avis }: LoginProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -62,6 +65,8 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
             <span className="brand-sub">Back-office</span>
           </span>
         </div>
+
+        {avis && <p className="banner banner-info small">{avis}</p>}
 
         {!otpRequired && (
           <>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type Session, getMyPermissions, getMesPreferences, logoutSession } from "./api.js";
+import { type RaisonFin, messageFinDeSession, surFinDeSession } from "./lib/sessionExpiree.js";
 import { applyTheme, saveTheme } from "./lib/theme.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
@@ -159,6 +160,9 @@ function saveSession(s: Session | null): void {
 export function App(): JSX.Element {
   const [session, setSession] = useState<Session | null>(() => loadSession());
   const [section, setSection] = useState<Section>(() => sectionFromHash() ?? "dashboard");
+  // Why the last session ended, shown on the sign-in screen so the return is
+  // explained. Cleared as soon as somebody signs in again.
+  const [finDeSession, setFinDeSession] = useState<RaisonFin | null>(null);
 
   // Navigate by writing the hash; a hashchange (link, back/forward, refresh) syncs state
   // back, so the URL and the visible section never drift apart.
@@ -179,7 +183,18 @@ export function App(): JSX.Element {
   const onAuth = useCallback((s: Session) => {
     saveSession(s);
     setSession(s);
+    setFinDeSession(null);
   }, []);
+
+  // The server said the session is over. Until now every screen showed this as a red
+  // "Session expirée" banner and left the administrator on a page that no longer
+  // worked, which several people reported as a defect. An expired session is an
+  // ordinary event, and its ordinary answer is the sign-in screen.
+  useEffect(() => surFinDeSession((raison) => {
+    saveSession(null);
+    setSession(null);
+    setFinDeSession(raison);
+  }), []);
   const deconnexion = useCallback(() => {
     if (session?.token) void logoutSession(session.token).catch(() => undefined);
     saveSession(null);
@@ -265,7 +280,7 @@ export function App(): JSX.Element {
   }, [session, visibleNav, section]);
 
   if (!session) {
-    return <Login onAuth={onAuth} />;
+    return <Login onAuth={onAuth} avis={finDeSession ? messageFinDeSession(finDeSession) : undefined} />;
   }
   if (session.permissions === undefined) {
     return <div className="auth"><p className="muted">Chargement de la session...</p></div>;

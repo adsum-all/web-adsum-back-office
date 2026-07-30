@@ -3,6 +3,8 @@
 // Admin endpoints are built in parallel by the backend, so reads are defensive:
 // a 404 is surfaced as a typed error the UI can present without crashing.
 
+import { signalerFinDeSession } from "./lib/sessionExpiree.js";
+
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://adsum-api.vercel.app";
 
 export type Role = "admin" | "super_admin" | string;
@@ -494,6 +496,9 @@ export interface Evenement {
   serie_id?: string | null;
   /** Per-activity response-window override in hours; null = global default. */
   fenetre_reponse_heures?: number | null;
+  /** Response window in MINUTES. Preferred over the hours field: an activity running
+   *  forty minutes could not be expressed while hours were the only unit. */
+  fenetre_reponse_minutes?: number | null;
   /** Rich description (sanitised HTML) and the human contributors. */
   description?: string | null;
   intervenant_principal?: string | null;
@@ -615,6 +620,7 @@ export interface EvenementCreateInput {
   cible_emails?: string[];
   /** Response window in hours after the end; empty = admin default (6h). */
   fenetre_reponse_heures?: number;
+  fenetre_reponse_minutes?: number;
   /** IANA zone the start/end were entered in (default Africa/Abidjan = GMT). */
   fuseau_horaire?: string;
   /** Extra occurrences (beyond debut/fin) turning the activity into a series.
@@ -698,6 +704,14 @@ async function request<T>(
     },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      // The session is over. Reported here rather than left to the caller: every
+      // screen would otherwise show a red "Session expirée" banner on a page that
+      // no longer works, which reads as a defect instead of the ordinary end of a
+      // session. The shell listens and brings the administrator back to sign in.
+      const motif = res.headers.get("X-Session-Fin");
+      signalerFinDeSession(motif === "inactivite" ? "inactivite" : motif === "revoquee" ? "revoquee" : "expiree");
+    }
     throw new ApiError(await detailOr(res, onError), res.status);
   }
   if (res.status === 204) {
@@ -4162,4 +4176,34 @@ export function getTracabiliteConsentements(token: string, page = 1, taille = 10
   const p = new URLSearchParams({ page: String(page), taille: String(taille) });
   if (cle) p.set("cle", cle);
   return authedGet(`/api/v1/admin/consentements/tracabilite?${p}`, token, "Traçabilité indisponible");
+}
+
+/** A duration the organisation decides for itself, expressed in minutes.
+ *  Sessions, attendance windows: none of these is a technical fact, and a platform
+ *  meant to serve organisations it has not met cannot decide them in code. */
+export interface ReglageDuree {
+  cle: string;
+  libelle: string;
+  aide: string;
+  minutes: number;
+  lisible: string;
+  defaut: number;
+  minimum: number;
+  maximum: number;
+  /** What zero means for this setting, or null when zero is refused. */
+  zero_signifie: string | null;
+  suggestions: { minutes: number; lisible: string }[];
+  par_defaut: boolean;
+}
+
+export function getReglagesDurees(token: string): Promise<{ items: ReglageDuree[] }> {
+  return authedGet("/api/v1/admin/reglages/durees", token, "Réglages de durée indisponibles");
+}
+
+export function setReglageDuree(
+  token: string,
+  cle: string,
+  minutes: number,
+): Promise<{ cle: string; minutes: number; lisible: string }> {
+  return authedSend(`/api/v1/admin/reglages/durees/${cle}`, token, "PUT", { minutes }, "Enregistrement impossible");
 }
