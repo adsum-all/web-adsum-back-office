@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { ApiError, type Session, getMyPermissions, login, loginVerify } from "../api.js";
+import { useMarque } from "../lib/useMarque.js";
 import { PasswordInput } from "./PasswordInput.js";
 
 interface LoginProps {
@@ -11,6 +12,7 @@ interface LoginProps {
 }
 
 export function Login({ onAuth, avis }: LoginProps): JSX.Element {
+  const marque = useMarque();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -59,9 +61,9 @@ export function Login({ onAuth, avis }: LoginProps): JSX.Element {
     <div className="auth">
       <form onSubmit={submit} className="auth-card">
         <div className="brand brand-lg">
-          <span className="brand-logo" aria-hidden="true">A</span>
+          <span className="brand-logo" aria-hidden="true">{marque.initiale}</span>
           <span className="brand-text">
-            ADSUM
+            {marque.marque}
             <span className="brand-sub">Back-office</span>
           </span>
         </div>

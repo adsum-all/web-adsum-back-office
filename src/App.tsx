@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { type Session, getMyPermissions, getMesPreferences, logoutSession } from "./api.js";
 import { type RaisonFin, messageFinDeSession, surFinDeSession } from "./lib/sessionExpiree.js";
 import { applyTheme, saveTheme } from "./lib/theme.js";
+import { useMarque } from "./lib/useMarque.js";
 import { Commissions } from "./components/Commissions.js";
 import { ComptageVoletB } from "./components/ComptageVoletB.js";
 import { Consentements } from "./components/Consentements.js";
@@ -163,6 +164,7 @@ export function App(): JSX.Element {
   // Why the last session ended, shown on the sign-in screen so the return is
   // explained. Cleared as soon as somebody signs in again.
   const [finDeSession, setFinDeSession] = useState<RaisonFin | null>(null);
+  const marque = useMarque();
 
   // Navigate by writing the hash; a hashchange (link, back/forward, refresh) syncs state
   // back, so the URL and the visible section never drift apart.
@@ -300,10 +302,10 @@ export function App(): JSX.Element {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-logo" aria-hidden="true">
-            A
+            {marque.initiale}
           </span>
           <span className="brand-text">
-            ADSUM
+            {marque.marque}
             <span className="brand-sub">Back-office</span>
           </span>
         </div>

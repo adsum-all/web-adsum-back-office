@@ -4207,3 +4207,25 @@ export function setReglageDuree(
 ): Promise<{ cle: string; minutes: number; lisible: string }> {
   return authedSend(`/api/v1/admin/reglages/durees/${cle}`, token, "PUT", { minutes }, "Enregistrement impossible");
 }
+
+/** The organisation's public identity, readable before signing in.
+ *  The sign-in screen and the header show a name and a palette to somebody with no
+ *  token yet: written into the code, every deployment would greet its users with
+ *  somebody else's name. */
+export interface MarquePublique {
+  marque: string;
+  initiale: string;
+  organisation: string;
+  organisation_courte: string;
+  slogan: string | null;
+  logo_url: string | null;
+  site: string | null;
+  couleur: string;
+  couleur_sombre: string;
+}
+
+export async function getMarquePublique(): Promise<MarquePublique> {
+  const res = await fetch(`${BASE}/api/v1/marque`);
+  if (!res.ok) throw new ApiError("Identité indisponible", res.status);
+  return (await res.json()) as MarquePublique;
+}
