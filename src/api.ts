@@ -4212,6 +4212,16 @@ export function setReglageDuree(
  *  The sign-in screen and the header show a name and a palette to somebody with no
  *  token yet: written into the code, every deployment would greet its users with
  *  somebody else's name. */
+/** One term, in the words this organisation uses. */
+export interface MotOrganisation {
+  singulier: string;
+  pluriel: string;
+  article: string;
+  Singulier: string;
+  Pluriel: string;
+  avec_article: string;
+}
+
 export interface MarquePublique {
   marque: string;
   initiale: string;
@@ -4222,6 +4232,8 @@ export interface MarquePublique {
   site: string | null;
   couleur: string;
   couleur_sombre: string;
+  /** How this organisation names its units and responsibilities. */
+  mots: Record<string, MotOrganisation>;
 }
 
 export async function getMarquePublique(): Promise<MarquePublique> {
