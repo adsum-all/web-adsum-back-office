@@ -26,6 +26,7 @@ import {
 } from "../api.js";
 import { civilName, formatDate, fullName, initials, uniteLabel } from "../format.js";
 import { useResource } from "../useResource.js";
+import { useMarque } from "../lib/useMarque.js";
 import { Conversation } from "./DemandesAdmin.js";
 import { Kpi } from "./Kpi.js";
 import { MembreConsecration } from "./MembreConsecration.js";
@@ -98,6 +99,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 export function MembreDetail({ token, id, onBack, onOpenAnnuaire, canAdministrer = false, canAccesAdmin = false }: MembreDetailProps): JSX.Element {
+  const marque = useMarque();
   const membre = useResource(() => getMembre(token, id), [token, id]);
   const commissions = useResource(() => getCommissions(token), [token]);
   const tribus = useResource(() => getTribus(token), [token]);
@@ -305,7 +307,7 @@ export function MembreDetail({ token, id, onBack, onOpenAnnuaire, canAdministrer
         <h2 className="card-title">Informations générales</h2>
         <dl className="detail-grid">
           <div>
-            <dt>Matricule ADSUM</dt>
+            <dt>Matricule {marque.marque}</dt>
             <dd className="mono">{m.matricule}</dd>
           </div>
           <div>

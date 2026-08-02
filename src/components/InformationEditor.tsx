@@ -15,6 +15,7 @@ import {
   exportInformationCSV,
   getCommissions,
   getCoordinations,
+  getFonctions,
   getInformationStats,
   getIntendances,
   getMonProfilAuteur,
@@ -25,6 +26,7 @@ import {
   updateInformation,
   uploadInformationMedia,
 } from "../api.js";
+import { useMarque } from "../lib/useMarque.js";
 import { InformationConfirm } from "./InformationConfirm.js";
 import { DiffusionControls } from "./InformationDiffusionControls.js";
 import { InformationSuivi } from "./InformationSuivi.js";
@@ -72,6 +74,33 @@ export function InformationEditor({
       ? { titre: info.titre, sous_titre: info.sous_titre ?? "", contenu: info.contenu, priorite: info.priorite, auteur: info.auteur ?? "", signature: info.signature ?? "", signature_url: info.signature_url ?? "", protege: info.protege, institutionnelle: info.institutionnelle, affiche_entete: info.affiche_entete, canaux: info.canaux ?? ["application", "telegram"], requiert_accuse: info.requiert_accuse, lecture_vocale_auto: info.lecture_vocale_auto, lien_url: info.lien_url ?? "", action_label: info.action_label ?? "", action_url: info.action_url ?? "", expire_le: info.expire_le, epingle_jusqu: info.epingle_jusqu, cibles: info.cibles }
       : emptyInput(),
   );
+  const marque = useMarque();
+  // Signature shortcuts, taken from the organisation's own catalogue of functions
+  // rather than from literals naming one organisation's roles. Only the prominent,
+  // active ones: this is a shortcut bar, not the whole catalogue.
+  const [signaturesSuggerees, setSignaturesSuggerees] = useState<string[]>([]);
+  useEffect(() => {
+    let vivant = true;
+    void getFonctions(token)
+      .then((fonctions) => {
+        if (!vivant) return;
+        setSignaturesSuggerees(
+          fonctions
+            .filter((f) => f.actif && f.est_vip)
+            .sort((a, b) => a.ordre - b.ordre)
+            .slice(0, 4)
+            .map((f) => f.libelle_n || f.libelle_h)
+            .filter(Boolean),
+        );
+      })
+      .catch(() => {
+        // The shortcuts are a convenience. If the catalogue cannot be read, the
+        // administrator still types the signature by hand.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [token]);
   // Mandatory display duration: pick a preset (which computes expire_le) or a precise date.
   const [duree, setDuree] = useState<string>(info?.expire_le ? "date" : "24h");
   const [id, setId] = useState<string | null>(info?.id ?? null);
@@ -235,20 +264,25 @@ export function InformationEditor({
 
           <div className="field">
             <span>Signature (facultative)</span>
-            <input value={form.signature ?? ""} onChange={(e) => set("signature", e.target.value)} maxLength={200} disabled={!contenuEditable} placeholder="Ex : Le Sacerdoce Royal" />
+            <input value={form.signature ?? ""} onChange={(e) => set("signature", e.target.value)} maxLength={200} disabled={!contenuEditable} placeholder={`Ex : ${marque.organisation}`} />
             {contenuEditable && (
               <div className="info-auteur-btns">
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Sacerdoce Royal")}>Le Sacerdoce Royal</button>
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Fondateur")}>Le Fondateur</button>
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Berger des Missions")}>Le Berger des Missions</button>
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "La Modératrice")}>La Modératrice</button>
-                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "Le Secrétariat Général")}>Le Secrétariat Général</button>
+                {/* Suggestions taken from this organisation's own name and its own
+                    catalogue of functions. They used to be four literals naming one
+                    organisation's roles, so a parish was offered "Le Berger des
+                    Missions" as a signature for its announcements. */}
+                <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", marque.organisation)}>{marque.organisation}</button>
+                {signaturesSuggerees.map((libelle) => (
+                  <button key={libelle} type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", libelle)}>{libelle}</button>
+                ))}
+                {/* Kept as a literal because it names no organisation in particular:
+                    every one of them has an administration. */}
                 <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", "L'Administration")}>L'Administration</button>
                 {monNom && <button type="button" className="btn btn-ghost btn-inline" onClick={() => set("signature", monNom)}>Mon nom</button>}
               </div>
             )}
           </div>
-          <label className="field"><span>Lien de signature (site officiel, facultatif)</span><input value={form.signature_url ?? ""} onChange={(e) => set("signature_url", e.target.value)} placeholder="https://sacerdoceroyal.info" disabled={!contenuEditable} /></label>
+          <label className="field"><span>Lien de signature (site officiel, facultatif)</span><input value={form.signature_url ?? ""} onChange={(e) => set("signature_url", e.target.value)} placeholder={marque.site ?? "https://exemple.org"} disabled={!contenuEditable} /></label>
           {editable && (
             <>
               <p className="field-group-title">Note vocale</p>

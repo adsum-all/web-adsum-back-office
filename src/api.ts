@@ -752,6 +752,8 @@ export interface LoginResult {
   otpRequired: boolean;
   session: Session | null;
   canal: string | null;
+  /** Why the mailbox refused our last messages, when it did. Null otherwise. */
+  alerteEmail: string | null;
 }
 
 function loginError(status: number): ApiError {
@@ -774,11 +776,12 @@ export async function login(email: string, password: string): Promise<LoginResul
     throw loginError(0);
   }
   if (!res.ok) throw loginError(res.status);
-  const data = (await res.json()) as { otp_required?: boolean; access_token?: string | null; role?: Role; canal?: string | null };
+  const data = (await res.json()) as { otp_required?: boolean; access_token?: string | null; role?: Role; canal?: string | null; alerte_email?: string | null };
   return {
     otpRequired: Boolean(data.otp_required),
     session: data.access_token ? { token: data.access_token, role: data.role ?? "" } : null,
     canal: data.canal ?? null,
+    alerteEmail: data.alerte_email ?? null,
   };
 }
 
@@ -4230,6 +4233,11 @@ export interface MarquePublique {
   slogan: string | null;
   logo_url: string | null;
   site: string | null;
+  /** Where this organisation's other applications are served. Null when undeclared,
+   *  which means "offer no link" rather than "fall back to somebody else's address". */
+  url_membre: string | null;
+  url_back_office: string | null;
+  url_public: string | null;
   couleur: string;
   couleur_sombre: string;
   /** How this organisation names its units and responsibilities. */

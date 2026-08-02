@@ -6,10 +6,12 @@ import {
   getModeleAnniversaire,
   setModeleAnniversaire,
 } from "../api.js";
+import { useMarque } from "../lib/useMarque.js";
 import { Switch } from "./Switch.js";
 
 /** Admin editor for the automatic birthday message, plus a manual trigger. */
 export function Anniversaires({ token }: { token: string }): JSX.Element {
+  const marque = useMarque();
   const [modele, setModele] = useState<ModeleAnniversaire | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -119,7 +121,9 @@ export function Anniversaires({ token }: { token: string }): JSX.Element {
           <p className="muted" style={{ maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>
             {(modele?.corps ?? "").replace("{prenom}", "Emmanuel")}
           </p>
-          <p style={{ marginTop: 14, fontWeight: 600, color: "var(--adsum-accent, #2a4fad)" }}>Sacerdoce Royal 🙏</p>
+          {/* The preview is signed by whoever is actually sending. Written as a
+              literal, every organisation previewed a message signed by another. */}
+          <p style={{ marginTop: 14, fontWeight: 600, color: "var(--adsum-accent, #2a4fad)" }}>{marque.organisation}</p>
         </div>
       </section>
     </div>
