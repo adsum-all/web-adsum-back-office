@@ -26,6 +26,28 @@ export function CentreDiffusion({ token }: Readonly<{ token: string }>): JSX.Ele
     void getCentreDiffusion(token).then(setD).catch((e) => setErr(String(e?.message ?? e)));
   }, [token]);
 
+  // Built before the loading branch below, from a payload that may not be there yet.
+  // React counts the hooks a render calls and refuses a render that calls a different
+  // number than the one before: usePagination sat after that branch, so it was
+  // skipped while the page was loading and reached the moment the data arrived. The
+  // page crashed at exactly the point where it was about to become useful, and took
+  // the whole application tree with it.
+  const cartes: { label: string; valeur: string | number; ton?: string }[] = d
+    ? [
+        { label: "Informations actives", valeur: d.informations_actives },
+        { label: "Expirent sous 48 h", valeur: d.informations_expirant_48h, ton: d.informations_expirant_48h > 0 ? "warn" : undefined },
+        { label: "Brouillons", valeur: d.informations_brouillons },
+        { label: "Programmées", valeur: d.informations_programmees },
+        { label: "Archivées", valeur: d.informations_archivees },
+        { label: "Taux de lecture (90 j)", valeur: `${d.taux_lecture} %` },
+        { label: "Non lues (actives)", valeur: d.informations_non_lues },
+        { label: "Relais Telegram (30 j)", valeur: d.telegram_relais_30j },
+        { label: "Échecs d'envoi ouverts", valeur: d.echecs_envoi, ton: d.echecs_envoi > 0 ? "danger" : undefined },
+      ]
+    : [];
+
+  const pagination = usePagination(cartes, 10);
+
   if (!d) {
     return (
       <div className="page">
@@ -34,20 +56,6 @@ export function CentreDiffusion({ token }: Readonly<{ token: string }>): JSX.Ele
       </div>
     );
   }
-
-  const cartes: { label: string; valeur: string | number; ton?: string }[] = [
-    { label: "Informations actives", valeur: d.informations_actives },
-    { label: "Expirent sous 48 h", valeur: d.informations_expirant_48h, ton: d.informations_expirant_48h > 0 ? "warn" : undefined },
-    { label: "Brouillons", valeur: d.informations_brouillons },
-    { label: "Programmées", valeur: d.informations_programmees },
-    { label: "Archivées", valeur: d.informations_archivees },
-    { label: "Taux de lecture (90 j)", valeur: `${d.taux_lecture} %` },
-    { label: "Non lues (actives)", valeur: d.informations_non_lues },
-    { label: "Relais Telegram (30 j)", valeur: d.telegram_relais_30j },
-    { label: "Échecs d'envoi ouverts", valeur: d.echecs_envoi, ton: d.echecs_envoi > 0 ? "danger" : undefined },
-  ];
-
-  const pagination = usePagination(cartes, 10);
 
   return (
     <div className="page">

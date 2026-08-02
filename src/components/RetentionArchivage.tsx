@@ -20,6 +20,12 @@ export function RetentionArchivage({ token, canGerer }: Readonly<{ token: string
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Declared here, above the loading branch below, and not next to the table it
+  // drives. React counts the hooks a render calls and refuses a render that calls a
+  // different number than the one before: called after that branch, this hook was
+  // skipped while the page was loading and reached the moment the data arrived, so
+  // the page crashed at exactly the point where it was about to become useful.
+  const pagination = usePagination(journal, 10);
 
   const charger = (): void => {
     void getRetentionEtat(token).then((e) => { setEtat(e); setCfg(e.config); }).catch((x) => setErr(String(x?.message ?? x)));
@@ -55,8 +61,6 @@ export function RetentionArchivage({ token, canGerer }: Readonly<{ token: string
   }
 
   const tc = etat.telegram_capacite;
-
-  const pagination = usePagination(journal, 10);
 
   return (
     <div className="page">
