@@ -270,6 +270,8 @@ export interface Tribu {
   nom: string;
   description?: string | null;
   publie?: boolean;
+  /** The colour the tribe is known by, hexadecimal, or null when none is set. */
+  couleur?: string | null;
   patriarche: string | null;
   patriarche_membre_id: string | null;
   patriarche_nom: string | null;
@@ -2413,6 +2415,12 @@ export function updateTerminal(
 
 export function getTribus(token: string): Promise<Tribu[]> {
   return authedGet<Tribu[]>("/api/v1/admin/tribus", token, "Tribus indisponibles");
+}
+
+/** Change a tribe's colour. An empty string clears it, and the interface then shows
+ *  no swatch rather than falling back to a colour nobody chose. */
+export function modifierCouleurTribu(token: string, tribuId: string, couleur: string): Promise<Tribu> {
+  return authedSend<Tribu>(`/api/v1/admin/tribus/${tribuId}`, token, "PATCH", { couleur }, "Couleur non enregistrée");
 }
 
 /** Assign (membreId set) or revoke (membreId null) the human patriarche of a tribe. */

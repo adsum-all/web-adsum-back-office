@@ -21,6 +21,7 @@ import { useResource } from "../useResource.js";
 import { OrgItemRow } from "./OrgItemRow.js";
 import { PaysCombo } from "./PaysCombo.js";
 import { Tabs } from "./Tabs.js";
+import { TribuCouleur } from "./TribuCouleur.js";
 
 /**
  * Coordinations and intendances: two independent structures of the same level.
@@ -130,20 +131,35 @@ export function Organisation({
         {tribus.error && <p className="banner banner-error">{tribus.error}</p>}
         <ul className="list">
           {(tribus.data ?? []).filter((t: Tribu) => match(t.nom, qTribu)).map((t: Tribu) => (
-            <OrgItemRow
-              key={t.id}
-              token={token}
-              entity="tribus"
-              id={t.id}
-              nom={t.nom}
-              meta={t.description ?? undefined}
-              publie={t.publie ?? true}
-              edit={{ description: t.description ?? "" }}
-              // Row edit/publish/delete route through /admin/organisation/tribus =
-              // organisation.administrer (not tribus.administrer, which only creates).
-              canGerer={canGerer}
-              onChanged={tribus.reload}
-            />
+            <li key={t.id} style={{ listStyle: "none" }}>
+              <OrgItemRow
+                token={token}
+                entity="tribus"
+                id={t.id}
+                nom={t.nom}
+                meta={t.description ?? undefined}
+                publie={t.publie ?? true}
+                edit={{ description: t.description ?? "" }}
+                // Row edit/publish/delete route through /admin/organisation/tribus =
+                // organisation.administrer (not tribus.administrer, which only creates).
+                canGerer={canGerer}
+                onChanged={tribus.reload}
+              />
+              {/* The colour a tribe is known by, next to the tribe it belongs to.
+                  Members recognise theirs by it before they read the name, and it is
+                  a setting rather than a constant so another organisation can use its
+                  own, or none. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 12px 10px" }}>
+                <span className="muted small">Couleur</span>
+                <TribuCouleur
+                  token={token}
+                  tribuId={t.id}
+                  couleur={t.couleur}
+                  canGerer={canGerer}
+                  onChanged={tribus.reload}
+                />
+              </div>
+            </li>
           ))}
         </ul>
         {!tribus.loading && (tribus.data ?? []).length === 0 && <p className="muted">Aucune tribu.</p>}
