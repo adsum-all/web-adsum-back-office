@@ -65,7 +65,15 @@ export function EvenementEdition({
   const [liensList, setLiensList] = useState<string[]>(
     evenement.liens && evenement.liens.length > 0 ? evenement.liens : evenement.lien_session ? [evenement.lien_session] : [""],
   );
-  const [fenetre, setFenetre] = useState<string>(evenement.fenetre_reponse_heures != null ? String(evenement.fenetre_reponse_heures) : "");
+  // Minutes, so a forty-minute window is expressible. An activity that only carries
+  // the older value in hours is shown converted, and saved back in minutes.
+  const [fenetre, setFenetre] = useState<string>(
+    evenement.fenetre_reponse_minutes != null
+      ? String(evenement.fenetre_reponse_minutes)
+      : evenement.fenetre_reponse_heures != null
+        ? String(evenement.fenetre_reponse_heures * 60)
+        : "",
+  );
   // Full targeting is editable after creation (the audience can change).
   const [cibleType, setCibleType] = useState<CibleType>(evenement.cible_type ?? "general");
   const [cibleId, setCibleId] = useState<string | null>(evenement.cible_id ?? null);
@@ -139,7 +147,7 @@ export function EvenementEdition({
         cible_emails: emails,
         // Preserve (or edit) the per-activity response window; without this the
         // update would reset a custom window back to the global default.
-        fenetre_reponse_heures: fenetre ? Number(fenetre) : undefined,
+        fenetre_reponse_minutes: fenetre ? Number(fenetre) : undefined,
         fuseau_horaire: zone,
         description: description.trim() || null,
         intervenant_principal: principal.trim() || null,
@@ -245,10 +253,17 @@ export function EvenementEdition({
         </label>
         <label>
           <span>
-            Fenêtre de réponse (h après la fin)
-            <InfoTip title="Fenêtre de réponse" text="Durée, en heures après la fin, pendant laquelle le questionnaire de la session reste ouvert. Laisser vide pour appliquer le réglage global." />
+            Fenêtre de réponse (minutes après la fin)
+            <InfoTip title="Fenêtre de réponse" text="Durée, en minutes après la fin, pendant laquelle le questionnaire et le pointage de la session restent ouverts. Quinze minutes, quarante-cinq, une heure trente : la minute permet de dire exactement la durée voulue. Laisser vide pour appliquer le réglage global." />
           </span>
-          <input type="number" min={1} max={336} placeholder="Réglage global" value={fenetre} onChange={(e) => setFenetre(e.target.value)} />
+          <input type="number" min={0} max={20160} step={5} placeholder="Réglage global" value={fenetre} onChange={(e) => setFenetre(e.target.value)} />
+          <span className="muted small">
+            {fenetre && Number(fenetre) > 0
+              ? Number(fenetre) < 60
+                ? `${Number(fenetre)} minutes`
+                : `${Math.floor(Number(fenetre) / 60)} h${Number(fenetre) % 60 ? ` ${Number(fenetre) % 60}` : ""}`
+              : "Réglage global appliqué"}
+          </span>
         </label>
       </div>
       <div data-tab="destinataires" className="form-grid" hidden={tab !== "destinataires"}>
