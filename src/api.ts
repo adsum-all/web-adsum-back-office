@@ -3093,6 +3093,55 @@ export function deleteTechnicalAdminDefinitif(token: string, id: string): Promis
   return request<void>(`/api/v1/admin/technical-super-admins/${id}/definitif`, token, { method: "DELETE" }, "Suppression définitive impossible");
 }
 
+/* ---- Bascule de fournisseur d'e-mail ------------------------------------- */
+
+export interface ChampFournisseur {
+  cle: string;
+  libelle: string;
+  aide: string;
+  secret: boolean;
+  requis: boolean;
+  exemple: string;
+  valeur: string;
+  valeur_masquee: string;
+  renseigne: boolean;
+}
+export interface FournisseurEmail {
+  code: string;
+  libelle: string;
+  resume: string;
+  limite: string;
+  pret: boolean;
+  manquant: string[];
+  actif: boolean;
+  secours: boolean;
+  rang: number | null;
+  preselections: Record<string, string>[];
+  champs: ChampFournisseur[];
+}
+export interface EmailFournisseursData {
+  chaine: string[];
+  commun: { cle: string; libelle: string; aide: string; requis: boolean; exemple: string; valeur: string; renseigne: boolean }[];
+  fournisseurs: FournisseurEmail[];
+}
+export function getEmailFournisseurs(token: string): Promise<EmailFournisseursData> {
+  return authedGet<EmailFournisseursData>("/api/v1/admin/email/fournisseurs", token, "Réservé aux administrateurs des intégrations");
+}
+export function saveEmailFournisseur(token: string, code: string, valeurs: Record<string, string>): Promise<{ ok: boolean; etat: FournisseurEmail }> {
+  return authedSend(`/api/v1/admin/email/fournisseurs/${code}`, token, "PUT", { valeurs }, "Enregistrement impossible");
+}
+export function saveEmailCommun(token: string, valeurs: Record<string, string>): Promise<{ ok: boolean }> {
+  return authedSend("/api/v1/admin/email/commun", token, "PUT", { valeurs }, "Enregistrement impossible");
+}
+/** Real send through ONE provider, active or not: proves it works before switching. */
+export function testEmailFournisseur(token: string, code: string, destinataire?: string): Promise<{ envoye: boolean; fournisseur: string; destinataire?: string; erreur: string }> {
+  return authedSend(`/api/v1/admin/email/fournisseurs/${code}/test`, token, "POST", destinataire ? { destinataire } : {}, "Test impossible");
+}
+/** Ordered chain: the first provider carries the traffic, the next ones catch a failure. */
+export function setEmailChaine(token: string, chaine: string[]): Promise<{ ok: boolean; chaine: string[]; avant: string[] }> {
+  return authedSend("/api/v1/admin/email/chaine", token, "PUT", { chaine }, "Bascule impossible");
+}
+
 export interface SuppressionApercu {
   membre_id: string;
   nom: string;

@@ -1970,3 +1970,57 @@ h3 {
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(16, 20, 39, 0.06);
 }
+
+
+/* --- Bascule de fournisseur d'e-mail -------------------------------------
+   Tout est prefixe fe- et rien n'est redefini globalement : une regle non
+   portee (par exemple .kpi) gagne sur une regle existante et rend un texte
+   invisible sans qu'aucune erreur ne soit levee. */
+.fe-actif {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+  padding: 14px 18px; margin-bottom: 18px;
+  background: var(--adsum-soft); border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-lg);
+}
+.fe-actif-label { color: var(--adsum-mut); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+.fe-actif strong { font-size: 17px; color: var(--adsum-ink); }
+.fe-actif-secours { color: var(--adsum-mut); font-size: 13px; }
+
+.fe-bloc { margin-bottom: 18px; padding: 14px 18px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-lg); background: var(--adsum-panel); }
+.fe-bloc > summary { cursor: pointer; font-weight: 600; color: var(--adsum-ink); }
+.fe-bloc[open] > summary { margin-bottom: 14px; }
+
+.fe-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.fe-carte { display: flex; flex-direction: column; gap: 10px; margin-bottom: 0; }
+.fe-carte-actif { border-color: var(--adsum-acc); box-shadow: var(--adsum-shadow-md); }
+.fe-carte-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fe-carte-tete h2 { margin: 0; font-size: 18px; }
+
+.fe-etat { padding: 3px 10px; border-radius: var(--adsum-radius-pill); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.fe-etat-actif { background: var(--adsum-ok-bg); color: var(--adsum-ok); }
+.fe-etat-secours { background: var(--adsum-info-bg); color: var(--adsum-acc); }
+.fe-etat-pret { background: var(--adsum-soft); color: var(--adsum-ink2); }
+.fe-etat-incomplet { background: var(--adsum-danger-bg); color: var(--adsum-danger); }
+
+.fe-resume { margin: 0; color: var(--adsum-ink2); font-size: 14px; }
+.fe-limite { margin: 0; color: var(--adsum-mut); font-size: 13px; font-style: italic; }
+.fe-manquant { margin: 0; color: var(--adsum-danger); font-size: 13px; }
+.fe-resultat { margin: 0; padding: 10px 12px; background: var(--adsum-soft); border-left: 3px solid var(--adsum-acc); border-radius: var(--adsum-radius-md); font-size: 13px; color: var(--adsum-ink2); }
+
+.fe-config { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; border-top: 1px dashed var(--adsum-line); }
+.fe-champs { display: flex; flex-direction: column; gap: 14px; }
+.fe-champ { display: flex; flex-direction: column; gap: 4px; }
+.fe-champ-titre { font-size: 13px; font-weight: 600; color: var(--adsum-ink); }
+.fe-champ-titre em { font-weight: 400; font-style: normal; color: var(--adsum-mut); }
+.fe-champ-aide { font-size: 12px; color: var(--adsum-mut); line-height: 1.45; }
+.fe-champ input {
+  padding: 9px 11px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-md);
+  background: var(--adsum-bg); color: var(--adsum-ink); font: inherit; font-size: 14px;
+}
+.fe-champ input:focus-visible { outline: 2px solid var(--adsum-acc); outline-offset: 1px; }
+
+.fe-presets { display: flex; flex-direction: column; gap: 6px; }
+.fe-presets-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.fe-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+.fe-destinataire { max-width: 420px; margin-top: 20px; }
