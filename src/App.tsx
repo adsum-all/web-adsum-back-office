@@ -41,6 +41,7 @@ import { ProfilMenu } from "./components/ProfilMenu.js";
 import { ProfilPage } from "./components/ProfilPage.js";
 import { roleLabel } from "./components/utilisateursShared.js";
 import { EspacesCollab } from "./components/EspacesCollab.js";
+import { FournisseursEmail } from "./components/FournisseursEmail.js";
 import { TechnicalAdmins } from "./components/TechnicalAdmins.js";
 
 type Section =
@@ -74,6 +75,7 @@ type Section =
   | "technical-admins"
   | "terminaux"
   | "integrations"
+  | "fournisseurs-email"
   | "reglages-ia"
   | "consentements"
   | "attestations"
@@ -115,6 +117,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "terminaux", label: "Terminaux de scan", group: "SYSTÈME", perm: "terminaux.consulter" },
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
   { id: "reglages-ia", label: "Fournisseurs IA (transcription)", group: "SYSTÈME", perm: "integrations.administrer" },
+  { id: "fournisseurs-email", label: "Fournisseur d'envoi des e-mails", group: "SYSTÈME", perm: "integrations.administrer" },
   { id: "identite-institutionnelle", label: "Identité institutionnelle", group: "SYSTÈME", perm: "parametres.consulter" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
   { id: "attestations", label: "Attestations & pays", group: "SYSTÈME", perm: "attestations.gerer" },
@@ -129,7 +132,7 @@ const SECTION_IDS = new Set<string>([
   "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme",
   "equipes-speciales", "supervision-tribus", "informations", "centre-diffusion", "retention", "evenements",
   "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
-  "integrations", "reglages-ia", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
+  "integrations", "reglages-ia", "fournisseurs-email", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
   "profil",
 ]);
 function sectionFromHash(): Section | null {
@@ -427,6 +430,7 @@ export function App(): JSX.Element {
           {activeId === "permissions" && <MatricePermissions token={session.token} />}
           {activeId === "espaces-collab" && <EspacesCollab token={session.token} canSysteme={held.has("acces.systeme")} />}
           {activeId === "technical-admins" && <TechnicalAdmins token={session.token} />}
+          {activeId === "fournisseurs-email" && <FournisseursEmail token={session.token} />}
           {activeId === "terminaux" && <Terminaux token={session.token} canGerer={held.has("terminaux.administrer")} />}
           {activeId === "integrations" && <Integrations token={session.token} canAdministrer={held.has("integrations.administrer")} canGererNotifs={held.has("notifications.gerer")} />}
           {activeId === "reglages-ia" && <ReglagesIA token={session.token} />}
