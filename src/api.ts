@@ -1450,6 +1450,8 @@ export function validerFonctionMembre(
 }
 
 export interface QuestionInput {
+  /** Kept across saves. Answers are keyed by it, so a new identifier orphans them. */
+  id?: string;
   libelle: string;
   type: string;
   options?: string[];
@@ -1458,7 +1460,18 @@ export interface QuestionInput {
 export interface QuestionnaireAdmin {
   id: string;
   titre: string;
-  questions: { id: string; libelle: string; type: string; options: string[] }[];
+  statut: "brouillon" | "publie" | "archive";
+  version: number;
+  publie_le: string | null;
+  questions: {
+    id: string;
+    libelle: string;
+    type: string;
+    options: string[];
+    archivee: boolean;
+    /** How many members already answered it. Removing such a question archives it. */
+    reponses: number;
+  }[];
 }
 
 export function definirQuestionnaire(
@@ -1466,8 +1479,30 @@ export function definirQuestionnaire(
   eventId: string,
   titre: string,
   questions: QuestionInput[],
-): Promise<{ id: string; questions: number }> {
-  return authedSend(`/api/v1/admin/evenements/${eventId}/questionnaire`, token, "PUT", { titre, questions }, "Enregistrement impossible");
+  publier = false,
+): Promise<{ id: string; questions: number; version: number; statut: string; questions_archivees: number; questions_supprimees: number }> {
+  return authedSend(
+    `/api/v1/admin/evenements/${eventId}/questionnaire`,
+    token,
+    "PUT",
+    { titre, questions, publier },
+    "Enregistrement impossible",
+  );
+}
+
+/** Publish the form to the members, or withdraw it. A deliberate act, not a save. */
+export function publierQuestionnaire(
+  token: string,
+  eventId: string,
+  publie: boolean,
+): Promise<{ id: string; statut: string; publie: boolean }> {
+  return authedSend(
+    `/api/v1/admin/evenements/${eventId}/questionnaire/publication?publie=${publie}`,
+    token,
+    "POST",
+    {},
+    "Publication impossible",
+  );
 }
 
 export function getQuestionnaireAdmin(token: string, eventId: string): Promise<QuestionnaireAdmin | null> {

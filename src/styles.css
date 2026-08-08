@@ -1745,3 +1745,228 @@ h3 {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 8px 10px; border: 1px solid var(--adsum-line); border-radius: 10px;
 }
+
+/* --- Aperçu du formulaire de participation --------------------------------
+ *
+ * The administration publishes to a telephone, so the preview is shaped like one.
+ * Deliberately narrow: a form that reads well across a desktop and badly in a
+ * thumb-width column is a form most members read badly.
+ */
+
+.apercu-formulaire {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--adsum-line, #e3e7f0);
+}
+
+.apercu-barre {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.apercu-barre .muted { margin: 0; }
+
+.apercu-telephone {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  background: var(--adsum-board, #eef1f7);
+  border-radius: 14px;
+}
+
+.apercu-ecran {
+  width: min(370px, 100%);
+  padding: 18px 16px 20px;
+  background: var(--adsum-panel, #fff);
+  border: 1px solid var(--adsum-line, #e3e7f0);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(16, 20, 39, 0.08);
+}
+
+.apercu-app {
+  margin: 0 0 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adsum-faint, #8a92a8);
+}
+
+.apercu-h { margin: 0 0 6px; font-size: 15px; }
+.apercu-note { margin: 0 0 14px; font-size: 11.5px; color: var(--adsum-mut, #5b6480); line-height: 1.5; }
+.apercu-q { margin: 12px 0 6px; font-size: 13px; font-weight: 600; color: var(--adsum-ink, #101427); }
+.apercu-aide { margin: 6px 0 0; font-size: 10.5px; color: var(--adsum-faint, #8a92a8); line-height: 1.5; }
+
+.apercu-choix { display: flex; flex-direction: column; gap: 7px; }
+.apercu-choix-ligne { flex-direction: row; }
+.apercu-choix-ligne .apercu-opt { flex: 1; text-align: center; }
+
+.apercu-opt {
+  padding: 11px 13px;
+  border: 1.5px solid var(--adsum-line, #e3e7f0);
+  border-radius: 11px;
+  background: var(--adsum-panel, #fff);
+  color: var(--adsum-ink, #101427);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.apercu-opt.est-choisi {
+  border-color: var(--adsum-acc, #2a4fad);
+  background: var(--adsum-acc, #2a4fad);
+  color: #fff;
+  font-weight: 600;
+}
+
+.apercu-select, .apercu-texte {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--adsum-line, #e3e7f0);
+  border-radius: 9px;
+  background: var(--adsum-panel, #fff);
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.apercu-notes { display: flex; gap: 6px; margin-top: 6px; }
+
+.apercu-note-bouton {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--adsum-line, #e3e7f0);
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adsum-ink2, #29304a);
+}
+
+.apercu-prouve {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: rgba(31, 138, 91, 0.13);
+  color: #16603f;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.apercu-ferme {
+  padding: 11px 13px;
+  border: 1px dashed var(--adsum-line, #e3e7f0);
+  border-radius: 11px;
+  background: var(--adsum-board, #eef1f7);
+  color: var(--adsum-mut, #5b6480);
+  font-size: 12.5px;
+}
+
+.apercu-separateur {
+  margin: 18px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--adsum-line, #e3e7f0);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--adsum-faint, #8a92a8);
+}
+
+.apercu-anonyme {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgba(31, 138, 91, 0.11);
+  color: #16603f;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.apercu-titre-q { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.apercu-question { margin-bottom: 12px; }
+
+/* A defect in the form is shown as a defect, not rendered as an empty control the
+   administrator would never notice. */
+.apercu-defaut {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(192, 57, 43, 0.12);
+  color: #8c2820;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.apercu-valider {
+  width: 100%;
+  height: 42px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 11px;
+  background: var(--adsum-acc, #2a4fad);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.etiquette-form {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.etiquette-form-brouillon { background: rgba(181, 115, 26, 0.16); color: #7a4d0d; }
+.etiquette-form-publie { background: rgba(31, 138, 91, 0.14); color: #16603f; }
+.etiquette-form-archive { background: rgba(90, 100, 128, 0.13); color: #454d63; }
+
+.question-edit {
+  padding: 10px;
+  border: 1px solid var(--adsum-line, #e3e7f0);
+  border-radius: 10px;
+  background: var(--adsum-board, #eef1f7);
+}
+
+/* Segmented control, used by the preview to switch between the situations a member
+   can be in. Scoped nowhere in particular so other panels can reuse it. */
+.segmente {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--adsum-line, #e3e7f0);
+  border-radius: 10px;
+  background: var(--adsum-board, #eef1f7);
+  flex-wrap: wrap;
+}
+
+.segmente-item {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--adsum-mut, #5b6480);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmente-item:hover { color: var(--adsum-ink, #101427); }
+
+.segmente-item.est-actif {
+  background: var(--adsum-panel, #fff);
+  color: var(--adsum-ink, #101427);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 20, 39, 0.06);
+}

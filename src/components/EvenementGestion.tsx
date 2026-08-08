@@ -10,6 +10,7 @@ import {
   type Visibilite,
   annulerEvenement,
   definirQuestionnaire,
+  publierQuestionnaire,
   envoyerSondagePointage,
   getQuestionnaireAdmin,
   getReponsesQuestionnaire,
@@ -21,6 +22,7 @@ import {
   testDiffusionEvenement,
 } from "../api.js";
 import { EvenementEdition } from "./EvenementEdition.js";
+import { ApercuFormulaire } from "./ApercuFormulaire.js";
 import { InfoTip } from "./InfoTip.js";
 import { PiecesEvenement } from "./PiecesEvenement.js";
 
@@ -46,6 +48,13 @@ export function EvenementGestion({
   const [ouverte, setOuverte] = useState(!!evenement.session_ouverte);
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [titre, setTitre] = useState("Questionnaire de session");
+  const [statutForm, setStatutForm] = useState<"brouillon" | "publie" | "archive">("brouillon");
+  const [versionForm, setVersionForm] = useState(0);
+  const [reponsesParQuestion, setReponsesParQuestion] = useState<Record<string, number>>({});
+  const [apercuOuvert, setApercuOuvert] = useState(true);
+  // Failures used to be written into the success banner, so an operator read an
+  // error in green and believed the save had worked.
+  const [erreur, setErreur] = useState<string | null>(null);
   const [reponses, setReponses] = useState<QuestionnaireAgregat | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -67,7 +76,7 @@ export function EvenementGestion({
       setNote("Étiquettes enregistrées. Les membres pourront filtrer par ces étiquettes.");
       onChanged();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Étiquetage impossible.");
+      setErreur(e instanceof Error ? e.message : "Étiquetage impossible.");
     } finally {
       setBusy(false);
     }
@@ -80,7 +89,7 @@ export function EvenementGestion({
       const r = await envoyerSondagePointage(token, evenement.id);
       setNote(`Sondage de pointage envoyé : ${r.envoyes}/${r.cibles} membre(s)${r.canaux.length ? ` (${r.canaux.join(", ")})` : ""}.`);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Envoi impossible.");
+      setErreur(e instanceof Error ? e.message : "Envoi impossible.");
     } finally {
       setBusy(false);
     }
@@ -100,7 +109,7 @@ export function EvenementGestion({
       );
       onChanged();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Annulation impossible.");
+      setErreur(e instanceof Error ? e.message : "Annulation impossible.");
     } finally {
       setBusy(false);
     }
@@ -115,7 +124,7 @@ export function EvenementGestion({
       setNote(scope === "toute_la_serie" ? "Série réactivée (toutes les dates)." : "Activité réactivée.");
       onChanged();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Réactivation impossible.");
+      setErreur(e instanceof Error ? e.message : "Réactivation impossible.");
     } finally {
       setBusy(false);
     }
@@ -135,7 +144,7 @@ export function EvenementGestion({
       }
       onChanged();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Suppression impossible.");
+      setErreur(e instanceof Error ? e.message : "Suppression impossible.");
       setConfirmSuppr(false);
     } finally {
       setBusy(false);
@@ -143,14 +152,9 @@ export function EvenementGestion({
   }
 
   useEffect(() => {
-    void getQuestionnaireAdmin(token, evenement.id)
-      .then((q) => {
-        if (q) {
-          setTitre(q.titre);
-          setQuestions(q.questions.map((x) => ({ libelle: x.libelle, type: x.type, options: x.options })));
-        }
-      })
-      .catch(() => undefined);
+    // Loaded through the same path the save uses, so the question identifiers come
+    // back and travel out again: that round trip is what keeps the answers attached.
+    void rechargerQuestionnaire();
     void getReponsesQuestionnaire(token, evenement.id).then(setReponses).catch(() => undefined);
     void getTags(token).then(setTagsCatalogue).catch(() => undefined);
   }, [token, evenement.id]);
@@ -185,22 +189,85 @@ export function EvenementGestion({
     }
   }
 
-  async function saveQuestionnaire(): Promise<void> {
+  async function saveQuestionnaire(publier: boolean): Promise<void> {
     const valid = questions.filter((q) => q.libelle.trim());
-    if (valid.length === 0) return;
+    if (valid.length === 0) {
+      setErreur("Ajoutez au moins une question avant d'enregistrer.");
+      return;
+    }
+    // Caught in front of the operator rather than by the member: an empty dropdown
+    // is a question nobody can answer.
+    const sansOptions = valid.find(
+      (q) => q.type === "choix" && (q.options ?? []).filter((o) => o.trim()).length < 2,
+    );
+    if (sansOptions) {
+      setErreur(`La question « ${sansOptions.libelle} » est de type Choix : donnez au moins deux options.`);
+      return;
+    }
     setBusy(true);
     setNote(null);
+    setErreur(null);
     try {
-      await definirQuestionnaire(token, evenement.id, titre, valid);
+      const r = await definirQuestionnaire(token, evenement.id, titre, valid, publier);
+      setStatutForm(publier ? "publie" : "brouillon");
+      setVersionForm(r.version);
+      await rechargerQuestionnaire();
       void getReponsesQuestionnaire(token, evenement.id).then(setReponses).catch(() => undefined);
-      setNote("Questionnaire enregistré.");
+      const archive = r.questions_archivees > 0
+        ? ` ${r.questions_archivees} question(s) retirée(s) du formulaire ont été conservées car des membres y ont déjà répondu.`
+        : "";
+      setNote(
+        (publier
+          ? `Questionnaire publié (version ${r.version}). Les membres le voient désormais.`
+          : `Brouillon enregistré (version ${r.version}). Les membres ne le voient pas encore.`) + archive,
+      );
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
     } finally {
       setBusy(false);
     }
   }
 
+  async function basculerPublication(publie: boolean): Promise<void> {
+    setBusy(true);
+    setNote(null);
+    setErreur(null);
+    try {
+      await publierQuestionnaire(token, evenement.id, publie);
+      setStatutForm(publie ? "publie" : "brouillon");
+      setNote(publie ? "Formulaire publié aux membres." : "Formulaire retiré : les membres ne le voient plus.");
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : "Publication impossible.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rechargerQuestionnaire(): Promise<void> {
+    try {
+      const q = await getQuestionnaireAdmin(token, evenement.id);
+      if (!q) return;
+      setTitre(q.titre);
+      setStatutForm(q.statut);
+      setVersionForm(q.version);
+      // Identifiers travel back to the server on the next save, which is what keeps
+      // the answers attached to their question.
+      setQuestions(
+        q.questions
+          .filter((x) => !x.archivee)
+          .map((x) => ({ id: x.id, libelle: x.libelle, type: x.type, options: x.options })),
+      );
+      setReponsesParQuestion(Object.fromEntries(q.questions.map((x) => [x.id, x.reponses])));
+    } catch {
+      /* the editor keeps what it has rather than emptying itself */
+    }
+  }
+
   return (
     <div style={{ borderTop: "1px solid var(--adsum-line)", marginTop: 10, paddingTop: 12 }}>
+      {/* A failure never appears in the success banner again: an operator reading an
+          error in green concludes the save worked. */}
+      {erreur && <p className="banner banner-error">{erreur}</p>}
       {note && <p className="banner banner-ok">{note}</p>}
 
       {(evenement.description || evenement.intervenant_principal || (evenement.intervenants ?? []).length > 0) && (
@@ -265,41 +332,109 @@ export function EvenementGestion({
         />
       </div>
 
-      <p className="card-title" style={{ margin: "14px 0 6px" }}>Questionnaire de session</p>
-      <input className="search" style={{ marginBottom: 8, width: "100%" }} value={titre} onChange={(e) => setTitre(e.target.value)} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {questions.map((q, i) => (
-          <div key={i} className="toolbar">
-            <input
-              className="search"
-              style={{ flex: 1 }}
-              placeholder="Intitulé de la question"
-              value={q.libelle}
-              onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, libelle: e.target.value } : x)))}
-            />
-            <select
-              className="search"
-              value={q.type}
-              onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)))}
-            >
-              <option value="texte">Texte libre</option>
-              <option value="note">Note (1-5)</option>
-              <option value="choix">Choix</option>
-            </select>
-            <button type="button" className="btn btn-ghost btn-inline" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}>
-              Retirer
-            </button>
-          </div>
-        ))}
+      <div className="toolbar" style={{ margin: "14px 0 6px", alignItems: "center" }}>
+        <p className="card-title" style={{ margin: 0 }}>Formulaire de participation</p>
+        <span className={`etiquette-form etiquette-form-${statutForm}`}>
+          {statutForm === "publie" ? "Publié aux membres" : statutForm === "archive" ? "Archivé" : "Brouillon"}
+          {versionForm > 0 && ` . version ${versionForm}`}
+        </span>
+        <button type="button" className="btn btn-ghost btn-inline" onClick={() => setApercuOuvert((v) => !v)}>
+          {apercuOuvert ? "Masquer l'aperçu" : "Voir l'aperçu membre"}
+        </button>
       </div>
-      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Un brouillon n'est pas visible des membres. La publication le rend immédiatement
+        répondable. Retirer une question à laquelle des membres ont déjà répondu la conserve :
+        leurs réponses resteraient illisibles sans elle.
+      </p>
+
+      <input
+        className="search"
+        style={{ marginBottom: 8, width: "100%" }}
+        value={titre}
+        onChange={(e) => setTitre(e.target.value)}
+        placeholder="Titre du questionnaire"
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {questions.map((q, i) => {
+          const dejaRepondu = q.id ? (reponsesParQuestion[q.id] ?? 0) : 0;
+          return (
+            <div key={q.id ?? `nouvelle-${i}`} className="question-edit">
+              <div className="toolbar">
+                <input
+                  className="search"
+                  style={{ flex: 1 }}
+                  placeholder="Intitulé de la question"
+                  value={q.libelle}
+                  onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, libelle: e.target.value } : x)))}
+                />
+                <select
+                  className="search"
+                  value={q.type}
+                  onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)))}
+                >
+                  <option value="texte">Texte libre</option>
+                  <option value="note">Note (1-5)</option>
+                  <option value="choix">Choix</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-inline"
+                  title={dejaRepondu > 0 ? `${dejaRepondu} réponse(s) : la question sera conservée, pas supprimée.` : undefined}
+                  onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}
+                >
+                  Retirer
+                </button>
+              </div>
+              {/* Options were never editable, so every multiple-choice question
+                  reached the member as an empty dropdown. */}
+              {q.type === "choix" && (
+                <input
+                  className="search"
+                  style={{ width: "100%", marginTop: 6 }}
+                  placeholder="Options séparées par des virgules, par exemple : Oui, Non, Sans avis"
+                  value={(q.options ?? []).join(", ")}
+                  onChange={(e) =>
+                    setQuestions((qs) =>
+                      qs.map((x, j) =>
+                        j === i ? { ...x, options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) } : x,
+                      ),
+                    )
+                  }
+                />
+              )}
+              {dejaRepondu > 0 && (
+                <p className="muted small" style={{ margin: "4px 0 0" }}>
+                  {dejaRepondu} réponse(s) déjà enregistrée(s) sur cette question.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="form-actions" style={{ justifyContent: "flex-start", marginTop: 8, flexWrap: "wrap" }}>
         <button type="button" className="btn btn-ghost btn-inline" onClick={() => setQuestions((qs) => [...qs, { libelle: "", type: "texte", options: [] }])}>
           + Ajouter une question
         </button>
-        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void saveQuestionnaire()}>
-          Enregistrer le questionnaire
+        <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void saveQuestionnaire(false)}>
+          Enregistrer le brouillon
         </button>
+        <button type="button" className="btn btn-primary btn-inline" disabled={busy} onClick={() => void saveQuestionnaire(true)}>
+          Enregistrer et publier
+        </button>
+        {statutForm === "publie" && (
+          <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void basculerPublication(false)}>
+            Retirer aux membres
+          </button>
+        )}
       </div>
+
+      {apercuOuvert && (
+        <ApercuFormulaire
+          titre={titre}
+          questions={questions.map((q) => ({ id: q.id, libelle: q.libelle, type: q.type, options: q.options }))}
+        />
+      )}
 
       <p className="card-title" style={{ margin: "14px 0 6px" }}>Étiquettes (filtrage côté membres)</p>
       {tagsCatalogue.length === 0 ? (
