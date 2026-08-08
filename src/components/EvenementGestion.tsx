@@ -13,6 +13,7 @@ import {
   publierQuestionnaire,
   envoyerSondagePointage,
   getQuestionnaireAdmin,
+  getMotifsAbsenceActifs,
   getReponsesQuestionnaire,
   getTags,
   majSessionEvenement,
@@ -21,7 +22,7 @@ import {
   testDiffusionEvenement,
 } from "../api.js";
 import { EvenementEdition } from "./EvenementEdition.js";
-import { ApercuFormulaire } from "./ApercuFormulaire.js";
+import { ApercuFormulaire, type MotifApercu } from "./ApercuFormulaire.js";
 import { EtiquettesActivite } from "./EtiquettesActivite.js";
 import { ReponsesQuestionnaire } from "./ReponsesQuestionnaire.js";
 import { InfoTip } from "./InfoTip.js";
@@ -67,6 +68,10 @@ export function EvenementGestion({
   const [portee, setPortee] = useState<PorteeSerie>("cette_occurrence");
   const scope = estSerie ? portee : undefined;
   const [tagsCatalogue, setTagsCatalogue] = useState<TagItem[]>([]);
+  // The preview must show the reasons the organisation offers today. Hard-coding them
+  // once made it display entries that had already been retired, which defeats the very
+  // purpose of a preview.
+  const [motifs, setMotifs] = useState<MotifApercu[]>([]);
 
 
   async function envoyerSondage(): Promise<void> {
@@ -144,6 +149,7 @@ export function EvenementGestion({
     void rechargerQuestionnaire();
     void getReponsesQuestionnaire(token, evenement.id).then(setReponses).catch(() => undefined);
     void getTags(token).then(setTagsCatalogue).catch(() => undefined);
+    void getMotifsAbsenceActifs(token).then(setMotifs).catch(() => undefined);
   }, [token, evenement.id]);
 
   async function saveSession(next: {
@@ -418,6 +424,7 @@ export function EvenementGestion({
 
       {apercuOuvert && (
         <ApercuFormulaire
+          motifs={motifs}
           titre={titre}
           questions={questions.map((q) => ({ id: q.id, libelle: q.libelle, type: q.type, options: q.options }))}
         />

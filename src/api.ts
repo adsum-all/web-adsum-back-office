@@ -3093,6 +3093,54 @@ export function deleteTechnicalAdminDefinitif(token: string, id: string): Promis
   return request<void>(`/api/v1/admin/technical-super-admins/${id}/definitif`, token, { method: "DELETE" }, "Suppression définitive impossible");
 }
 
+/* ---- Formulaire de pointage ---------------------------------------------- */
+
+export interface MotifAbsence {
+  code: string;
+  libelle: string;
+  libelle_en: string | null;
+  ordre: number;
+  actif: boolean;
+  commentaire_requis: boolean;
+  utilisations: number;
+}
+export interface QuestionPointage {
+  rang: number;
+  question: string;
+  reponses: string[];
+  regle: string;
+  modifiable: boolean;
+}
+export interface FormulairePointageData {
+  titre: string;
+  introduction: string;
+  structure: QuestionPointage[];
+  catalogue: MotifAbsence[];
+}
+export function getFormulairePointage(token: string): Promise<FormulairePointageData> {
+  return authedGet<FormulairePointageData>("/api/v1/admin/formulaire-pointage", token, "Lecture du formulaire impossible");
+}
+export function creerMotifAbsence(
+  token: string,
+  motif: { code: string; libelle: string; libelle_en?: string; ordre?: number; commentaire_requis?: boolean },
+): Promise<{ ok: boolean; catalogue: MotifAbsence[] }> {
+  return authedSend("/api/v1/admin/formulaire-pointage/motifs", token, "POST", motif, "Création du motif impossible");
+}
+export function modifierMotifAbsence(
+  token: string,
+  code: string,
+  patch: { libelle?: string; libelle_en?: string; ordre?: number; actif?: boolean; commentaire_requis?: boolean },
+): Promise<{ ok: boolean; catalogue: MotifAbsence[] }> {
+  return authedSend(`/api/v1/admin/formulaire-pointage/motifs/${code}`, token, "PATCH", patch, "Modification impossible");
+}
+export function reordonnerMotifsAbsence(token: string, codes: string[]): Promise<{ ok: boolean; catalogue: MotifAbsence[] }> {
+  return authedSend("/api/v1/admin/formulaire-pointage/motifs/ordre", token, "PUT", { codes }, "Réordonnancement impossible");
+}
+/** The catalogue as a member sees it: active reasons only, in order. */
+export function getMotifsAbsenceActifs(token: string): Promise<{ code: string; libelle: string; commentaire_requis: boolean }[]> {
+  return authedGet("/api/v1/reference/motifs-absence", token, "Lecture des motifs impossible");
+}
+
 /* ---- Bascule de fournisseur d'e-mail ------------------------------------- */
 
 export interface ChampFournisseur {
@@ -3119,8 +3167,14 @@ export interface FournisseurEmail {
   preselections: Record<string, string>[];
   champs: ChampFournisseur[];
 }
+export interface AlerteEmail {
+  niveau: "critique" | "avertissement";
+  titre: string;
+  detail: string;
+}
 export interface EmailFournisseursData {
   chaine: string[];
+  alertes: AlerteEmail[];
   commun: { cle: string; libelle: string; aide: string; requis: boolean; exemple: string; valeur: string; renseigne: boolean }[];
   fournisseurs: FournisseurEmail[];
 }

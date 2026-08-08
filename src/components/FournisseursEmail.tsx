@@ -99,6 +99,13 @@ export function FournisseursEmail({ token }: { token: string }): JSX.Element {
       {erreur && <p className="banner banner-error">{erreur}</p>}
       {note && <p className="banner banner-ok">{note}</p>}
 
+      {(d?.alertes ?? []).map((a) => (
+        <div key={a.titre} className={`fe-alerte fe-alerte-${a.niveau}`}>
+          <strong>{a.titre}</strong>
+          <span>{a.detail}</span>
+        </div>
+      ))}
+
       <div className="fe-actif">
         <span className="fe-actif-label">Actuellement</span>
         <strong>{principal ? principal.libelle : "aucun fournisseur actif"}</strong>
