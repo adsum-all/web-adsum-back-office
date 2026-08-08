@@ -18,11 +18,12 @@ import {
   majSessionEvenement,
   reactiverEvenement,
   supprimerEvenement,
-  taguerActivite,
   testDiffusionEvenement,
 } from "../api.js";
 import { EvenementEdition } from "./EvenementEdition.js";
 import { ApercuFormulaire } from "./ApercuFormulaire.js";
+import { EtiquettesActivite } from "./EtiquettesActivite.js";
+import { ReponsesQuestionnaire } from "./ReponsesQuestionnaire.js";
 import { InfoTip } from "./InfoTip.js";
 import { PiecesEvenement } from "./PiecesEvenement.js";
 
@@ -66,21 +67,7 @@ export function EvenementGestion({
   const [portee, setPortee] = useState<PorteeSerie>("cette_occurrence");
   const scope = estSerie ? portee : undefined;
   const [tagsCatalogue, setTagsCatalogue] = useState<TagItem[]>([]);
-  const [tagsSel, setTagsSel] = useState<string[]>((evenement.tags ?? []).map((t) => t.id));
 
-  async function saveTags(): Promise<void> {
-    setBusy(true);
-    setNote(null);
-    try {
-      await taguerActivite(token, evenement.id, tagsSel);
-      setNote("Étiquettes enregistrées. Les membres pourront filtrer par ces étiquettes.");
-      onChanged();
-    } catch (e) {
-      setErreur(e instanceof Error ? e.message : "Étiquetage impossible.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function envoyerSondage(): Promise<void> {
     setBusy(true);
@@ -436,31 +423,7 @@ export function EvenementGestion({
         />
       )}
 
-      <p className="card-title" style={{ margin: "14px 0 6px" }}>Étiquettes (filtrage côté membres)</p>
-      {tagsCatalogue.length === 0 ? (
-        <p className="muted small">Aucune étiquette au catalogue pour l'instant.</p>
-      ) : (
-        <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-            {tagsCatalogue.map((tg) => {
-              const on = tagsSel.includes(tg.id);
-              return (
-                <button
-                  key={tg.id}
-                  type="button"
-                  className={`btn btn-inline ${on ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => setTagsSel((s) => (on ? s.filter((x) => x !== tg.id) : [...s, tg.id]))}
-                >
-                  {tg.libelle}
-                </button>
-              );
-            })}
-          </div>
-          <button type="button" className="btn btn-ghost btn-inline" disabled={busy} onClick={() => void saveTags()}>
-            Enregistrer les étiquettes
-          </button>
-        </>
-      )}
+      <EtiquettesActivite token={token} evenementId={evenement.id} catalogue={tagsCatalogue} initial={(evenement.tags ?? []).map((t) => t.id)} onSaved={onChanged} onErreur={setErreur} />
       </>
       )}
 
@@ -526,50 +489,7 @@ export function EvenementGestion({
       </p>
       )}
 
-      {reponses && reponses.total > 0 && (
-        <>
-          <p className="card-title" style={{ margin: "14px 0 6px" }}>Évaluations anonymes ({reponses.total})</p>
-          <p className="muted small" style={{ margin: "0 0 8px" }}>
-            Totalement anonymes : ni nom, ni matricule, ni aucun lien vers un membre n'est disponible pour les notes et commentaires.
-          </p>
-          {!reponses.seuil_atteint ? (
-            <p className="banner banner-warn">
-              {reponses.total} réponse(s). Le détail s'affiche à partir de {reponses.seuil} réponses, pour préserver l'anonymat (un trop petit nombre pourrait laisser deviner l'auteur).
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {reponses.questions.map((q) => (
-                <div key={q.id}>
-                  <p style={{ fontWeight: 600, fontSize: 13, margin: "0 0 4px" }}>{q.libelle}</p>
-                  {q.type === "note" ? (
-                    <div>
-                      <span className="badge badge-ok">Moyenne : {q.moyenne ?? "-"} / 5</span>
-                      <span className="muted small" style={{ marginLeft: 8 }}>{q.reponses ?? 0} note(s)</span>
-                      <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                        {[5, 4, 3, 2, 1].map((n) => (
-                          <span key={n} className="muted small">{n}★ : {q.distribution?.[String(n)] ?? 0}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <ul className="list" style={{ margin: 0 }}>
-                      {(q.valeurs ?? []).length === 0 ? (
-                        <li className="muted small">Aucune réponse.</li>
-                      ) : (
-                        (q.valeurs ?? []).map((v, i) => (
-                          <li key={i} className="list-row" style={{ padding: "6px 10px" }}>
-                            <span className="muted small">{v}</span>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <ReponsesQuestionnaire reponses={reponses} />
     </div>
   );
 }
