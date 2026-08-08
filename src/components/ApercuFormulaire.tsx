@@ -33,13 +33,24 @@ const SITUATIONS: { cle: Situation; label: string; aide: string }[] = [
   { cle: "cloture", label: "Délai dépassé", aide: "La fenêtre de réponse est fermée." },
 ];
 
+export interface MotifApercu {
+  code: string;
+  libelle: string;
+  commentaire_requis: boolean;
+}
+
 export function ApercuFormulaire({
   titre,
   questions,
+  motifs,
   modeActivite = "hybride",
 }: {
   titre: string;
   questions: QuestionApercu[];
+  /** The live catalogue. Hard-coding it here once made the preview show reasons the
+   *  organisation had already retired, which is worse than showing none: an
+   *  administrator checks the preview precisely to confirm a change took effect. */
+  motifs: MotifApercu[];
   modeActivite?: "presentiel" | "en_ligne" | "hybride";
 }): JSX.Element {
   const [situation, setSituation] = useState<Situation>("non_scanne");
@@ -191,19 +202,18 @@ export function ApercuFormulaire({
                     value={motif}
                     onChange={(e) => setMotif(e.target.value)}
                   >
-                    <option value="">Je ne souhaite pas préciser</option>
-                    <option value="empechement_personnel">Empêchement personnel</option>
-                    <option value="empechement_professionnel">Empêchement professionnel</option>
-                    <option value="sante">Problème de santé</option>
-                    <option value="famille">Contrainte familiale</option>
-                    <option value="transport">Difficulté de transport</option>
-                    <option value="technique">Difficulté technique ou de connexion</option>
-                    <option value="chevauchement">Chevauchement avec une autre activité</option>
-                    <option value="absence_prevue">Absence prévue</option>
-                    <option value="autre">Autre raison</option>
+                    <option value="">Sélectionnez une raison</option>
+                    {motifs.map((m) => (
+                      <option key={m.code} value={m.code}>{m.libelle}</option>
+                    ))}
                   </select>
-                  {motif === "autre" && (
+                  {motifs.some((m) => m.code === motif && m.commentaire_requis) && (
                     <textarea className="apercu-texte" rows={2} placeholder="Précisez (obligatoire)" readOnly />
+                  )}
+                  {motifs.length === 0 && (
+                    <p className="apercu-aide">
+                      Aucun motif actif au catalogue : un membre ne pourrait pas justifier son absence.
+                    </p>
                   )}
                   <p className="apercu-aide">
                     Votre déclaration sera transmise au responsable habilité. Elle ne devient
