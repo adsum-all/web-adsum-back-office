@@ -2024,3 +2024,36 @@ h3 {
 
 .fe-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
 .fe-destinataire { max-width: 420px; margin-top: 20px; }
+
+.fe-alerte {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 16px; margin-bottom: 12px;
+  border-radius: var(--adsum-radius-lg); border-left: 4px solid;
+  font-size: 13px; line-height: 1.5;
+}
+.fe-alerte strong { font-size: 14px; }
+.fe-alerte-critique { background: var(--adsum-danger-bg); border-left-color: var(--adsum-danger); color: var(--adsum-danger); }
+.fe-alerte-critique span { color: var(--adsum-ink2); }
+.fe-alerte-avertissement { background: var(--adsum-soft); border-left-color: var(--adsum-acc); color: var(--adsum-ink); }
+.fe-alerte-avertissement span { color: var(--adsum-ink2); }
+
+/* --- Formulaire de pointage (back-office) --------------------------------- */
+.fp-structure { display: flex; flex-direction: column; gap: 12px; }
+.fp-question {
+  padding: 12px 14px; border: 1px solid var(--adsum-line);
+  border-radius: var(--adsum-radius-md); background: var(--adsum-soft);
+}
+.fp-question-tete { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fp-question-tete strong { font-size: 14px; }
+.fp-rang {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--adsum-acc); color: #fff; font-size: 12px; font-weight: 700;
+}
+.fp-reponses { margin: 6px 0 0; font-size: 13px; color: var(--adsum-ink2); }
+.fp-regle { margin: 4px 0 0; font-size: 12px; color: var(--adsum-mut); line-height: 1.5; }
+.fp-ordre { display: flex; gap: 2px; }
+.fp-case { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fp-retire { opacity: .55; }
+.fp-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fp-ajout .search { min-width: 220px; }
