@@ -1681,7 +1681,16 @@ export interface ParticipationGlobal {
     en_ligne: number;
     modalite_inconnue?: number;
   };
-  serie_evenements: { id: string; titre: string; debut: string | null; volet: string; presents: number; partiels: number; absents: number }[];
+  serie_evenements: {
+    id: string; titre: string; debut: string | null; volet: string;
+    /** Followed, by any channel. presentiel + en_ligne = suivis. */
+    suivis: number;
+    /** On site: what "présence" means, and nothing else. */
+    presentiel: number;
+    /** Followed online without coming. */
+    en_ligne: number;
+    presents: number; partiels: number; absents: number;
+  }[];
   /** Anonymous attendance cohorts (no nominative ranking, by design). */
   fenetre_assiduite_jours?: number;
   distribution_assiduite?: { tranche: string; membres: number }[];
