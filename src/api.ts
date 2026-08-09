@@ -1627,6 +1627,16 @@ export interface RepartitionLigne {
 export interface ParticipationStats {
   evenement: { id: string; titre: string; debut: string | null; volet: string };
   effectif_attendu: number;
+  /** Followed, by any channel. presentiel + en_ligne + inconnu = suivis. */
+  suivis: number;
+  /** On site. This, and only this, is what "présence" means. */
+  presentiel: number;
+  /** Followed online without coming. */
+  en_ligne: number;
+  /** Share of the expected who followed, by any channel. */
+  taux_suivi: number;
+  /** Share of the expected who followed online. */
+  taux_a_distance: number;
   repondants: number;
   non_repondants: number;
   presents: number;

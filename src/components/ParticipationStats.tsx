@@ -17,7 +17,7 @@ const C = { present: "var(--adsum-ok)", partiel: "#b6791b", absent: "var(--adsum
 function Legende(): JSX.Element {
   return (
     <div className="legende">
-      <span><i style={{ background: C.present }} /> Présents</span>
+      <span><i style={{ background: C.present }} /> Venus sur place</span>
       <span><i style={{ background: C.partiel }} /> Suivis partiels</span>
       <span><i style={{ background: C.absent }} /> Absents</span>
     </div>
@@ -97,7 +97,7 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
       <header className="page-head">
         <div>
           <h1>Statistiques de participation</h1>
-          <p className="muted">Présents, partiels, absents, modalités, assiduité par cohortes et détail par activité.</p>
+          <p className="muted">Qui a suivi, par quel canal, qui n'a pas suivi, assiduité par cohortes et détail par activité. Venir sur place et suivre à distance sont deux façons de suivre : la présence est contenue dans le suivi.</p>
         </div>
         <span className="badge badge-ok" title="Actualisation automatique toutes les 30 secondes">
           En direct{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr-FR")}` : ""}
@@ -112,11 +112,11 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
             <h2 className="card-title">Synthèse ({g.nb_evenements} événements)</h2>
             <div className="kpi-grid kpi-grid-compact">
               <Kpi label="Participations comptées" value={totalSuivi} tone="mut" />
-              <Kpi label="Présents" value={rg.presents} tone="ok" />
+              <Kpi label="Venus sur place" value={rg.presents} tone="ok" />
               <Kpi label="Suivis partiels" value={rg.partiels} tone="warn" />
               <Kpi label="Absents déclarés" value={rg.absents} tone="bad" />
               <Kpi
-                label="Taux de présence (déclarations comptées)"
+                label="Part venue sur place"
                 value={totalSuivi ? `${Math.round((100 * rg.presents) / totalSuivi)}%` : "-"}
               />
             </div>
@@ -159,8 +159,8 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                   <tr>
                     <th>Activité</th>
                     <th>Date</th>
-                    <th className="num">Présents</th>
-                    <th className="num">Partiels</th>
+                    <th className="num">Sur place</th>
+                    <th className="num">À distance</th>
                     <th className="num">Absents</th>
                     <th style={{ width: "28%" }}>Répartition</th>
                   </tr>
@@ -230,8 +230,8 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
             <div style={{ marginTop: 14 }}>
               <div className="kpi-grid kpi-grid-compact">
                 <Kpi label="Effectif attendu" value={stats.effectif_attendu} tone="mut" />
-                <Kpi label={`Présents (${stats.taux_presence}%)`} value={stats.presents} tone="ok" />
-                <Kpi label={`Partiels (${stats.taux_partiel}%)`} value={stats.partiels} tone="warn" />
+                <Kpi label={`Venus sur place (${stats.taux_presence} %)`} value={stats.presents} tone="ok" />
+                <Kpi label={`Ont suivi à distance (${stats.taux_a_distance} %)`} value={stats.en_ligne} tone="warn" />
                 <Kpi label={`Absents (${stats.taux_absence}%)`} value={stats.absents} tone="bad" />
                 <Kpi label={`Non-répondants (${stats.taux_non_reponse}%)`} value={stats.non_repondants} tone="mut" />
               </div>
@@ -255,10 +255,10 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
               <div className="kpi-grid kpi-grid-compact">
                 <Kpi label="Part présentiel" value={`${stats.part_presentiel}%`} />
                 <Kpi label="Part en ligne" value={`${stats.part_en_ligne}%`} />
-                <Kpi label="Taux présence (répondants)" value={`${stats.taux_presence_repondants}%`} />
+                <Kpi label="Part venue sur place, parmi ceux qui ont répondu" value={`${stats.taux_presence_repondants} %`} />
                 <Kpi label="Brouillons (non validés)" value={stats.brouillons} tone="mut" />
                 {stats.hors_cible > 0 && (
-                  <Kpi label="Présents hors cible" value={stats.hors_cible} tone="warn" />
+                  <Kpi label="Ont suivi hors de la cible" value={stats.hors_cible} tone="warn" />
                 )}
               </div>
 
