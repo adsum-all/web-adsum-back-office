@@ -62,6 +62,7 @@ const MODALITE_CROISEMENT: Record<string, string> = {
 export function ParticipationStats({ token }: { token: string }): JSX.Element {
   const global = useResource(() => getParticipationGlobal(token), [token]);
   const evenements = useResource(() => getEvenements(token), [token]);
+  const [rechercheEvenement, setRechercheEvenement] = useState("");
   const [tab, setTab] = useState("globale");
   const [eventId, setEventId] = useState<string>("");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -197,14 +198,33 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
       {tab === "activite" && (
         <section className="card">
           <h2 className="card-title">Tableau de bord d'une activité</h2>
-          <select className="search" value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ width: "100%" }}>
-            <option value="">Choisir une activité...</option>
+          {/* A dropdown grows with the calendar and eventually holds hundreds of
+              entries, at which point scrolling to one is slower than typing it.
+              Pagination makes no sense in a select; a filter does. The list is
+              datalist-backed so the native control still works on every device. */}
+          <input
+            className="search"
+            style={{ width: "100%" }}
+            list="activites-disponibles"
+            placeholder="Choisir une activité : tapez pour filtrer"
+            value={rechercheEvenement}
+            onChange={(e) => {
+              const saisie = e.target.value;
+              setRechercheEvenement(saisie);
+              const trouve = (evenements.data ?? []).find((ev) => ev.titre === saisie);
+              setEventId(trouve ? trouve.id : "");
+            }}
+          />
+          <datalist id="activites-disponibles">
             {(evenements.data ?? []).map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.titre}
-              </option>
+              <option key={ev.id} value={ev.titre} />
             ))}
-          </select>
+          </datalist>
+          {rechercheEvenement && !eventId && (
+            <p className="muted small" style={{ margin: "4px 0 0" }}>
+              Aucune activité ne porte exactement ce titre. Choisissez une proposition de la liste.
+            </p>
+          )}
 
           {stats && (
             <div style={{ marginTop: 14 }}>
