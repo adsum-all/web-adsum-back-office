@@ -13,6 +13,7 @@ import "./institutionnel/institutionnel.css";
 import { Aide } from "./institutionnel/Aide.js";
 import { FuseauSelect } from "./institutionnel/FuseauSelect.js";
 import { InstitApercuTab } from "./institutionnel/InstitApercuTab.js";
+import { InstitApparenceTab } from "./institutionnel/InstitApparenceTab.js";
 import { InstitDatesTab } from "./institutionnel/InstitDatesTab.js";
 import { InstitLiturgieTab } from "./institutionnel/InstitLiturgieTab.js";
 
@@ -24,7 +25,7 @@ import { InstitLiturgieTab } from "./institutionnel/InstitLiturgieTab.js";
  * (never hardcoded) and surfaced automatically in the member calendar. Organised in
  * tabs so identity, institutional dates and church feasts never blur together.
  */
-type Onglet = "identite" | "durees" | "dates" | "liturgie" | "apercu";
+type Onglet = "identite" | "apparence" | "durees" | "dates" | "liturgie" | "apercu";
 
 const PRINCIPALE: { key: string; label: string; placeholder?: string; type?: string }[] = [
   { key: "org_nom", label: "Nom officiel de l'organisation" },
@@ -63,6 +64,7 @@ const RICHES: { key: string; label: string }[] = [
 
 const ONGLETS: { id: Onglet; label: string }[] = [
   { id: "identite", label: "Identité de l'organisation" },
+  { id: "apparence", label: "Apparence" },
   { id: "durees", label: "Durées et sessions" },
   { id: "dates", label: "Dates de l'organisation" },
   { id: "liturgie", label: "Calendrier catholique" },
@@ -172,6 +174,7 @@ export function IdentiteInstitutionnelle({ token, canGerer }: Readonly<{ token: 
         </section>
       )}
 
+      {onglet === "apparence" && <InstitApparenceTab token={token} canGerer={canGerer} />}
       {onglet === "durees" && <ReglagesDurees token={token} canGerer={canGerer} />}
       {onglet === "dates" && <section className="card"><h2>Dates de l'organisation</h2><InstitDatesTab token={token} canGerer={canGerer} couleurs={couleurs} /></section>}
       {onglet === "liturgie" && <section className="card"><h2>Calendrier catholique</h2><InstitLiturgieTab token={token} canGerer={canGerer} couleurs={couleurs} /></section>}
