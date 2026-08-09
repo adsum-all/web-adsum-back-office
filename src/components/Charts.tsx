@@ -195,7 +195,10 @@ export function BarChart({ items, height = 240, emptyMessage }: BarProps): JSX.E
         const h = (it.value / max) * plot;
         const x = padLeft + slot * i + (slot - barW) / 2;
         const y = padTop + plot - h;
-        const short = it.label.length > 10 ? `${it.label.slice(0, 9)}.` : it.label;
+        // Cut at a word boundary rather than mid-word: "Commission Jeunesse" became
+        // "Commissio.", which names nothing. The full label stays in the title, so
+        // hovering always gives it back.
+        const short = raccourcir(it.label, barW < 54 ? 9 : 14);
         return (
           <g key={`${it.label}-${i}`}>
             <title>{`${it.label} : ${formatNumber(it.value)}`}</title>
@@ -203,7 +206,12 @@ export function BarChart({ items, height = 240, emptyMessage }: BarProps): JSX.E
             <text x={x + barW / 2} y={y - 6} textAnchor="middle" className="bar-num">
               {formatNumber(it.value)}
             </text>
-            <text x={x + barW / 2} y={height - 10} textAnchor="middle" className="bar-cat">
+            <text
+              x={x + barW / 2}
+              y={height - 10}
+              textAnchor={i === 0 ? "start" : i === items.length - 1 ? "end" : "middle"}
+              className="bar-cat"
+            >
               {short}
             </text>
           </g>
@@ -224,6 +232,19 @@ interface LineProps {
  * rounded to a readable maximum (never below 1, so an all-zero year is not
  * squashed), grid lines carry their values and every point shows its value.
  */
+/** Shorten a label without cutting a word in half.
+ *
+ * Slicing at a fixed character count produced "Commissio." for "Commission Jeunesse",
+ * which identifies nothing. Cutting at the last space before the limit keeps a word
+ * the reader recognises, and the SVG title still carries the full text.
+ */
+function raccourcir(texte: string, limite: number): string {
+  if (texte.length <= limite) return texte;
+  const coupe = texte.slice(0, limite);
+  const espace = coupe.lastIndexOf(" ");
+  return `${(espace > limite * 0.5 ? coupe.slice(0, espace) : coupe).trimEnd()}...`;
+}
+
 export function LineChart({ points, height = 240, emptyMessage }: LineProps): JSX.Element {
   const gradId = `line-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (points.length === 0) {
@@ -289,9 +310,14 @@ export function LineChart({ points, height = 240, emptyMessage }: LineProps): JS
               {formatNumber(c.value)}
             </text>
           )}
-          {i % labelEvery === 0 && (
-            <text x={c.x} y={height - 8} textAnchor="middle" className="bar-cat">
-              {c.label}
+          {(i % labelEvery === 0 || i === coords.length - 1) && (
+            <text
+              x={c.x}
+              y={height - 8}
+              textAnchor={i === 0 ? "start" : i === coords.length - 1 ? "end" : "middle"}
+              className="bar-cat"
+            >
+              {raccourcir(c.label, 12)}
             </text>
           )}
         </g>
@@ -312,8 +338,8 @@ export function StackedBar({ presents, partiels, absents, height = 10 }: {
     n > 0 ? <div title={`${label} : ${n}`} style={{ width: `${(100 * n) / total}%`, background: color }} /> : null;
   return (
     <div style={{ display: "flex", height, borderRadius: 6, overflow: "hidden", background: "var(--adsum-line)" }}>
-      {seg(presents, "var(--adsum-ok)", "Présents")}
-      {seg(partiels, "var(--adsum-warn, #b5731a)", "Partiels")}
+      {seg(presents, "var(--adsum-ok)", "Venus sur place")}
+      {seg(partiels, "var(--adsum-warn, #b5731a)", "Ont suivi à distance")}
       {seg(absents, "var(--adsum-danger)", "Absents")}
     </div>
   );
