@@ -3093,6 +3093,47 @@ export function deleteTechnicalAdminDefinitif(token: string, id: string): Promis
   return request<void>(`/api/v1/admin/technical-super-admins/${id}/definitif`, token, { method: "DELETE" }, "Suppression définitive impossible");
 }
 
+/* ---- Règles de calcul ----------------------------------------------------- */
+
+export interface CompteIndicateur {
+  code: string;
+  libelle: string;
+  definition: string;
+  /** base, suivi, canal, preuve, completude, qualite. */
+  axe: string;
+  base: string;
+  valeur: number;
+}
+export interface TauxIndicateur {
+  code: string;
+  libelle: string;
+  definition: string;
+  formule: string;
+  numerateur: number;
+  denominateur: number;
+  /** Null when the population is empty: undefined is not zero. */
+  valeur: number | null;
+}
+export interface ControleIndicateur {
+  code: string;
+  enonce: string;
+  detail: string;
+  somme: number;
+  attendu: number;
+  verifie: boolean;
+}
+export interface ReglesCalculData {
+  comptes: CompteIndicateur[];
+  taux: TauxIndicateur[];
+  controles: ControleIndicateur[];
+  coherent: boolean;
+  brut: Record<string, number>;
+  membres_du_perimetre: number;
+}
+export function getReglesCalcul(token: string): Promise<ReglesCalculData> {
+  return authedGet<ReglesCalculData>("/api/v1/direction/regles-calcul", token, "Règles de calcul indisponibles");
+}
+
 /* ---- Formulaire de pointage ---------------------------------------------- */
 
 export interface MotifAbsence {
