@@ -72,7 +72,7 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
         <Kpi label="Membres" value={data?.membres_total} hint={`${data?.membres_actifs ?? 0} actifs`} loading={loading} accent />
         <Kpi label="Identités vérifiées" value={data?.membres_verifies} hint={`${data?.membres_en_attente ?? 0} en attente`} loading={loading} />
         <Kpi label="Événements" value={data?.evenements_total} hint={`${data?.presences_total ?? 0} présences`} loading={loading} />
-        <Kpi label="Présents cumulés" value={rg ? presentsCumules : undefined} hint={rg ? `${rg.absents} absents` : ""} loading={participation.loading} />
+        <Kpi label="Venus sur place, cumulé" value={rg ? presentsCumules : undefined} hint={rg ? `${rg.absents} absents` : ""} loading={participation.loading} />
       </div>
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
@@ -103,8 +103,8 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
       {tab === "presence" && (
         <>
           <div className="kpi-grid kpi-grid-compact">
-            <Kpi label="Présents cumulés" value={rg ? presentsCumules : undefined} tone="ok" loading={participation.loading} />
-            <Kpi label="Partiels cumulés" value={rg?.partiels} tone="warn" loading={participation.loading} />
+            <Kpi label="Venus sur place, cumulé" value={rg ? presentsCumules : undefined} tone="ok" loading={participation.loading} />
+            <Kpi label="Ont suivi à distance, cumulé" value={rg?.partiels} tone="warn" loading={participation.loading} />
             <Kpi label="Absents cumulés" value={rg?.absents} tone="bad" loading={participation.loading} />
           </div>
           <section className="card">
@@ -132,8 +132,8 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
                   );
                 })}
                 <div className="muted small" style={{ display: "flex", gap: 14, marginTop: 2 }}>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-ok)", marginRight: 5 }} />Présents</span>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-warn, #b5731a)", marginRight: 5 }} />Partiels</span>
+                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-ok)", marginRight: 5 }} />Venus sur place</span>
+                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-warn, #b5731a)", marginRight: 5 }} />Ont suivi à distance</span>
                   <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-danger)", marginRight: 5 }} />Absents</span>
                 </div>
               </div>

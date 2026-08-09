@@ -321,8 +321,8 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                     <thead>
                       <tr>
                         <th>{DIM_LABELS[dim] ?? dim}</th>
-                        <th className="num">Présents</th>
-                        <th className="num">Partiels</th>
+                        <th className="num">Sur place</th>
+                        <th className="num">À distance</th>
                         <th className="num">Absents</th>
                         <th style={{ width: "32%" }}>Répartition</th>
                       </tr>
