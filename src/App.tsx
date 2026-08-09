@@ -88,7 +88,7 @@ type Section =
 // the read/consult permission the section's primary endpoint requires, so the
 // menu mirrors what the server would allow. The menu is never the barrier: every
 // endpoint stays guarded server side by require_permission.
-const NAV: { id: Section; label: string; group: string; perm: string }[] = [
+export const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "dashboard", label: "Tableau de bord", group: "PILOTAGE", perm: "statistiques.consulter" },
   { id: "statistiques", label: "Statistiques", group: "PILOTAGE", perm: "statistiques.consulter" },
   { id: "participation", label: "Participation & assiduité", group: "PILOTAGE", perm: "participation.consulter" },
@@ -108,6 +108,7 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "centre-diffusion", label: "Centre de diffusion", group: "COMMUNICATION", perm: "informations.consulter" },
   { id: "retention", label: "Rétention et archivage", group: "COMMUNICATION", perm: "parametres.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
+  { id: "formulaire-pointage", label: "Formulaire de pointage", group: "ÉVÉNEMENTS", perm: "evenements.gerer" },
   { id: "types-evenements", label: "Types d'événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS", perm: "anniversaires.gerer" },
   { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS", perm: "comptage.superviser" },
@@ -120,7 +121,6 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
   { id: "integrations", label: "Intégrations & aide", group: "SYSTÈME", perm: "integrations.superviser" },
   { id: "reglages-ia", label: "Fournisseurs IA (transcription)", group: "SYSTÈME", perm: "integrations.administrer" },
   { id: "fournisseurs-email", label: "Fournisseur d'envoi des e-mails", group: "SYSTÈME", perm: "integrations.administrer" },
-  { id: "formulaire-pointage", label: "Formulaire de pointage", group: "ACTIVITÉS", perm: "evenements.gerer" },
   { id: "identite-institutionnelle", label: "Identité institutionnelle", group: "SYSTÈME", perm: "parametres.consulter" },
   { id: "consentements", label: "Documents & consentements", group: "SYSTÈME", perm: "consentements.consulter" },
   { id: "attestations", label: "Attestations & pays", group: "SYSTÈME", perm: "attestations.gerer" },
@@ -130,11 +130,11 @@ const NAV: { id: Section; label: string; group: string; perm: string }[] = [
 // The active section is carried in the URL hash (e.g. #/membres) so a browser refresh
 // or a shared link lands back on the SAME section instead of the dashboard. No router
 // library is added: the hash is the single source of truth, validated against NAV.
-const SECTION_IDS = new Set<string>([
+export const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
   "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme",
   "equipes-speciales", "supervision-tribus", "informations", "centre-diffusion", "retention", "evenements",
-  "types-evenements", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
+  "types-evenements", "formulaire-pointage", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "fournisseurs-email", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
   "profil",
 ]);
