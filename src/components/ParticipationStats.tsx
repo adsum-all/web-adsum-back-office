@@ -7,22 +7,11 @@ import {
   getParticipationStats,
 } from "../api.js";
 import { useResource } from "../useResource.js";
-import { BarChart, DonutChart, LineChart, StackedBar as Bar } from "./Charts.js";
+import { BarChart, DonutChart, LegendeModalites, LineChart, StackedBar as Bar } from "./Charts.js";
 import { Kpi } from "./Kpi.js";
 import { Tabs } from "./Tabs.js";
 
-/** Shared presence palette (same hues as the stacked bars). */
-const C = { present: "var(--adsum-ok)", partiel: "#b6791b", absent: "var(--adsum-danger)" };
-
-function Legende(): JSX.Element {
-  return (
-    <div className="legende">
-      <span><i style={{ background: C.present }} /> Venus sur place</span>
-      <span><i style={{ background: C.partiel }} /> Suivis partiels</span>
-      <span><i style={{ background: C.absent }} /> Absents</span>
-    </div>
-  );
-}
+const Legende = LegendeModalites;
 
 const DIM_LABELS: Record<string, string> = {
   genre: "Genre",
@@ -90,7 +79,12 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
 
   const g = global.data;
   const rg = g?.repartition_globale;
-  const totalSuivi = rg ? rg.presents + rg.partiels + rg.absents : 0;
+  // Ce bloc porte sur les personnes ayant laissé une trace, pas sur les personnes
+  // attendues : ce point d'API ne connaît pas la population visée. Le libellé le dit,
+  // plutôt que de laisser croire à un taux sur l'organisation entière. Le tableau de
+  // bord Direction, lui, compte les attendues et affiche la part sans information.
+  const repondants = rg ? rg.suivis + rg.absents : 0;
+  const canalInconnu = rg ? Math.max(0, rg.suivis - rg.presentiel - rg.en_ligne) : 0;
 
   return (
     <div className="page">
@@ -109,19 +103,34 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
       {tab === "globale" && g && rg && (
         <>
           <section className="card">
-            <h2 className="card-title">Synthèse ({g.nb_evenements} événements)</h2>
+            <h2 className="card-title">Synthèse sur {g.nb_evenements} activités</h2>
+            <p className="muted small" style={{ margin: "0 0 10px" }}>
+              Ces chiffres portent sur les {repondants.toLocaleString("fr-FR")} occasions
+              où une personne a laissé une trace, par pointage ou par réponse au sondage.
+              Ils ne disent rien de celles qui n&apos;ont pas répondu : le tableau de bord
+              Direction rapporte les mêmes faits aux personnes attendues.
+            </p>
             <div className="kpi-grid kpi-grid-compact">
-              <Kpi label="Participations comptées" value={totalSuivi} tone="mut" />
-              <Kpi label="Venus sur place" value={rg.presents} tone="ok" />
-              <Kpi label="Suivis partiels" value={rg.partiels} tone="warn" />
-              <Kpi label="Absents déclarés" value={rg.absents} tone="bad" />
+              <Kpi label="Sur place" value={rg.presentiel} tone="ok" />
+              <Kpi label="En ligne" value={rg.en_ligne} tone="warn" />
+              {canalInconnu > 0 && <Kpi label="Moyen non précisé" value={canalInconnu} tone="mut" />}
+              <Kpi label="N'ont pas suivi" value={rg.absents} tone="bad" />
               <Kpi
-                label="Part venue sur place"
-                value={totalSuivi ? `${Math.round((100 * rg.presents) / totalSuivi)}%` : "-"}
+                label="Ont suivi, parmi les répondants"
+                value={repondants ? `${Math.round((100 * rg.suivis) / repondants)} %` : "-"}
               />
             </div>
+            <div style={{ marginTop: 10 }}>
+              <Legende />
+            </div>
             <div style={{ marginTop: 6 }}>
-              <Bar presents={rg.presents} partiels={rg.partiels} absents={rg.absents} height={14} />
+              <Bar
+                presentiel={rg.presentiel}
+                en_ligne={rg.en_ligne}
+                canal_inconnu={canalInconnu}
+                absent={rg.absents}
+                height={14}
+              />
             </div>
           </section>
 
@@ -135,7 +144,7 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                   { label: "En ligne (déclaré)", value: rg.en_ligne },
                   { label: "Modalité non précisée", value: rg.modalite_inconnue ?? 0 },
                 ]}
-                centerLabel={`${rg.presents}`}
+                centerLabel={`${rg.suivis}`}
               />
               <p className="muted small" style={{ marginTop: 8 }}>
                 Le scan du QR membre est la seule preuve forte de présence sur place. « En ligne » est déclaratif.
@@ -160,8 +169,8 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                     <th>Activité</th>
                     <th>Date</th>
                     <th className="num">Sur place</th>
-                    <th className="num">À distance</th>
-                    <th className="num">Absents</th>
+                    <th className="num">En ligne</th>
+                    <th className="num">N&apos;ont pas suivi</th>
                     <th style={{ width: "28%" }}>Répartition</th>
                   </tr>
                 </thead>
@@ -178,11 +187,16 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                     >
                       <td style={{ fontWeight: 600 }}>{ev.titre}</td>
                       <td className="muted small">{ev.debut ? new Date(ev.debut).toLocaleDateString("fr-FR") : "-"}</td>
-                      <td className="num">{ev.presents}</td>
-                      <td className="num">{ev.partiels}</td>
+                      <td className="num">{ev.presentiel}</td>
+                      <td className="num">{ev.en_ligne}</td>
                       <td className="num">{ev.absents}</td>
                       <td>
-                        <Bar presents={ev.presents} partiels={ev.partiels} absents={ev.absents} />
+                        <Bar
+                          presentiel={ev.presentiel}
+                          en_ligne={ev.en_ligne}
+                          canal_inconnu={Math.max(0, ev.suivis - ev.presentiel - ev.en_ligne)}
+                          absent={ev.absents}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -282,7 +296,7 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                           <div key={mod} className="cohorte-row">
                             <span className="cohorte-label">{MODALITE_CROISEMENT[mod] ?? mod}</span>
                             <div style={{ flex: 1 }}>
-                              <Bar presents={v.present} partiels={v.partiel} absents={v.absent} height={14} />
+                              <Bar presentiel={v.present} en_ligne={v.partiel} absent={v.absent} height={14} />
                             </div>
                             <span className="cohorte-count">{v.present + v.partiel + v.absent} membre(s)</span>
                           </div>
@@ -335,7 +349,12 @@ export function ParticipationStats({ token }: { token: string }): JSX.Element {
                           <td className="num">{l.partiels}</td>
                           <td className="num">{l.absents}</td>
                           <td>
-                            <Bar presents={l.presents} partiels={l.partiels} absents={l.absents} />
+                            <Bar
+                              presentiel={l.presentiel ?? l.presents}
+                              en_ligne={l.en_ligne ?? l.partiels}
+                              canal_inconnu={l.canal_inconnu ?? 0}
+                              absent={l.absents}
+                            />
                           </td>
                         </tr>
                       ))}

@@ -1617,11 +1617,27 @@ export function resoudreEchecNotification(token: string, id: string): Promise<vo
   return authedSend<void>(`/api/v1/admin/notifications/echecs/${id}/resolu`, token, "POST", {}, "Action impossible");
 }
 
+/**
+ * Une ligne de ventilation, dans les etats qui ne se recoupent pas.
+ *
+ * `presents` et `partiels` sont les anciens noms. Ils portent desormais le compte
+ * sur place et le compte en ligne, ce que les ecrans entendaient deja par eux.
+ */
 export interface RepartitionLigne {
   cle: string;
-  presents: number;
-  partiels: number;
+  /** Sur place. */
+  presentiel?: number;
+  /** En ligne, sans venir. Disjoint de presentiel. */
+  en_ligne?: number;
+  /** A suivi, moyen non enregistre. */
+  canal_inconnu?: number;
+  /** presentiel + en_ligne + canal_inconnu. */
+  suivis?: number;
   absents: number;
+  /** @deprecated Alias de presentiel. */
+  presents: number;
+  /** @deprecated Alias de en_ligne. */
+  partiels: number;
 }
 
 export interface ParticipationStats {
@@ -1671,7 +1687,11 @@ export interface ParticipationStats {
 export interface ParticipationGlobal {
   nb_evenements: number;
   repartition_globale: {
+    /** Followed by any channel: presentiel + en_ligne + modalite_inconnue. */
+    suivis: number;
+    /** @deprecated Alias of presentiel. */
     presents: number;
+    /** @deprecated Alias of the partial-online count only, not of en_ligne. */
     partiels: number;
     absents: number;
     /** Proven on-site (member-QR scan). */
@@ -3141,18 +3161,6 @@ export interface ControleIndicateur {
   attendu: number;
   verifie: boolean;
 }
-export interface ReglesCalculData {
-  comptes: CompteIndicateur[];
-  taux: TauxIndicateur[];
-  controles: ControleIndicateur[];
-  coherent: boolean;
-  brut: Record<string, number>;
-  membres_du_perimetre: number;
-}
-export function getReglesCalcul(token: string): Promise<ReglesCalculData> {
-  return authedGet<ReglesCalculData>("/api/v1/direction/regles-calcul", token, "Règles de calcul indisponibles");
-}
-
 /* ---- Formulaire de pointage ---------------------------------------------- */
 
 export interface MotifAbsence {

@@ -42,7 +42,6 @@ import { ProfilPage } from "./components/ProfilPage.js";
 import { roleLabel } from "./components/utilisateursShared.js";
 import { EspacesCollab } from "./components/EspacesCollab.js";
 import { FormulairePointage } from "./components/FormulairePointage.js";
-import { ReglesCalcul } from "./components/ReglesCalcul.js";
 import { FournisseursEmail } from "./components/FournisseursEmail.js";
 import { TechnicalAdmins } from "./components/TechnicalAdmins.js";
 
@@ -79,7 +78,6 @@ type Section =
   | "integrations"
   | "fournisseurs-email"
   | "formulaire-pointage"
-  | "regles-calcul"
   | "reglages-ia"
   | "consentements"
   | "attestations"
@@ -111,7 +109,6 @@ export const NAV: { id: Section; label: string; group: string; perm: string }[] 
   { id: "retention", label: "Rétention et archivage", group: "COMMUNICATION", perm: "parametres.consulter" },
   { id: "evenements", label: "Calendrier des événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "formulaire-pointage", label: "Formulaire de pointage", group: "ÉVÉNEMENTS", perm: "evenements.gerer" },
-  { id: "regles-calcul", label: "Règles de calcul des statistiques", group: "PILOTAGE", perm: "statistiques.consulter" },
   { id: "types-evenements", label: "Types d'événements", group: "ÉVÉNEMENTS", perm: "evenements.consulter" },
   { id: "anniversaires", label: "Souhaits d'anniversaire", group: "ÉVÉNEMENTS", perm: "anniversaires.gerer" },
   { id: "comptage", label: "Comptage volet B", group: "ÉVÉNEMENTS", perm: "comptage.superviser" },
@@ -137,7 +134,7 @@ export const SECTION_IDS = new Set<string>([
   "dashboard", "statistiques", "participation", "inscriptions", "engagement", "demandes",
   "membres", "doublons", "commissions", "fonctions", "niveaux", "organisation", "organigramme",
   "equipes-speciales", "supervision-tribus", "informations", "centre-diffusion", "retention", "evenements",
-  "types-evenements", "formulaire-pointage", "regles-calcul", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
+  "types-evenements", "formulaire-pointage", "anniversaires", "comptage", "gouvernance-acces", "utilisateurs", "permissions", "espaces-collab", "terminaux",
   "integrations", "reglages-ia", "fournisseurs-email", "identite-institutionnelle", "consentements", "attestations", "audit", "technical-admins",
   "profil",
 ]);
@@ -438,7 +435,6 @@ export function App(): JSX.Element {
           {activeId === "technical-admins" && <TechnicalAdmins token={session.token} />}
           {activeId === "fournisseurs-email" && <FournisseursEmail token={session.token} />}
           {activeId === "formulaire-pointage" && <FormulairePointage token={session.token} />}
-          {activeId === "regles-calcul" && <ReglesCalcul token={session.token} />}
           {activeId === "terminaux" && <Terminaux token={session.token} canGerer={held.has("terminaux.administrer")} />}
           {activeId === "integrations" && <Integrations token={session.token} canAdministrer={held.has("integrations.administrer")} canGererNotifs={held.has("notifications.gerer")} />}
           {activeId === "reglages-ia" && <ReglagesIA token={session.token} />}

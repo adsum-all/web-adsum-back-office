@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getParticipationGlobal, getStatistiques } from "../api.js";
 import { useResource } from "../useResource.js";
-import { DonutChart, LineChart, StackedBar, type ChartDatum } from "./Charts.js";
+import { DonutChart, LegendeModalites, LineChart, StackedBar, type ChartDatum } from "./Charts.js";
 import { Kpi } from "./Kpi.js";
 import { Tabs } from "./Tabs.js";
 
@@ -45,7 +45,9 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
   const rg = participation.data?.repartition_globale;
   // presentiel and en_ligne are subsets of presents: never add them together
   // (doing so double-counted every presence on the dashboard).
-  const presentsCumules = rg ? rg.presents : 0;
+  // Sur place, ce que le mot veut dire. Pas le statut, qui vaut aussi pour
+  // quelqu’un ayant suivi en ligne sans se deplacer.
+  const presentsCumules = rg ? rg.presentiel : 0;
 
   return (
     <div className="page">
@@ -72,7 +74,7 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
         <Kpi label="Membres" value={data?.membres_total} hint={`${data?.membres_actifs ?? 0} actifs`} loading={loading} accent />
         <Kpi label="Identités vérifiées" value={data?.membres_verifies} hint={`${data?.membres_en_attente ?? 0} en attente`} loading={loading} />
         <Kpi label="Événements" value={data?.evenements_total} hint={`${data?.presences_total ?? 0} présences`} loading={loading} />
-        <Kpi label="Venus sur place, cumulé" value={rg ? presentsCumules : undefined} hint={rg ? `${rg.absents} absents` : ""} loading={participation.loading} />
+        <Kpi label="Venues sur place, cumulé" value={rg ? presentsCumules : undefined} hint={rg ? `${rg.absents} n’ont pas suivi` : ""} loading={participation.loading} />
       </div>
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
@@ -103,9 +105,9 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
       {tab === "presence" && (
         <>
           <div className="kpi-grid kpi-grid-compact">
-            <Kpi label="Venus sur place, cumulé" value={rg ? presentsCumules : undefined} tone="ok" loading={participation.loading} />
-            <Kpi label="Ont suivi à distance, cumulé" value={rg?.partiels} tone="warn" loading={participation.loading} />
-            <Kpi label="Absents cumulés" value={rg?.absents} tone="bad" loading={participation.loading} />
+            <Kpi label="Sur place, cumulé" value={rg ? presentsCumules : undefined} tone="ok" loading={participation.loading} />
+            <Kpi label="En ligne, cumulé" value={rg?.en_ligne} tone="warn" loading={participation.loading} />
+            <Kpi label="N'ont pas suivi, cumulé" value={rg?.absents} tone="bad" loading={participation.loading} />
           </div>
           <section className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
@@ -119,23 +121,29 @@ export function Dashboard({ token }: { token: string }): JSX.Element {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
                 {serie.slice(0, 5).map((ev) => {
-                  const total = ev.presents + ev.partiels + ev.absents;
+                  // Les personnes qui ont laissé une trace. Additionner presents et
+                  // partiels omettait celles qui ont suivi en entier en ligne.
+                  const total = ev.suivis + ev.absents;
+                  const inconnu = Math.max(0, ev.suivis - ev.presentiel - ev.en_ligne);
                   const dateStr = ev.debut ? new Date(ev.debut).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : "";
                   return (
                     <div key={ev.id}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>{ev.titre} <span className="muted small">{dateStr}</span></span>
-                        <span className="muted small">{ev.presents} / {ev.partiels} / {ev.absents} sur {total}</span>
+                        <span className="muted small">
+                          {ev.presentiel} sur place · {ev.en_ligne} en ligne · {ev.absents} non · {total} réponses
+                        </span>
                       </div>
-                      <StackedBar presents={ev.presents} partiels={ev.partiels} absents={ev.absents} />
+                      <StackedBar
+                        presentiel={ev.presentiel}
+                        en_ligne={ev.en_ligne}
+                        canal_inconnu={inconnu}
+                        absent={ev.absents}
+                      />
                     </div>
                   );
                 })}
-                <div className="muted small" style={{ display: "flex", gap: 14, marginTop: 2 }}>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-ok)", marginRight: 5 }} />Venus sur place</span>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-warn, #b5731a)", marginRight: 5 }} />Ont suivi à distance</span>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "var(--adsum-danger)", marginRight: 5 }} />Absents</span>
-                </div>
+                <div style={{ marginTop: 2 }}><LegendeModalites /></div>
               </div>
             )}
           </section>

@@ -2,6 +2,8 @@
 // Colours follow the design system (@adsum/tokens) brand palette. Every chart is
 // rendered from real data passed by the caller; there is no synthetic series here.
 
+import { MODALITES } from "../charts/modalites.js";
+
 import { useId } from "react";
 
 export const CHART_PALETTE = [
@@ -326,21 +328,57 @@ export function LineChart({ points, height = 240, emptyMessage }: LineProps): JS
   );
 }
 
-/** Stacked presence bar (present / partial / absent), shared by dashboards. */
-export function StackedBar({ presents, partiels, absents, height = 10 }: {
-  presents: number;
-  partiels: number;
-  absents: number;
+/**
+ * The attendance partition as one bar, in the states that cannot overlap.
+ *
+ * Same names and same colours as the direction dashboard, from the same file, because
+ * a word that means one thing here and another there is worse than no word. The bar
+ * used to take "partiels", which counts only people who followed part of an online
+ * session: everybody who followed a whole one was missing from it.
+ */
+export function StackedBar({
+  presentiel, en_ligne, canal_inconnu = 0, absent, sans_information = 0, height = 10,
+}: {
+  presentiel: number;
+  en_ligne: number;
+  canal_inconnu?: number;
+  absent: number;
+  /** Expected, no trace at all. Shown so silence is visible rather than absorbed. */
+  sans_information?: number;
   height?: number;
 }): JSX.Element {
-  const total = Math.max(1, presents + partiels + absents);
-  const seg = (n: number, color: string, label: string) =>
-    n > 0 ? <div title={`${label} : ${n}`} style={{ width: `${(100 * n) / total}%`, background: color }} /> : null;
+  const parts = [presentiel, en_ligne, canal_inconnu, absent, sans_information];
+  const total = Math.max(1, parts.reduce((s, v) => s + v, 0));
   return (
-    <div style={{ display: "flex", height, borderRadius: 6, overflow: "hidden", background: "var(--adsum-line)" }}>
-      {seg(presents, "var(--adsum-ok)", "Venus sur place")}
-      {seg(partiels, "var(--adsum-warn, #b5731a)", "Ont suivi à distance")}
-      {seg(absents, "var(--adsum-danger)", "Absents")}
+    <div
+      role="img"
+      aria-label={MODALITES.map((m, i) => `${m.label} ${parts[i] ?? 0}`).join(", ")}
+      style={{ display: "flex", height, borderRadius: 6, overflow: "hidden", background: "var(--adsum-line)" }}
+    >
+      {MODALITES.map((m, i) => {
+        const v = parts[i] ?? 0;
+        if (v <= 0) return null;
+        return (
+          <div
+            key={m.cle}
+            title={`${m.label} : ${v} (${Math.round((100 * v) / total)} %)`}
+            style={{ width: `${(100 * v) / total}%`, background: m.couleur }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/** The colour key for the bar above. Never decorative: it names five distinct groups. */
+export function LegendeModalites(): JSX.Element {
+  return (
+    <div className="legende">
+      {MODALITES.map((m) => (
+        <span key={m.cle} title={m.definition}>
+          <i style={{ background: m.couleur }} /> {m.label}
+        </span>
+      ))}
     </div>
   );
 }
