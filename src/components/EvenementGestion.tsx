@@ -27,6 +27,7 @@ import { EtiquettesActivite } from "./EtiquettesActivite.js";
 import { ReponsesQuestionnaire } from "./ReponsesQuestionnaire.js";
 import { InfoTip } from "./InfoTip.js";
 import { PiecesEvenement } from "./PiecesEvenement.js";
+import { questionsRetenues, refusDEnregistrement } from "../questionnaire/regles.js";
 
 /** Per-event admin panel: live session state and the post-session questionnaire
  * (builder + collected responses). The activity's configuration (links, diffusion
@@ -183,20 +184,12 @@ export function EvenementGestion({
   }
 
   async function saveQuestionnaire(publier: boolean): Promise<void> {
-    const valid = questions.filter((q) => q.libelle.trim());
-    if (valid.length === 0) {
-      setErreur("Ajoutez au moins une question avant d'enregistrer.");
+    const refus = refusDEnregistrement(questions);
+    if (refus !== null) {
+      setErreur(refus);
       return;
     }
-    // Caught in front of the operator rather than by the member: an empty dropdown
-    // is a question nobody can answer.
-    const sansOptions = valid.find(
-      (q) => q.type === "choix" && (q.options ?? []).filter((o) => o.trim()).length < 2,
-    );
-    if (sansOptions) {
-      setErreur(`La question « ${sansOptions.libelle} » est de type Choix : donnez au moins deux options.`);
-      return;
-    }
+    const valid = questionsRetenues(questions);
     setBusy(true);
     setNote(null);
     setErreur(null);
