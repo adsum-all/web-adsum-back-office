@@ -7,6 +7,11 @@ import { signalerFinDeSession } from "./lib/sessionExpiree.js";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://adsum-api.vercel.app";
 
+// The same root the rest of the application calls. Exported so the help client
+// cannot end up pointing elsewhere: two roots agree in development and diverge
+// the day one environment variable is set and the other is not.
+export const API_BASE = BASE;
+
 export type Role = "admin" | "super_admin" | string;
 
 export interface Session {

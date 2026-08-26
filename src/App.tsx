@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { type Session, getMyPermissions, getMesPreferences, logoutSession } from "./api.js";
+import { BoutonAide, ClientAide } from "@adsum/ui-web";
+
+import { API_BASE, type Session, getMyPermissions, getMesPreferences, logoutSession } from "./api.js";
 import { type RaisonFin, messageFinDeSession, surFinDeSession } from "./lib/sessionExpiree.js";
 import { applyTheme, saveTheme } from "./lib/theme.js";
 import { useMarque } from "./lib/useMarque.js";
@@ -167,6 +169,22 @@ function saveSession(s: Session | null): void {
 export function App(): JSX.Element {
   const [session, setSession] = useState<Session | null>(() => loadSession());
   const [section, setSection] = useState<Section>(() => sectionFromHash() ?? "dashboard");
+
+  // Le jeton passe par une reference plutot que par une fermeture : il change au
+  // renouvellement de session, et un client construit autour de l ancien echouerait
+  // sur chaque appel suivant sans que rien ne le dise.
+  const jetonCourant = useRef<string>("");
+  const aide = useRef(
+    new ClientAide({
+      api: API_BASE,
+      application: "back-office",
+      jeton: () => jetonCourant.current,
+    }),
+  ).current;
+
+  useEffect(() => {
+    jetonCourant.current = session?.token ?? "";
+  }, [session?.token]);
   // Why the last session ended, shown on the sign-in screen so the return is
   // explained. Cleared as soon as somebody signs in again.
   const [finDeSession, setFinDeSession] = useState<RaisonFin | null>(null);
@@ -364,6 +382,10 @@ export function App(): JSX.Element {
             <span className="event-dot" aria-hidden="true" />
             Aucun événement actif
           </span>
+          {/* La cle d ecran est l identifiant de section que l application valide
+              deja, jamais le libelle affiche : une ancre ecrite contre un libelle
+              casse le jour ou il est traduit, et le tiroir s ouvre alors vide. */}
+          <BoutonAide client={aide} cleEcran={`back-office.${activeId}`} />
           <ProfilMenu token={session.token} onLogout={deconnexion} onOpenProfil={() => go("profil")} />
         </header>
         <div className="main-scroll">
